@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from analyze import analyze_reconstructions
+from pdft_benchmarks.analysis import analyze_reconstructions
 
 
 @pytest.fixture

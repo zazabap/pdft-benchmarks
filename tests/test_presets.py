@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from config import (
+from pdft_benchmarks.presets import (
     PRESETS_DIV2K,
     PRESETS_QUICKDRAW,
     Preset,

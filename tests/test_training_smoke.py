@@ -11,14 +11,14 @@ import pytest
 
 import pdft
 
-from config import Preset
-from harness import (
+from pdft_benchmarks.presets import Preset
+from pdft_benchmarks._training import (
     OPTIMIZER_REGISTRY,
     TrainResult,
-    dump_metrics_json,
     train_one_basis,
     train_one_basis_batched,
 )
+from pdft_benchmarks.reporting import dump_metrics_json
 
 
 @pytest.fixture

@@ -35,7 +35,6 @@ import json
 import sys
 from pathlib import Path
 
-import _bootstrap  # noqa: F401  -- adds benchmarks/ to sys.path
 
 import numpy as np
 
@@ -44,14 +43,14 @@ import pdft
 
 import jax.numpy as jnp  # noqa: E402  - imported after pdft per CLAUDE.md §5
 
-from analyze import analyze_reconstructions  # noqa: E402
-from baselines import (  # noqa: E402
+from pdft_benchmarks.analysis import analyze_reconstructions  # noqa: E402
+from pdft_benchmarks.baselines import (  # noqa: E402
     block_dct_compress,
     block_fft_compress,
     global_dct_compress,
     global_fft_compress,
 )
-from data_loading import DEFAULT_DIV2K_ROOT  # noqa: E402
+from pdft_benchmarks.datasets.div2k import DEFAULT_DIV2K_ROOT  # noqa: E402
 
 BASIS_TYPE_MAP = {
     "QFTBasis": pdft.QFTBasis,
