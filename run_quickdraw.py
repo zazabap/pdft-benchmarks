@@ -30,7 +30,7 @@ import numpy as np
 import pdft
 
 from analyze import analyze_reconstructions
-from baselines import (
+from pdft_benchmarks.baselines import (
     block_dct_compress,
     block_fft_compress,
     global_dct_compress,

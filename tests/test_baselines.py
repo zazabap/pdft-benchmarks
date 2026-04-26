@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from baselines import global_dct_compress, global_fft_compress
+from pdft_benchmarks.baselines import global_dct_compress, global_fft_compress
 from scipy.fft import dct, idct  # noqa: F401
 
 
@@ -51,7 +51,7 @@ def test_global_fft_returns_real(img_32):
     assert np.isrealobj(out) or np.allclose(out.imag, 0.0)
 
 
-from baselines import block_dct_compress, block_fft_compress  # noqa: E402
+from pdft_benchmarks.baselines import block_dct_compress, block_fft_compress  # noqa: E402
 
 
 @pytest.fixture
@@ -62,7 +62,7 @@ def img_256():
 
 def test_top_k_mask_selects_largest():
     """Verify the helper picks the k largest by magnitude."""
-    from baselines import _top_k_mask  # private helper, tested for clarity
+    from pdft_benchmarks.baselines import _top_k_mask  # private helper, tested for clarity
 
     magnitudes = np.array([[5.0, 2.0], [3.0, 1.0]])
     mask = _top_k_mask(magnitudes, k=2)

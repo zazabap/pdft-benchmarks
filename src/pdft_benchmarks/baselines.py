@@ -99,3 +99,24 @@ def block_dct_compress(image: np.ndarray, keep_ratio: float, block: int = 8) -> 
     compressed = np.where(mask, freq, 0.0)
     recovered = idct(idct(compressed, axis=-2, norm="ortho"), axis=-1, norm="ortho")
     return _join_blocks(recovered)
+
+
+# ----------------------------------------------------------------------------
+# Public registry: name -> compress(image, keep_ratio) -> recovered ndarray.
+# Used by pdft_benchmarks.pipeline to evaluate baselines side-by-side with
+# trained bases. Adding a new baseline = one entry here.
+# ----------------------------------------------------------------------------
+BASELINE_FACTORIES = {
+    "fft": global_fft_compress,
+    "dct": global_dct_compress,
+    "block_fft_8": lambda img, keep_ratio: block_fft_compress(img, keep_ratio, block=8),
+    "block_dct_8": lambda img, keep_ratio: block_dct_compress(img, keep_ratio, block=8),
+}
+
+__all__ = [
+    "BASELINE_FACTORIES",
+    "block_dct_compress",
+    "block_fft_compress",
+    "global_dct_compress",
+    "global_fft_compress",
+]

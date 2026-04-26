@@ -45,7 +45,7 @@ import pdft
 import jax.numpy as jnp  # noqa: E402  - imported after pdft per CLAUDE.md §5
 
 from analyze import analyze_reconstructions  # noqa: E402
-from baselines import (  # noqa: E402
+from pdft_benchmarks.baselines import (  # noqa: E402
     block_dct_compress,
     block_fft_compress,
     global_dct_compress,
