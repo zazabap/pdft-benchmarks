@@ -10,11 +10,8 @@ longer used by `run_dataset`.
 
 from __future__ import annotations
 
-import json
-import re
 import time
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
@@ -23,11 +20,11 @@ import numpy as np
 # It MUST come before any `import jax` / `import jax.numpy` so that
 # x64 is set before JAX caches its dtype defaults.
 import pdft
-from pdft.io import format_float_julia_like as _format_float_julia_like
 
 import jax  # noqa: E402
 
 from pdft_benchmarks.presets import Preset  # noqa: E402
+from pdft_benchmarks.reporting import dump_metrics_json  # noqa: E402, F401  (re-export for back-compat)
 
 
 OPTIMIZER_REGISTRY: dict[str, Callable[..., Any]] = {
@@ -191,30 +188,5 @@ def train_one_basis(
     )
 
 
-def _julia_float_postprocess(json_text: str) -> str:
-    """Rewrite Python-style scientific floats (5e-07) to Julia-style (5.0e-7).
-
-    Python's `json` module uses `repr(float)` which yields forms like '5e-07'
-    or '1.5e-07'. Julia's JSON3 uses Julia's `string(Float64)` which yields
-    '5.0e-7' / '1.5e-7'. We match Julia's form in-place via regex.
-    """
-    pattern = re.compile(r"([-+]?\d+(?:\.\d+)?)e([-+]?\d+)")
-
-    def fix(match: re.Match) -> str:
-        mantissa = match.group(1)
-        exponent = match.group(2)
-        try:
-            return _format_float_julia_like(float(f"{mantissa}e{exponent}"))
-        except ValueError:
-            return match.group(0)
-
-    return pattern.sub(fix, json_text)
-
-
-def dump_metrics_json(payload: dict, path: Path | str) -> None:
-    """Write metrics.json with Julia-style float formatting in scientific notation."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    text = json.dumps(payload, indent=4, allow_nan=True)
-    text = _julia_float_postprocess(text)
-    path.write_text(text)
+# dump_metrics_json + _julia_float_postprocess moved to
+# pdft_benchmarks.reporting (re-exported above for back-compat).

@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from evaluation import (
+from pdft_benchmarks.evaluation import (
     aggregate_per_keep_ratio,
     compute_metrics,
     evaluate_baseline,
