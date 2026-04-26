@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from generate_report import main as generate_report_main
+from pdft_benchmarks._report import main as generate_report_main
 
 FIXTURE = Path(__file__).parent / "fixtures" / "julia_quickdraw_metrics.json"
 

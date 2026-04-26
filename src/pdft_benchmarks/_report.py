@@ -12,8 +12,8 @@ import sys
 from pathlib import Path
 
 
-from plots.loss_trajectories import plot_loss_trajectories
-from plots.rate_distortion import plot_rate_distortion
+from pdft_benchmarks.plots.loss_trajectories import plot_loss_trajectories
+from pdft_benchmarks.plots.rate_distortion import plot_rate_distortion
 
 logger = logging.getLogger(__name__)
 

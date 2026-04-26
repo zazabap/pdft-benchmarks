@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from generate_report import main as generate_report_main
+from pdft_benchmarks._report import main as generate_report_main
 
 
 @pytest.fixture
