@@ -35,7 +35,6 @@ import json
 import sys
 from pathlib import Path
 
-import _bootstrap  # noqa: F401  -- adds benchmarks/ to sys.path
 
 import numpy as np
 
