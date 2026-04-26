@@ -37,7 +37,7 @@ from baselines import (
     global_fft_compress,
 )
 from pdft_benchmarks.presets import get_preset
-from data_loading import load_quickdraw
+from pdft_benchmarks.datasets.quickdraw import load_quickdraw
 from evaluation import evaluate_baseline, evaluate_basis_shared
 from generate_report import main as generate_report_main
 from harness import dump_metrics_json, train_one_basis_batched

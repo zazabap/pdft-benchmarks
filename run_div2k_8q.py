@@ -12,7 +12,7 @@ import _bootstrap  # noqa: F401
 
 import pdft
 
-from data_loading import load_div2k
+from pdft_benchmarks.datasets.div2k import load_div2k
 from run_quickdraw import _parse_args, run_dataset
 
 DATASET_NAME = "div2k_8q"

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from data_loading import DEFAULT_QUICKDRAW_ROOT
+from pdft_benchmarks.datasets.quickdraw import DEFAULT_QUICKDRAW_ROOT
 
 
 @pytest.mark.integration

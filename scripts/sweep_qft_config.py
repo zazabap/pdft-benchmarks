@@ -20,7 +20,7 @@ import pdft  # noqa: E402  -- sets jax_enable_x64
 import jax.numpy as jnp  # noqa: E402
 from skimage.metrics import peak_signal_noise_ratio  # noqa: E402
 
-from data_loading import load_quickdraw  # noqa: E402
+from pdft_benchmarks.datasets.quickdraw import load_quickdraw  # noqa: E402
 
 CONFIGS = [
     # Name, epochs, batch_size, optimizer, lr_peak, lr_final, warmup_frac, validation_split, max_grad_norm

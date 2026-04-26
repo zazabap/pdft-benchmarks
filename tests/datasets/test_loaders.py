@@ -7,9 +7,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from data_loading import load_div2k, load_quickdraw
+from pdft_benchmarks.datasets.div2k import load_div2k
+from pdft_benchmarks.datasets.quickdraw import load_quickdraw
 
-FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"
 QD_STUB = FIXTURES / "quickdraw_stub"
 DV_STUB = FIXTURES / "div2k_stub"
 

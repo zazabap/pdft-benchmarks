@@ -51,7 +51,7 @@ from baselines import (  # noqa: E402
     global_dct_compress,
     global_fft_compress,
 )
-from data_loading import DEFAULT_DIV2K_ROOT  # noqa: E402
+from pdft_benchmarks.datasets.div2k import DEFAULT_DIV2K_ROOT  # noqa: E402
 
 BASIS_TYPE_MAP = {
     "QFTBasis": pdft.QFTBasis,
