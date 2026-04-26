@@ -34,7 +34,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["plots"]
+packages = ["src/pdft_benchmarks"]
 
 [tool.ruff]
 line-length = 100
@@ -42,4 +42,7 @@ target-version = "py311"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra"
+addopts = "-ra --strict-markers"
+markers = [
+    "integration: GPU/dataset-dependent benchmark tests (deselect with -m 'not integration')",
+]
