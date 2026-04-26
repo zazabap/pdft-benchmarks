@@ -11,7 +11,7 @@ import pytest
 
 import pdft
 
-from config import Preset
+from pdft_benchmarks.presets import Preset
 from harness import (
     OPTIMIZER_REGISTRY,
     TrainResult,

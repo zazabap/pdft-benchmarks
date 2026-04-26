@@ -27,7 +27,7 @@ from pdft.io import format_float_julia_like as _format_float_julia_like
 
 import jax  # noqa: E402
 
-from config import Preset  # noqa: E402
+from pdft_benchmarks.presets import Preset  # noqa: E402
 
 
 OPTIMIZER_REGISTRY: dict[str, Callable[..., Any]] = {

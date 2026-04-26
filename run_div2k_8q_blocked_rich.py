@@ -120,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def run_dataset_with_overrides(args, factories, baselines) -> int:
     """Wrap run_dataset to apply --epochs/--lr-final overrides."""
-    from config import _DATASETS, get_preset as _orig_get_preset
+    from pdft_benchmarks.presets import _DATASETS, get_preset as _orig_get_preset
 
     original = _orig_get_preset(DATASET_NAME, args.preset)
     overrides = {}
