@@ -168,3 +168,94 @@ def test_build_manifest_includes_psnr_summary(tmp_path):
     skipped = next(c for c in manifest["cells"] if c["id"] == "div2k_10q__mera")
     assert "metrics_summary" not in skipped
     assert skipped["skip_reason"].startswith("incompatible_qubits")
+
+
+import pytest
+from pdft_benchmarks._manifest import validate_manifest, ManifestValidationError
+
+
+def _populate_required_files(cell_dir: Path):
+    (cell_dir / "env.json").write_text("{}")
+    for fname in ("rate_distortion_mse.csv", "rate_distortion_psnr.csv",
+                  "rate_distortion_ssim.csv", "timing_summary.csv"):
+        (cell_dir / fname).write_text("basis,keep_ratio,mean,std\n")
+    (cell_dir / "loss_history").mkdir(exist_ok=True)
+
+
+def test_validate_passes_on_well_formed_tree(tmp_path):
+    pub = tmp_path / "published"
+    pub.mkdir()
+    for ds in ("div2k_8q", "div2k_10q", "quickdraw"):
+        for b in ("qft", "entangled_qft", "tebd", "blocked", "rich", "real_rich"):
+            _write_active_cell(pub, ds, b, 27.0)
+            _populate_required_files(pub / f"{ds}__{b}")
+    _write_active_cell(pub, "div2k_8q", "mera", 27.0)
+    _populate_required_files(pub / "div2k_8q__mera")
+    _write_skipped_cell_helper(pub, "div2k_10q", "mera", 10, 10)
+    _write_skipped_cell_helper(pub, "quickdraw", "mera", 5, 5)
+
+    manifest = build_manifest(pub, git_sha="abc", pdft_version="0.2.1")
+    (pub / "MANIFEST.json").write_text(json.dumps(manifest))
+
+    validate_manifest(pub)
+
+
+def test_validate_fails_when_active_cell_missing_required_file(tmp_path):
+    pub = tmp_path / "published"
+    pub.mkdir()
+    _write_active_cell(pub, "div2k_8q", "qft", 27.0)
+    # Intentionally do NOT call _populate_required_files
+    manifest = {
+        "schema_version": "1.0",
+        "datasets": DATASETS, "bases": BASES,
+        "classical_baselines": CLASSICAL_BASELINES,
+        "cells": [{"id": "div2k_8q__qft", "dataset": "div2k_8q",
+                    "basis": "qft", "status": "active",
+                    "path": "div2k_8q__qft/", "preset": "generalized",
+                    "config": {"epochs": 60, "n_train": 500, "n_test": 100,
+                               "lr_peak": 0.3, "batch_size": 8, "seed": 0},
+                    "metrics_summary": {"psnr_at_keep_0.1": 28.0,
+                                         "psnr_at_keep_0.05": 27.0,
+                                         "psnr_at_keep_0.15": 29.0,
+                                         "psnr_at_keep_0.2": 30.0,
+                                         "train_time_s": 50.0}}],
+        "git_sha": "abc", "pdft_version": "0.2.1", "generated_at": "x",
+    }
+    (pub / "MANIFEST.json").write_text(json.dumps(manifest))
+
+    with pytest.raises(ManifestValidationError, match="missing required file"):
+        validate_manifest(pub)
+
+
+def test_validate_fails_on_skipped_cell_with_extra_files(tmp_path):
+    pub = tmp_path / "published"
+    pub.mkdir()
+    _write_skipped_cell_helper(pub, "div2k_10q", "mera", 10, 10)
+    (pub / "div2k_10q__mera" / "stowaway.json").write_text("{}")
+    manifest = {
+        "schema_version": "1.0",
+        "datasets": DATASETS, "bases": BASES,
+        "classical_baselines": CLASSICAL_BASELINES,
+        "cells": [{"id": "div2k_10q__mera", "dataset": "div2k_10q",
+                    "basis": "mera", "status": "skipped",
+                    "path": "div2k_10q__mera/",
+                    "skip_reason": "incompatible_qubits: m+n=20 is not a power of 2"}],
+        "git_sha": "abc", "pdft_version": "0.2.1", "generated_at": "x",
+    }
+    (pub / "MANIFEST.json").write_text(json.dumps(manifest))
+    with pytest.raises(ManifestValidationError, match="extra files in skipped cell"):
+        validate_manifest(pub)
+
+
+def test_validate_fails_when_metrics_summary_disagrees(tmp_path):
+    pub = tmp_path / "published"
+    pub.mkdir()
+    _write_active_cell(pub, "div2k_8q", "qft", 27.0)
+    _populate_required_files(pub / "div2k_8q__qft")
+    manifest = build_manifest(pub, git_sha="x", pdft_version="0.2.1")
+    for c in manifest["cells"]:
+        if c["id"] == "div2k_8q__qft":
+            c["metrics_summary"]["psnr_at_keep_0.1"] = 99.0
+    (pub / "MANIFEST.json").write_text(json.dumps(manifest))
+    with pytest.raises(ManifestValidationError, match="metrics_summary mismatch"):
+        validate_manifest(pub)

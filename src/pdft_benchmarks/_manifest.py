@@ -142,3 +142,60 @@ def build_manifest(
         "classical_baselines": CLASSICAL_BASELINES,
         "cells": cells,
     }
+
+
+class ManifestValidationError(Exception):
+    """Raised when on-disk results/published/ disagrees with MANIFEST.json."""
+
+
+_REQUIRED_ACTIVE_FILES = (
+    "metrics.json", "env.json", "config.json",
+    "rate_distortion_mse.csv",
+    "rate_distortion_psnr.csv",
+    "rate_distortion_ssim.csv",
+    "timing_summary.csv",
+)
+
+
+def _summary_close(a: float, b: float, *, rel_tol: float = 1e-6, abs_tol: float = 1e-9) -> bool:
+    if math.isnan(a) and math.isnan(b):
+        return True
+    return math.isclose(a, b, rel_tol=rel_tol, abs_tol=abs_tol)
+
+
+def validate_manifest(published_root: Path) -> None:
+    """Validate `published_root/MANIFEST.json` against on-disk cell tree.
+
+    Raises ManifestValidationError on any discrepancy. Returns None on success.
+    """
+    manifest_path = published_root / "MANIFEST.json"
+    if not manifest_path.is_file():
+        raise ManifestValidationError(f"MANIFEST.json not found at {manifest_path}")
+    manifest = json.loads(manifest_path.read_text())
+
+    for cell in manifest["cells"]:
+        cell_dir = published_root / cell["path"].rstrip("/")
+        if not cell_dir.is_dir():
+            raise ManifestValidationError(
+                f"cell directory missing: {cell_dir} (claimed by MANIFEST id={cell['id']})"
+            )
+        if cell["status"] == "skipped":
+            files = sorted(p.name for p in cell_dir.iterdir())
+            if files != ["SKIPPED.json"]:
+                raise ManifestValidationError(
+                    f"extra files in skipped cell {cell['id']}: {files}"
+                )
+            continue
+        for fname in _REQUIRED_ACTIVE_FILES:
+            if not (cell_dir / fname).is_file():
+                raise ManifestValidationError(
+                    f"missing required file in {cell['id']}: {fname}"
+                )
+        on_disk_metrics = json.loads((cell_dir / "metrics.json").read_text())
+        recomputed = summarize_metrics(on_disk_metrics, basis_key=cell["basis"])
+        for k, v in cell["metrics_summary"].items():
+            if not _summary_close(float(v), float(recomputed[k])):
+                raise ManifestValidationError(
+                    f"metrics_summary mismatch in {cell['id']}.{k}: "
+                    f"manifest={v} on-disk={recomputed[k]}"
+                )
