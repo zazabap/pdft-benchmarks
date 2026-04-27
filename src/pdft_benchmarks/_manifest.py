@@ -43,3 +43,30 @@ MERA_INCOMPATIBLE_DATASETS = {
     if not (((row["m"] + row["n"]) & (row["m"] + row["n"] - 1)) == 0
             and (row["m"] + row["n"]) > 0)
 }
+
+
+import math
+
+
+KEEP_RATIOS_REPORTED = ("0.05", "0.1", "0.15", "0.2")
+
+
+def summarize_metrics(cell_metrics: dict, *, basis_key: str) -> dict:
+    """Build the `metrics_summary` block for one MANIFEST cell entry.
+
+    Reports PSNR at each of the standard keep ratios + train_time_s.
+    Missing keep ratios produce NaN (not an error: some ablations don't
+    cover all keep ratios).
+    """
+    if basis_key not in cell_metrics:
+        raise KeyError(f"basis {basis_key!r} not in metrics")
+    block = cell_metrics[basis_key]
+    summary: dict = {}
+    metrics_by_kr = block.get("metrics", {})
+    for kr in KEEP_RATIOS_REPORTED:
+        if kr in metrics_by_kr:
+            summary[f"psnr_at_keep_{kr}"] = float(metrics_by_kr[kr]["mean_psnr"])
+        else:
+            summary[f"psnr_at_keep_{kr}"] = math.nan
+    summary["train_time_s"] = float(block.get("time", math.nan))
+    return summary
