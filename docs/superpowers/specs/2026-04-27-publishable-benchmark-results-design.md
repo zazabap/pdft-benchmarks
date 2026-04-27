@@ -208,8 +208,10 @@ Only `SKIPPED.json`:
 - `data_hash` = sha256 of a deterministic concatenation of the input
   images (post-seeded sampling for train + test). Catches "same code,
   different data" silent drift.
-- A validator script (`scripts/validate_manifest.py`) runs in CI and
-  fails the build if MANIFEST drifts from disk.
+- A validator script (`scripts/validate_manifest.py`) runs at validation
+  time (no CI is configured in this repo today; for now invoke manually
+  before commit, and wire into CI as a follow-up) and exits non-zero if
+  MANIFEST drifts from disk.
 
 ## Ablations curation
 
@@ -237,10 +239,10 @@ question, what varied, what was fixed, headline finding, control cell).
 - `div2k_8q_generalized_combined/` — mid-pipeline analysis artifact.
 - All stale `.log` files at `results/` root.
 
-## Run plan for the 12 missing cells
+## Run plan for the 11 missing cells
 
-10 fresh training runs needed (3 new on 10q + 7 new on quickdraw); 2 are
-SKIPPED placeholder dirs.
+9 fresh basis trainings needed (3 new on 10q + 6 new on quickdraw); 2 are
+SKIPPED placeholder dirs (no training, just `SKIPPED.json`).
 
 ### Existing (10 active cells already trained — extracted from `_archive/`)
 
@@ -257,7 +259,7 @@ SKIPPED placeholder dirs.
 | `div2k_10q__entangled_qft` | `div2k_10q_generalized_20260426-055335_gpu0_bs2`                         | `entangled_qft`   |
 | `div2k_10q__tebd`          | `div2k_10q_generalized_20260426-055335_gpu1_bs2`                         | `tebd`            |
 
-### New runs (10 cells)
+### New runs (9 active cells)
 
 | Cell                           | Run command                                  |
 |--------------------------------|----------------------------------------------|
@@ -297,14 +299,14 @@ SKIPPED placeholder dirs.
 
 ## Cleanup procedure
 
-Step-by-step, performed **after** the 10 new runs land:
+Step-by-step, performed **after** the 9 new basis trainings land:
 
 1. **Create new layout dirs.**
    `mkdir -p results/{published,ablations/{rich_init,stacked_depth,batch_size,learned_vs_dct_block},_archive}`
 
 2. **Populate `results/published/`** via `scripts/extract_canonical_cells.py`.
-   The helper takes the extraction table (10 existing + 10 new + 2
-   skipped) and for each entry:
+   The helper takes the extraction table (10 existing + 9 new active + 2
+   skipped = 21 total) and for each entry:
    1. Filters `metrics.json` to `{<basis_key>, fft, dct, block_fft_8, block_dct_8}`.
    2. Renames the basis key from the source-run flavor (`blocked_qft` →
       `blocked`, `blocked_rich` → `rich`, `blocked_real` → `real_rich`,
@@ -331,8 +333,8 @@ Step-by-step, performed **after** the 10 new runs land:
 6. **Commit in 4 logical chunks** (in order):
    1. `feat(results): introduce results/published/ canonical layout` — extraction script + MANIFEST + per-cell files for the 10 existing cells.
    2. `feat(experiments): add div2k_10q_block.py + expand quickdraw.py to 7 bases` — script-only.
-   3. `data(results): add 10 fresh training runs (10q block + quickdraw)` — raw outputs land in `_archive/`.
-   4. `feat(results): finalize publication — extract 10 new cells, populate ablations/, archive sources, add README + MANIFEST`.
+   3. `data(results): add 9 fresh training runs (10q block + quickdraw)` — raw outputs land in `_archive/`.
+   4. `feat(results): finalize publication — extract 11 new cells (9 active + 2 skipped), populate ablations/, archive sources, add README + MANIFEST`.
 
 **Disk budget:** `_archive/` ≈ 350 MB + `published/` ≈ 250 MB +
 `ablations/` ≈ 100 MB ≈ **700 MB total**. Acceptable. If size pressure
@@ -353,7 +355,8 @@ Top-level sections:
 2. The matrix at a glance (the ✓/skipped table above).
 3. **Headline numbers** table: PSNR @ keep ratio 0.10 dB, populated from
    `MANIFEST.json` `metrics_summary` by
-   `scripts/render_published_readme.py`. CI fails if this table drifts.
+   `scripts/render_published_readme.py`. The validator (run manually
+   pre-commit; CI wiring is future work) fails if this table drifts.
 4. What's in each cell (the per-cell file list).
 5. Reproducing instructions: pdft version pin + git sha + commands.
 6. Directory map.
@@ -368,7 +371,8 @@ To be added under `scripts/`:
   extraction table.
 - `validate_manifest.py` — validates `MANIFEST.json` against the on-disk
   cell tree (required-files check, metrics_summary cross-check,
-  source_run existence). Runs in CI.
+  source_run existence). Run manually pre-commit; CI integration is
+  logged as future work.
 - `render_published_readme.py` — regenerates the headline-numbers table
   in `results/published/README.md` from `MANIFEST.json`. Idempotent.
 - `run_canonical.sh` — convenience: runs both `experiments/div2k_*` +
