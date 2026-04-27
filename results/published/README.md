@@ -31,7 +31,11 @@ QuickDraw images). Tracked as future work; cells contain only `SKIPPED.json`.
 ## Headline numbers (PSNR @ keep ratio 0.10, dB)
 
 <!-- BEGIN HEADLINE NUMBERS (auto-generated; do not edit) -->
-(populated by scripts/render_published_readme.py)
+| | qft | entangled_qft | tebd | mera | blocked | rich | real_rich |
+|---|---|---|---|---|---|---|---|
+| **div2k_8q** | 27.30 | 27.53 | 27.56 | 27.56 | 28.09 | 29.16 | 29.18 |
+| **div2k_10q** | 31.19 | 31.41 | 31.41 | — | — | — | — |
+| **quickdraw** | 19.58 | 19.58 | 19.40 | — | — | — | — |
 <!-- END HEADLINE NUMBERS -->
 
 ## What's in each cell

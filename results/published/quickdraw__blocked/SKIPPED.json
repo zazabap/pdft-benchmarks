@@ -1,0 +1,7 @@
+{
+  "reason": "block_factory_odd_m_unsupported",
+  "m": 5,
+  "n": 5,
+  "basis": "blocked",
+  "constraint": "outer m must be even (registry _blocked uses m//2 for both halves)"
+}

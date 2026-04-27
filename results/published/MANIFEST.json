@@ -1,0 +1,416 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-04-27T06:20:51.471699+00:00",
+  "git_sha": "868b8890b8b47f8a40597bb745a6c6add2fb4a98",
+  "pdft_version": "0.2.1",
+  "datasets": {
+    "div2k_8q": {
+      "m": 8,
+      "n": 8,
+      "image_size": [
+        256,
+        256
+      ],
+      "n_train": 500,
+      "n_test": 100
+    },
+    "div2k_10q": {
+      "m": 10,
+      "n": 10,
+      "image_size": [
+        1024,
+        1024
+      ],
+      "n_train": 500,
+      "n_test": 50
+    },
+    "quickdraw": {
+      "m": 5,
+      "n": 5,
+      "image_size": [
+        32,
+        32
+      ],
+      "n_train": 500,
+      "n_test": 100
+    }
+  },
+  "bases": {
+    "qft": {
+      "family": "circuit",
+      "factory": "pdft.QFTBasis"
+    },
+    "entangled_qft": {
+      "family": "circuit",
+      "factory": "pdft.EntangledQFTBasis"
+    },
+    "tebd": {
+      "family": "circuit",
+      "factory": "pdft.TEBDBasis"
+    },
+    "mera": {
+      "family": "circuit",
+      "factory": "pdft.MERABasis",
+      "constraint": "m+n must be power of 2"
+    },
+    "blocked": {
+      "family": "block",
+      "factory": "pdft.BlockedBasis(inner=QFTBasis, m_inner=m/2, block_log=m/2)"
+    },
+    "rich": {
+      "family": "block",
+      "factory": "pdft.BlockedBasis(inner=RichBasis, m_inner=m/2, block_log=m/2)"
+    },
+    "real_rich": {
+      "family": "block",
+      "factory": "pdft.BlockedBasis(inner=RealRichBasis, m_inner=m/2, block_log=m/2)"
+    }
+  },
+  "classical_baselines": [
+    "fft",
+    "dct",
+    "block_fft_8",
+    "block_dct_8"
+  ],
+  "cells": [
+    {
+      "id": "div2k_8q__qft",
+      "dataset": "div2k_8q",
+      "basis": "qft",
+      "status": "active",
+      "path": "div2k_8q__qft/",
+      "preset": "generalized",
+      "config": {
+        "epochs": 60,
+        "n_train": 500,
+        "n_test": 50,
+        "lr_peak": 0.003,
+        "batch_size": 50,
+        "seed": 42
+      },
+      "metrics_summary": {
+        "psnr_at_keep_0.05": 24.912312689820922,
+        "psnr_at_keep_0.1": 27.304217665465085,
+        "psnr_at_keep_0.15": 29.20082249703394,
+        "psnr_at_keep_0.2": 30.906273644758716,
+        "train_time_s": 201.1537783332169
+      }
+    },
+    {
+      "id": "div2k_8q__entangled_qft",
+      "dataset": "div2k_8q",
+      "basis": "entangled_qft",
+      "status": "active",
+      "path": "div2k_8q__entangled_qft/",
+      "preset": "generalized",
+      "config": {
+        "epochs": 60,
+        "n_train": 500,
+        "n_test": 50,
+        "lr_peak": 0.003,
+        "batch_size": 50,
+        "seed": 42
+      },
+      "metrics_summary": {
+        "psnr_at_keep_0.05": 25.067715210630993,
+        "psnr_at_keep_0.1": 27.533844075369903,
+        "psnr_at_keep_0.15": 29.482265299926297,
+        "psnr_at_keep_0.2": 31.230635863243577,
+        "train_time_s": 320.00719655677676
+      }
+    },
+    {
+      "id": "div2k_8q__tebd",
+      "dataset": "div2k_8q",
+      "basis": "tebd",
+      "status": "active",
+      "path": "div2k_8q__tebd/",
+      "preset": "generalized",
+      "config": {
+        "epochs": 60,
+        "n_train": 500,
+        "n_test": 50,
+        "lr_peak": 0.003,
+        "batch_size": 50,
+        "seed": 42
+      },
+      "metrics_summary": {
+        "psnr_at_keep_0.05": 25.088483759127254,
+        "psnr_at_keep_0.1": 27.56336590389208,
+        "psnr_at_keep_0.15": 29.52025802347453,
+        "psnr_at_keep_0.2": 31.277797191125323,
+        "train_time_s": 283.2095369659364
+      }
+    },
+    {
+      "id": "div2k_8q__mera",
+      "dataset": "div2k_8q",
+      "basis": "mera",
+      "status": "active",
+      "path": "div2k_8q__mera/",
+      "preset": "generalized",
+      "config": {
+        "epochs": 60,
+        "n_train": 500,
+        "n_test": 50,
+        "lr_peak": 0.003,
+        "batch_size": 50,
+        "seed": 42
+      },
+      "metrics_summary": {
+        "psnr_at_keep_0.05": 25.088483759117235,
+        "psnr_at_keep_0.1": 27.563365903839056,
+        "psnr_at_keep_0.15": 29.520258023350117,
+        "psnr_at_keep_0.2": 31.277797190972095,
+        "train_time_s": 300.68441295903176
+      }
+    },
+    {
+      "id": "div2k_8q__blocked",
+      "dataset": "div2k_8q",
+      "basis": "blocked",
+      "status": "active",
+      "path": "div2k_8q__blocked/",
+      "preset": "generalized",
+      "config": {
+        "epochs": 60,
+        "n_train": 500,
+        "n_test": 50,
+        "lr_peak": 0.003,
+        "batch_size": 50,
+        "seed": 42
+      },
+      "metrics_summary": {
+        "psnr_at_keep_0.05": 25.18476330016404,
+        "psnr_at_keep_0.1": 28.085965541771753,
+        "psnr_at_keep_0.15": 30.29645504327691,
+        "psnr_at_keep_0.2": 32.26011645352632,
+        "train_time_s": 69.50103583186865
+      }
+    },
+    {
+      "id": "div2k_8q__rich",
+      "dataset": "div2k_8q",
+      "basis": "rich",
+      "status": "active",
+      "path": "div2k_8q__rich/",
+      "preset": "generalized",
+      "config": {
+        "epochs": 60,
+        "n_train": 500,
+        "n_test": 50,
+        "lr_peak": 0.003,
+        "batch_size": 50,
+        "seed": 42
+      },
+      "metrics_summary": {
+        "psnr_at_keep_0.05": 25.965012804399088,
+        "psnr_at_keep_0.1": 29.1613046687901,
+        "psnr_at_keep_0.15": 31.552695848686334,
+        "psnr_at_keep_0.2": 33.64885568974797,
+        "train_time_s": 97.03923173900694
+      }
+    },
+    {
+      "id": "div2k_8q__real_rich",
+      "dataset": "div2k_8q",
+      "basis": "real_rich",
+      "status": "active",
+      "path": "div2k_8q__real_rich/",
+      "preset": "generalized",
+      "config": {
+        "epochs": 200,
+        "n_train": 500,
+        "n_test": 50,
+        "lr_peak": 0.003,
+        "batch_size": 50,
+        "seed": 42
+      },
+      "metrics_summary": {
+        "psnr_at_keep_0.05": 25.97103749383297,
+        "psnr_at_keep_0.1": 29.180907864010624,
+        "psnr_at_keep_0.15": 31.586400638442715,
+        "psnr_at_keep_0.2": 33.69681244748283,
+        "train_time_s": 154.85598357394338
+      }
+    },
+    {
+      "id": "div2k_10q__qft",
+      "dataset": "div2k_10q",
+      "basis": "qft",
+      "status": "active",
+      "path": "div2k_10q__qft/",
+      "preset": "generalized",
+      "config": {
+        "epochs": 60,
+        "n_train": 500,
+        "n_test": 50,
+        "lr_peak": 0.003,
+        "batch_size": 2,
+        "seed": 42
+      },
+      "metrics_summary": {
+        "psnr_at_keep_0.05": 28.39990266444278,
+        "psnr_at_keep_0.1": 31.186386273539757,
+        "psnr_at_keep_0.15": 33.38751543584736,
+        "psnr_at_keep_0.2": 35.35303313223138,
+        "train_time_s": 4858.272122871131
+      }
+    },
+    {
+      "id": "div2k_10q__entangled_qft",
+      "dataset": "div2k_10q",
+      "basis": "entangled_qft",
+      "status": "active",
+      "path": "div2k_10q__entangled_qft/",
+      "preset": "generalized",
+      "config": {
+        "epochs": 60,
+        "n_train": 500,
+        "n_test": 50,
+        "lr_peak": 0.003,
+        "batch_size": 2,
+        "seed": 42
+      },
+      "metrics_summary": {
+        "psnr_at_keep_0.05": 28.546383683612344,
+        "psnr_at_keep_0.1": 31.406985640718148,
+        "psnr_at_keep_0.15": 33.661456304856074,
+        "psnr_at_keep_0.2": 35.669766934210955,
+        "train_time_s": 2446.1871565710753
+      }
+    },
+    {
+      "id": "div2k_10q__tebd",
+      "dataset": "div2k_10q",
+      "basis": "tebd",
+      "status": "active",
+      "path": "div2k_10q__tebd/",
+      "preset": "generalized",
+      "config": {
+        "epochs": 60,
+        "n_train": 500,
+        "n_test": 50,
+        "lr_peak": 0.003,
+        "batch_size": 2,
+        "seed": 42
+      },
+      "metrics_summary": {
+        "psnr_at_keep_0.05": 28.54528528271507,
+        "psnr_at_keep_0.1": 31.405358207697624,
+        "psnr_at_keep_0.15": 33.65939323820821,
+        "psnr_at_keep_0.2": 35.66724420512768,
+        "train_time_s": 1850.532932442613
+      }
+    },
+    {
+      "id": "div2k_10q__mera",
+      "dataset": "div2k_10q",
+      "basis": "mera",
+      "status": "skipped",
+      "path": "div2k_10q__mera/",
+      "skip_reason": "incompatible_qubits: m+n=20 is not a power of 2"
+    },
+    {
+      "id": "quickdraw__qft",
+      "dataset": "quickdraw",
+      "basis": "qft",
+      "status": "active",
+      "path": "quickdraw__qft/",
+      "preset": "generalized",
+      "config": {
+        "epochs": 60,
+        "n_train": 500,
+        "n_test": 50,
+        "lr_peak": 0.003,
+        "batch_size": 50,
+        "seed": 42
+      },
+      "metrics_summary": {
+        "psnr_at_keep_0.05": 16.71951954972558,
+        "psnr_at_keep_0.1": 19.580332229652953,
+        "psnr_at_keep_0.15": 22.05666570403238,
+        "psnr_at_keep_0.2": 24.3501729534746,
+        "train_time_s": 11.276387582533062
+      }
+    },
+    {
+      "id": "quickdraw__entangled_qft",
+      "dataset": "quickdraw",
+      "basis": "entangled_qft",
+      "status": "active",
+      "path": "quickdraw__entangled_qft/",
+      "preset": "generalized",
+      "config": {
+        "epochs": 60,
+        "n_train": 500,
+        "n_test": 50,
+        "lr_peak": 0.003,
+        "batch_size": 50,
+        "seed": 42
+      },
+      "metrics_summary": {
+        "psnr_at_keep_0.05": 16.71723637946462,
+        "psnr_at_keep_0.1": 19.57784452634248,
+        "psnr_at_keep_0.15": 22.049153725515307,
+        "psnr_at_keep_0.2": 24.353309704311922,
+        "train_time_s": 12.031797582283616
+      }
+    },
+    {
+      "id": "quickdraw__tebd",
+      "dataset": "quickdraw",
+      "basis": "tebd",
+      "status": "active",
+      "path": "quickdraw__tebd/",
+      "preset": "generalized",
+      "config": {
+        "epochs": 60,
+        "n_train": 500,
+        "n_test": 50,
+        "lr_peak": 0.003,
+        "batch_size": 50,
+        "seed": 42
+      },
+      "metrics_summary": {
+        "psnr_at_keep_0.05": 16.63589724013454,
+        "psnr_at_keep_0.1": 19.403785273809874,
+        "psnr_at_keep_0.15": 21.790475861035034,
+        "psnr_at_keep_0.2": 24.008852875292206,
+        "train_time_s": 11.565551154315472
+      }
+    },
+    {
+      "id": "quickdraw__mera",
+      "dataset": "quickdraw",
+      "basis": "mera",
+      "status": "skipped",
+      "path": "quickdraw__mera/",
+      "skip_reason": "incompatible_qubits: m+n=10 is not a power of 2"
+    },
+    {
+      "id": "quickdraw__blocked",
+      "dataset": "quickdraw",
+      "basis": "blocked",
+      "status": "skipped",
+      "path": "quickdraw__blocked/",
+      "skip_reason": "block_factory_odd_m_unsupported: outer m=5 is odd; the _blocked helper's m//2 split loses a qubit"
+    },
+    {
+      "id": "quickdraw__rich",
+      "dataset": "quickdraw",
+      "basis": "rich",
+      "status": "skipped",
+      "path": "quickdraw__rich/",
+      "skip_reason": "block_factory_odd_m_unsupported: outer m=5 is odd; the _blocked helper's m//2 split loses a qubit"
+    },
+    {
+      "id": "quickdraw__real_rich",
+      "dataset": "quickdraw",
+      "basis": "real_rich",
+      "status": "skipped",
+      "path": "quickdraw__real_rich/",
+      "skip_reason": "block_factory_odd_m_unsupported: outer m=5 is odd; the _blocked helper's m//2 split loses a qubit"
+    }
+  ]
+}

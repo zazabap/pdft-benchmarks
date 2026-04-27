@@ -1,0 +1,7 @@
+{
+  "reason": "incompatible_qubits",
+  "m": 10,
+  "n": 10,
+  "basis": "mera",
+  "constraint": "m+n must be a power of 2"
+}
