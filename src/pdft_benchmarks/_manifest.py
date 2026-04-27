@@ -70,3 +70,75 @@ def summarize_metrics(cell_metrics: dict, *, basis_key: str) -> dict:
             summary[f"psnr_at_keep_{kr}"] = math.nan
     summary["train_time_s"] = float(block.get("time", math.nan))
     return summary
+
+
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+def build_manifest(
+    published_root: Path,
+    *,
+    git_sha: str,
+    pdft_version: str,
+    generated_at: str | None = None,
+) -> dict:
+    """Walk results/published/<dataset>__<basis>/ and produce a full MANIFEST dict."""
+    if generated_at is None:
+        generated_at = datetime.now(timezone.utc).isoformat()
+
+    cells: list[dict] = []
+    for dataset in DATASETS:
+        for basis in BASES:
+            cell_id = f"{dataset}__{basis}"
+            cell_dir = published_root / cell_id
+            if not cell_dir.is_dir():
+                # Tolerate missing cells during incremental builds; the
+                # validator is the strict checker.
+                continue
+            skipped_path = cell_dir / "SKIPPED.json"
+            if skipped_path.is_file():
+                payload = json.loads(skipped_path.read_text())
+                cells.append({
+                    "id": cell_id,
+                    "dataset": dataset,
+                    "basis": basis,
+                    "status": "skipped",
+                    "path": f"{cell_id}/",
+                    "skip_reason": (
+                        f"{payload['reason']}: m+n={payload['m']+payload['n']} "
+                        f"is not a power of 2"
+                    ),
+                })
+                continue
+            metrics = json.loads((cell_dir / "metrics.json").read_text())
+            config = json.loads((cell_dir / "config.json").read_text())
+            cells.append({
+                "id": cell_id,
+                "dataset": dataset,
+                "basis": basis,
+                "status": "active",
+                "path": f"{cell_id}/",
+                "preset": config.get("preset", "unknown"),
+                "config": {
+                    "epochs":     config["epochs"],
+                    "n_train":    config["n_train"],
+                    "n_test":     config["n_test"],
+                    "lr_peak":    config["lr_peak"],
+                    "batch_size": config["batch_size"],
+                    "seed":       config["seed"],
+                },
+                "metrics_summary": summarize_metrics(metrics, basis_key=basis),
+            })
+
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "generated_at": generated_at,
+        "git_sha": git_sha,
+        "pdft_version": pdft_version,
+        "datasets": DATASETS,
+        "bases": BASES,
+        "classical_baselines": CLASSICAL_BASELINES,
+        "cells": cells,
+    }

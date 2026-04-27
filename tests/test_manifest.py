@@ -87,3 +87,84 @@ def test_summarize_raises_if_basis_missing():
     metrics = {"fft": {"metrics": {}, "time": 0.0}}
     with pytest.raises(KeyError, match="basis 'qft' not in metrics"):
         summarize_metrics(metrics, basis_key="qft")
+
+
+import json
+from pathlib import Path
+
+from pdft_benchmarks._manifest import build_manifest
+
+
+def _write_active_cell(root: Path, dataset: str, basis: str, psnr_at_0_1: float):
+    cell = root / f"{dataset}__{basis}"
+    cell.mkdir(parents=True)
+    (cell / "metrics.json").write_text(json.dumps({
+        basis: {"metrics": {kr: {"mean_psnr": psnr_at_0_1 + i,
+                                  "std_psnr": 0.0, "mean_mse": 0.0,
+                                  "std_mse": 0.0, "mean_ssim": 0.5,
+                                  "std_ssim": 0.0, "nan_count": 0}
+                            for i, kr in enumerate(["0.05", "0.1", "0.15", "0.2"])},
+                "time": 50.0,
+                "_pdft_py": {"warmup_s": 5.0, "device": "cuda:0",
+                             "epochs_completed": 60, "steps": 600,
+                             "n_test": 50,
+                             "eval_failed_count": {kr: 0 for kr in ["0.05", "0.1", "0.15", "0.2"]}}},
+        "fft": {"metrics": {}, "time": 0.0},
+    }))
+    (cell / "config.json").write_text(json.dumps({"epochs": 60, "n_train": 500, "n_test": 50,
+                                                   "lr_peak": 0.3, "batch_size": 8, "seed": 0,
+                                                   "preset": "generalized"}))
+
+
+def _write_skipped_cell_helper(root: Path, dataset: str, basis: str, m: int, n: int):
+    cell = root / f"{dataset}__{basis}"
+    cell.mkdir(parents=True)
+    (cell / "SKIPPED.json").write_text(json.dumps({
+        "reason": "incompatible_qubits", "m": m, "n": n, "basis": basis,
+        "constraint": "m+n must be a power of 2",
+    }))
+
+
+def test_build_manifest_produces_21_cells(tmp_path):
+    pub = tmp_path / "published"
+    pub.mkdir()
+    for ds in ("div2k_8q", "div2k_10q", "quickdraw"):
+        for b in ("qft", "entangled_qft", "tebd", "blocked", "rich", "real_rich"):
+            _write_active_cell(pub, ds, b, 27.0)
+    _write_active_cell(pub, "div2k_8q", "mera", 27.0)
+    _write_skipped_cell_helper(pub, "div2k_10q", "mera", 10, 10)
+    _write_skipped_cell_helper(pub, "quickdraw", "mera", 5, 5)
+
+    manifest = build_manifest(pub, git_sha="deadbeef", pdft_version="0.2.1")
+    assert len(manifest["cells"]) == 21
+    statuses = [c["status"] for c in manifest["cells"]]
+    assert statuses.count("active") == 19
+    assert statuses.count("skipped") == 2
+    assert manifest["schema_version"] == "1.0"
+    assert manifest["pdft_version"] == "0.2.1"
+    assert manifest["git_sha"] == "deadbeef"
+
+
+def test_build_manifest_includes_psnr_summary(tmp_path):
+    pub = tmp_path / "published"
+    pub.mkdir()
+    _write_active_cell(pub, "div2k_8q", "qft", 27.0)
+    _write_active_cell(pub, "div2k_8q", "entangled_qft", 28.0)
+    _write_active_cell(pub, "div2k_8q", "tebd", 28.0)
+    _write_active_cell(pub, "div2k_8q", "mera", 28.0)
+    _write_active_cell(pub, "div2k_8q", "blocked", 28.0)
+    _write_active_cell(pub, "div2k_8q", "rich", 28.0)
+    _write_active_cell(pub, "div2k_8q", "real_rich", 28.0)
+    _write_skipped_cell_helper(pub, "div2k_10q", "mera", 10, 10)
+    for b in ("qft", "entangled_qft", "tebd", "blocked", "rich", "real_rich"):
+        _write_active_cell(pub, "div2k_10q", b, 25.0)
+    _write_skipped_cell_helper(pub, "quickdraw", "mera", 5, 5)
+    for b in ("qft", "entangled_qft", "tebd", "blocked", "rich", "real_rich"):
+        _write_active_cell(pub, "quickdraw", b, 22.0)
+
+    manifest = build_manifest(pub, git_sha="abc", pdft_version="0.2.1")
+    qft_cell = next(c for c in manifest["cells"] if c["id"] == "div2k_8q__qft")
+    assert qft_cell["metrics_summary"]["psnr_at_keep_0.1"] == 28.0  # 27.0 + i=1
+    skipped = next(c for c in manifest["cells"] if c["id"] == "div2k_10q__mera")
+    assert "metrics_summary" not in skipped
+    assert skipped["skip_reason"].startswith("incompatible_qubits")
