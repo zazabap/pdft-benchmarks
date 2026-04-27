@@ -31,3 +31,25 @@ def rename_basis_key(source_key: str) -> str:
     if source_key not in SOURCE_TO_REGISTRY:
         raise KeyError(f"unknown source basis key {source_key!r}")
     return SOURCE_TO_REGISTRY[source_key]
+
+
+CLASSICAL_BASELINES: tuple[str, ...] = ("fft", "dct", "block_fft_8", "block_dct_8")
+
+
+def filter_metrics_for_cell(
+    source_metrics: dict, *, source_basis_key: str
+) -> dict:
+    """Return a single-basis metrics payload for one published cell.
+
+    The returned dict has the renamed basis + the four classical baselines.
+    Missing baselines are silently skipped (some older source runs only
+    have fft/dct).
+    """
+    if source_basis_key not in source_metrics:
+        raise KeyError(f"basis {source_basis_key!r} not in source metrics")
+    dest_key = rename_basis_key(source_basis_key)
+    out: dict = {dest_key: source_metrics[source_basis_key]}
+    for baseline in CLASSICAL_BASELINES:
+        if baseline in source_metrics:
+            out[baseline] = source_metrics[baseline]
+    return out
