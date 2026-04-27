@@ -100,16 +100,26 @@ def build_manifest(
             skipped_path = cell_dir / "SKIPPED.json"
             if skipped_path.is_file():
                 payload = json.loads(skipped_path.read_text())
+                reason = payload["reason"]
+                if reason == "incompatible_qubits":
+                    skip_reason = (
+                        f"{reason}: m+n={payload['m']+payload['n']} "
+                        f"is not a power of 2"
+                    )
+                elif reason == "block_factory_odd_m_unsupported":
+                    skip_reason = (
+                        f"{reason}: outer m={payload['m']} is odd; the "
+                        f"_blocked helper's m//2 split loses a qubit"
+                    )
+                else:
+                    skip_reason = f"{reason}: {payload.get('constraint', '')}"
                 cells.append({
                     "id": cell_id,
                     "dataset": dataset,
                     "basis": basis,
                     "status": "skipped",
                     "path": f"{cell_id}/",
-                    "skip_reason": (
-                        f"{payload['reason']}: m+n={payload['m']+payload['n']} "
-                        f"is not a power of 2"
-                    ),
+                    "skip_reason": skip_reason,
                 })
                 continue
             metrics = json.loads((cell_dir / "metrics.json").read_text())

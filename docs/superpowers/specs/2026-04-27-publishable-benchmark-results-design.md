@@ -63,15 +63,24 @@ GPU memory at 1024×1024. The `quickdraw` row will be **freshly run** at
 
 ## The matrix
 
-7 bases × 3 datasets = **21 cells**, of which **2 are SKIPPED** because
-MERA requires `m+n` to be a power of 2: `div2k_10q__mera` (m+n=20) and
-`quickdraw__mera` (m+n=10). 19 active cells.
+7 bases × 3 datasets = **21 cells**, of which **5 are SKIPPED**: 16 active.
 
-|                | qft | entangled_qft | tebd | mera     | blocked | rich | real_rich |
-|----------------|-----|---------------|------|----------|---------|------|-----------|
-| div2k_8q       | ✓   | ✓             | ✓    | ✓        | ✓       | ✓    | ✓         |
-| div2k_10q      | ✓   | ✓             | ✓    | skipped  | ✓       | ✓    | ✓         |
-| quickdraw      | ✓   | ✓             | ✓    | skipped  | ✓       | ✓    | ✓         |
+Skip reasons:
+- `incompatible_qubits` (MERA only): `div2k_10q__mera` (m+n=20), `quickdraw__mera` (m+n=10).
+- `block_factory_odd_m_unsupported` (block bases at odd outer m): `quickdraw__blocked`,
+  `quickdraw__rich`, `quickdraw__real_rich`. The `_blocked` helper in `bases.py` does
+  `inner_m = m // 2; block_log_m = m // 2`, which loses a qubit at odd m=5 (yields a
+  basis at m_outer=4 expecting 16×16 input, vs the 32×32 dataset). Fixing this is
+  out of scope (would change the registry's square-block policy) — logged as Future Work.
+
+|                | qft | entangled_qft | tebd | mera     | blocked  | rich     | real_rich |
+|----------------|-----|---------------|------|----------|----------|----------|-----------|
+| div2k_8q       | ✓   | ✓             | ✓    | ✓        | ✓        | ✓        | ✓         |
+| div2k_10q      | ✓   | ✓             | ✓    | skipped¹ | ✓        | ✓        | ✓         |
+| quickdraw      | ✓   | ✓             | ✓    | skipped¹ | skipped² | skipped² | skipped²  |
+
+¹ `incompatible_qubits` (m+n not a power of 2).
+² `block_factory_odd_m_unsupported` (registry's `_blocked` factory drops a qubit at odd m).
 
 ## Layout
 
@@ -241,8 +250,8 @@ question, what varied, what was fixed, headline finding, control cell).
 
 ## Run plan for the 11 missing cells
 
-9 fresh basis trainings needed (3 new on 10q + 6 new on quickdraw); 2 are
-SKIPPED placeholder dirs (no training, just `SKIPPED.json`).
+6 fresh basis trainings needed (3 new on 10q block + 3 new on quickdraw circuit);
+5 are SKIPPED placeholder dirs (2 MERA + 3 quickdraw block).
 
 ### Existing (10 active cells already trained — extracted from `_archive/`)
 
@@ -259,26 +268,26 @@ SKIPPED placeholder dirs (no training, just `SKIPPED.json`).
 | `div2k_10q__entangled_qft` | `div2k_10q_generalized_20260426-055335_gpu0_bs2`                         | `entangled_qft`   |
 | `div2k_10q__tebd`          | `div2k_10q_generalized_20260426-055335_gpu1_bs2`                         | `tebd`            |
 
-### New runs (9 active cells)
+### New runs (6 active cells)
 
 | Cell                           | Run command                                  |
 |--------------------------------|----------------------------------------------|
-| `div2k_10q__blocked`           | `python experiments/div2k_10q_block.py --gpu 0` (single script trains all 3) |
+| `div2k_10q__blocked`           | `python experiments/div2k_10q_block.py --gpu 0` (one script trains all 3) |
 | `div2k_10q__rich`              | (same)                                       |
 | `div2k_10q__real_rich`         | (same)                                       |
-| `quickdraw__qft`               | `python experiments/quickdraw.py --gpu 0` (single script trains all 6 active) |
+| `quickdraw__qft`               | `python experiments/quickdraw.py --gpu 1` (one script trains 3 circuit bases; mera silently skips) |
 | `quickdraw__entangled_qft`     | (same)                                       |
 | `quickdraw__tebd`              | (same)                                       |
-| `quickdraw__blocked`           | (same)                                       |
-| `quickdraw__rich`              | (same)                                       |
-| `quickdraw__real_rich`         | (same)                                       |
 
-### SKIPPED placeholder cells (2)
+### SKIPPED placeholder cells (5)
 
-| Cell                | Action                                                |
-|---------------------|-------------------------------------------------------|
-| `div2k_10q__mera`   | Write `SKIPPED.json` only                             |
-| `quickdraw__mera`   | Write `SKIPPED.json` only                             |
+| Cell                          | Reason                                  |
+|-------------------------------|-----------------------------------------|
+| `div2k_10q__mera`             | `incompatible_qubits` (m+n=20≠2^k)      |
+| `quickdraw__mera`             | `incompatible_qubits` (m+n=10≠2^k)      |
+| `quickdraw__blocked`          | `block_factory_odd_m_unsupported` (m=5) |
+| `quickdraw__rich`             | `block_factory_odd_m_unsupported` (m=5) |
+| `quickdraw__real_rich`        | `block_factory_odd_m_unsupported` (m=5) |
 
 ### Script changes
 
@@ -414,6 +423,19 @@ Same out-of-scope items as the existing benchmark spec, plus:
   `m_inner = m // 2`, square-block policy. After it lands, this repo's
   `bases.py::_blocked` helper collapses to one-liners. Different cadence
   from publication; do not block on it.
+- **Block bases at odd outer m:** the registry's `_blocked` helper drops
+  a qubit when m is odd (used by `bases.py` and triggered by QuickDraw's
+  m=5). A fix would split asymmetrically (e.g. `inner_m = (m+1)//2`,
+  `block_log_m = m//2`), or the policy could choose the larger inner
+  ratio. Tracked alongside the `BlockedBasis.square()` issue above. Once
+  fixed, `quickdraw__{blocked,rich,real_rich}` graduate from SKIPPED
+  to active in a future MANIFEST schema rev.
+- **DIV2K loader plumbing:** the post-refactor `experiments/*.py` runners
+  must pass `dataset_kwargs={"size": 2**m}` to `run_experiment` because
+  the loader's default is hardcoded to 256. Already fixed in
+  `experiments/div2k_10q_block.py` and `experiments/div2k_10q_circuit.py`;
+  consider auto-defaulting `size` in the loader or in
+  `pipeline.py::run_experiment`.
 - **Zenodo upload:** once results stabilise, upload `results/published/`
   + `results/ablations/` (and optionally `_archive/`) to Zenodo and
   record the DOI in the README and MANIFEST.

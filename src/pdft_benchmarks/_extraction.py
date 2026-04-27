@@ -134,14 +134,26 @@ def extract_cell(
     report_main(cell_dir)
 
 
-def write_skipped_cell(cell_dir: Path, *, m: int, n: int, basis: str) -> None:
-    """For (dataset, basis) pairs where the basis is incompatible with m+n,
-    write only SKIPPED.json into the cell dir.
+def write_skipped_cell(
+    cell_dir: Path,
+    *,
+    m: int,
+    n: int,
+    basis: str,
+    reason: str = "incompatible_qubits",
+    constraint: str = "m+n must be a power of 2",
+) -> None:
+    """Write only SKIPPED.json for a cell that cannot be trained.
+
+    Two reasons are supported by the schema:
+      - "incompatible_qubits": MERA at non-power-of-2 m+n.
+      - "block_factory_odd_m_unsupported": _blocked / rich / real_rich at odd outer m
+        (the registry's `_blocked` helper drops a qubit when m is odd).
     """
     cell_dir.mkdir(parents=True, exist_ok=True)
     (cell_dir / "SKIPPED.json").write_text(json.dumps({
-        "reason": "incompatible_qubits",
+        "reason": reason,
         "m": m, "n": n,
         "basis": basis,
-        "constraint": "m+n must be a power of 2",
+        "constraint": constraint,
     }, indent=2))

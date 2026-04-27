@@ -37,6 +37,7 @@ def main():
         preset=preset,
         output_dir=args.out,
         device=f"gpu:{args.gpu}" if args.gpu is not None else "auto",
+        dataset_kwargs={"size": 1024},  # match m=n=10 → 2^10 = 1024
     )
     print(f"\nDone. Results: {res.output_dir}")
 

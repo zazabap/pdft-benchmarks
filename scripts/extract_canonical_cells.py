@@ -72,30 +72,39 @@ EXTRACTION_TABLE: list[dict] = [
      "source_run": "_archive/div2k_10q_blocked_generalized_NEW",
      "source_basis_key": "blocked_real", "dataset": "div2k_10q"},
 
-    # ===== QuickDraw (all 6 from new run) =====
+    # ===== QuickDraw circuit bases (3 from the 2026-04-27-060341 run) =====
     {"cell_id": "quickdraw__qft",
-     "source_run": "_archive/quickdraw_generalized_NEW",
+     "source_run": "_archive/quickdraw_5q_generalized_20260427-060341",
      "source_basis_key": "qft", "dataset": "quickdraw"},
     {"cell_id": "quickdraw__entangled_qft",
-     "source_run": "_archive/quickdraw_generalized_NEW",
+     "source_run": "_archive/quickdraw_5q_generalized_20260427-060341",
      "source_basis_key": "entangled_qft", "dataset": "quickdraw"},
     {"cell_id": "quickdraw__tebd",
-     "source_run": "_archive/quickdraw_generalized_NEW",
+     "source_run": "_archive/quickdraw_5q_generalized_20260427-060341",
      "source_basis_key": "tebd", "dataset": "quickdraw"},
-    {"cell_id": "quickdraw__blocked",
-     "source_run": "_archive/quickdraw_generalized_NEW",
-     "source_basis_key": "blocked_qft", "dataset": "quickdraw"},
-    {"cell_id": "quickdraw__rich",
-     "source_run": "_archive/quickdraw_generalized_NEW",
-     "source_basis_key": "blocked_rich", "dataset": "quickdraw"},
-    {"cell_id": "quickdraw__real_rich",
-     "source_run": "_archive/quickdraw_generalized_NEW",
-     "source_basis_key": "blocked_real", "dataset": "quickdraw"},
+    # NOTE: quickdraw block bases (blocked, rich, real_rich) are SKIPPED at
+    # m=n=5 — see SKIPPED_CELLS below for the reason.
 ]
 
 SKIPPED_CELLS: list[dict] = [
-    {"cell_id": "div2k_10q__mera", "dataset": "div2k_10q", "basis": "mera"},
-    {"cell_id": "quickdraw__mera", "dataset": "quickdraw", "basis": "mera"},
+    # MERA at m+n not a power of 2.
+    {"cell_id": "div2k_10q__mera", "dataset": "div2k_10q", "basis": "mera",
+     "reason": "incompatible_qubits",
+     "constraint": "m+n must be a power of 2"},
+    {"cell_id": "quickdraw__mera", "dataset": "quickdraw", "basis": "mera",
+     "reason": "incompatible_qubits",
+     "constraint": "m+n must be a power of 2"},
+    # Block bases at odd outer m: the registry's _blocked helper does
+    # `m // 2` for both inner_m and block_log_m, dropping a qubit at odd m.
+    {"cell_id": "quickdraw__blocked", "dataset": "quickdraw", "basis": "blocked",
+     "reason": "block_factory_odd_m_unsupported",
+     "constraint": "outer m must be even (registry _blocked uses m//2 for both halves)"},
+    {"cell_id": "quickdraw__rich", "dataset": "quickdraw", "basis": "rich",
+     "reason": "block_factory_odd_m_unsupported",
+     "constraint": "outer m must be even (registry _blocked uses m//2 for both halves)"},
+    {"cell_id": "quickdraw__real_rich", "dataset": "quickdraw", "basis": "real_rich",
+     "reason": "block_factory_odd_m_unsupported",
+     "constraint": "outer m must be even (registry _blocked uses m//2 for both halves)"},
 ]
 
 
@@ -135,8 +144,11 @@ def main(argv: list[str] | None = None) -> int:
         ds = entry["dataset"]
         m, n = DATASET_MN[ds]
         dest = args.published_root / entry["cell_id"]
-        print(f"skipped {entry['cell_id']}")
-        write_skipped_cell(dest, m=m, n=n, basis=entry["basis"])
+        print(f"skipped {entry['cell_id']} ({entry['reason']})")
+        write_skipped_cell(
+            dest, m=m, n=n, basis=entry["basis"],
+            reason=entry["reason"], constraint=entry["constraint"],
+        )
 
     return 0
 
