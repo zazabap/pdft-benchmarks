@@ -58,19 +58,9 @@ EXTRACTION_TABLE: list[dict] = [
     {"cell_id": "div2k_10q__tebd",
      "source_run": "_archive/div2k_10q_generalized_20260426-055335_gpu1_bs2",
      "source_basis_key": "tebd", "dataset": "div2k_10q"},
-    # NEW (filled after running experiments/div2k_10q_block.py).
-    # The runner writes to results/div2k_10q_<m>q_generalized_<ts>/;
-    # after running it, move that dir into _archive/ and update the
-    # source_run path here to the actual timestamp.
-    {"cell_id": "div2k_10q__blocked",
-     "source_run": "_archive/div2k_10q_blocked_generalized_NEW",
-     "source_basis_key": "blocked_qft", "dataset": "div2k_10q"},
-    {"cell_id": "div2k_10q__rich",
-     "source_run": "_archive/div2k_10q_blocked_generalized_NEW",
-     "source_basis_key": "blocked_rich", "dataset": "div2k_10q"},
-    {"cell_id": "div2k_10q__real_rich",
-     "source_run": "_archive/div2k_10q_blocked_generalized_NEW",
-     "source_basis_key": "blocked_real", "dataset": "div2k_10q"},
+    # NOTE: div2k_10q block bases (blocked, rich, real_rich) are SKIPPED at
+    # m=n=10 — see SKIPPED_CELLS below. All three OOM during XLA JIT/autotuner
+    # on a 24 GB card at bs=2; no allocator strategy got past compile.
 
     # ===== QuickDraw circuit bases (3 from the 2026-04-27-060341 run) =====
     {"cell_id": "quickdraw__qft",
@@ -105,6 +95,19 @@ SKIPPED_CELLS: list[dict] = [
     {"cell_id": "quickdraw__real_rich", "dataset": "quickdraw", "basis": "real_rich",
      "reason": "block_factory_odd_m_unsupported",
      "constraint": "outer m must be even (registry _blocked uses m//2 for both halves)"},
+    # Block bases at m=n=10 OOM during XLA JIT/autotuner on a 24 GB card
+    # at batch_size=2. Three allocator strategies tried (BFC default,
+    # cuda_malloc_async, platform allocator) — all failed before training
+    # could start. Documented as compute constraint, not a bug to fix here.
+    {"cell_id": "div2k_10q__blocked", "dataset": "div2k_10q", "basis": "blocked",
+     "reason": "oom_at_bs2",
+     "constraint": "BlockedBasis at m=10 exceeds 24 GB during XLA autotuning"},
+    {"cell_id": "div2k_10q__rich", "dataset": "div2k_10q", "basis": "rich",
+     "reason": "oom_at_bs2",
+     "constraint": "BlockedBasis at m=10 exceeds 24 GB during XLA autotuning"},
+    {"cell_id": "div2k_10q__real_rich", "dataset": "div2k_10q", "basis": "real_rich",
+     "reason": "oom_at_bs2",
+     "constraint": "BlockedBasis at m=10 exceeds 24 GB during XLA autotuning"},
 ]
 
 

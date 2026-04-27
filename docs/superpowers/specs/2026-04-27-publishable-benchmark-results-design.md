@@ -250,8 +250,9 @@ question, what varied, what was fixed, headline finding, control cell).
 
 ## Run plan for the 11 missing cells
 
-6 fresh basis trainings needed (3 new on 10q block + 3 new on quickdraw circuit);
-5 are SKIPPED placeholder dirs (2 MERA + 3 quickdraw block).
+3 fresh basis trainings needed (3 new on quickdraw circuit; the partial
+2026-04-27-060341 quickdraw run already produced these — see source map);
+8 are SKIPPED placeholder dirs (2 MERA + 3 quickdraw block + 3 div2k_10q block).
 
 ### Existing (10 active cells already trained — extracted from `_archive/`)
 

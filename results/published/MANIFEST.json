@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-04-27T06:20:51.471699+00:00",
-  "git_sha": "868b8890b8b47f8a40597bb745a6c6add2fb4a98",
+  "generated_at": "2026-04-27T06:45:57.744095+00:00",
+  "git_sha": "a0abce9f99e6700f81f5264e03e4986aaefa6b0e",
   "pdft_version": "0.2.1",
   "datasets": {
     "div2k_8q": {
@@ -310,6 +310,30 @@
       "status": "skipped",
       "path": "div2k_10q__mera/",
       "skip_reason": "incompatible_qubits: m+n=20 is not a power of 2"
+    },
+    {
+      "id": "div2k_10q__blocked",
+      "dataset": "div2k_10q",
+      "basis": "blocked",
+      "status": "skipped",
+      "path": "div2k_10q__blocked/",
+      "skip_reason": "oom_at_bs2: BlockedBasis at m=10 OOMs during XLA JIT/autotuning on a 24 GB card at batch_size=2 (BFC, cuda_malloc_async, and platform allocators all fail)"
+    },
+    {
+      "id": "div2k_10q__rich",
+      "dataset": "div2k_10q",
+      "basis": "rich",
+      "status": "skipped",
+      "path": "div2k_10q__rich/",
+      "skip_reason": "oom_at_bs2: BlockedBasis at m=10 OOMs during XLA JIT/autotuning on a 24 GB card at batch_size=2 (BFC, cuda_malloc_async, and platform allocators all fail)"
+    },
+    {
+      "id": "div2k_10q__real_rich",
+      "dataset": "div2k_10q",
+      "basis": "real_rich",
+      "status": "skipped",
+      "path": "div2k_10q__real_rich/",
+      "skip_reason": "oom_at_bs2: BlockedBasis at m=10 OOMs during XLA JIT/autotuning on a 24 GB card at batch_size=2 (BFC, cuda_malloc_async, and platform allocators all fail)"
     },
     {
       "id": "quickdraw__qft",

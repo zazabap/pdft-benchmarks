@@ -111,6 +111,13 @@ def build_manifest(
                         f"{reason}: outer m={payload['m']} is odd; the "
                         f"_blocked helper's m//2 split loses a qubit"
                     )
+                elif reason == "oom_at_bs2":
+                    skip_reason = (
+                        f"{reason}: BlockedBasis at m={payload['m']} OOMs "
+                        f"during XLA JIT/autotuning on a 24 GB card at "
+                        f"batch_size=2 (BFC, cuda_malloc_async, and "
+                        f"platform allocators all fail)"
+                    )
                 else:
                     skip_reason = f"{reason}: {payload.get('constraint', '')}"
                 cells.append({
