@@ -67,20 +67,26 @@ GPU memory at 1024×1024. The `quickdraw` row will be **freshly run** at
 
 Skip reasons:
 - `incompatible_qubits` (MERA only): `div2k_10q__mera` (m+n=20), `quickdraw__mera` (m+n=10).
-- `block_factory_odd_m_unsupported` (block bases at odd outer m): `quickdraw__blocked`,
-  `quickdraw__rich`, `quickdraw__real_rich`. The `_blocked` helper in `bases.py` does
-  `inner_m = m // 2; block_log_m = m // 2`, which loses a qubit at odd m=5 (yields a
-  basis at m_outer=4 expecting 16×16 input, vs the 32×32 dataset). Fixing this is
-  out of scope (would change the registry's square-block policy) — logged as Future Work.
+- `oom_at_bs2` (compute constraint): `div2k_10q__blocked`, `div2k_10q__rich`,
+  `div2k_10q__real_rich`. `BlockedBasis` at m=n=10 OOMs on a 24 GB card during
+  XLA JIT/autotuning at batch_size=2 — three allocator strategies tried (BFC default,
+  cuda_malloc_async, platform), all failed before training started. Documented as a
+  compute constraint; running on a larger card or with bs=1 across multiple
+  process invocations is a future direction.
+
+The earlier `block_factory_odd_m_unsupported` skip was retired by switching
+`_blocked` in `bases.py` to an asymmetric split (`inner_m = (m+1)//2`,
+`block_log_m = m//2`) — same behaviour at even m, +1 qubit recovered at odd m.
+QuickDraw block bases now train: a 4×4 grid of 8×8 blocks fitting a 32×32 image.
 
 |                | qft | entangled_qft | tebd | mera     | blocked  | rich     | real_rich |
 |----------------|-----|---------------|------|----------|----------|----------|-----------|
 | div2k_8q       | ✓   | ✓             | ✓    | ✓        | ✓        | ✓        | ✓         |
-| div2k_10q      | ✓   | ✓             | ✓    | skipped¹ | ✓        | ✓        | ✓         |
-| quickdraw      | ✓   | ✓             | ✓    | skipped¹ | skipped² | skipped² | skipped²  |
+| div2k_10q      | ✓   | ✓             | ✓    | skipped¹ | skipped² | skipped² | skipped²  |
+| quickdraw      | ✓   | ✓             | ✓    | skipped¹ | ✓        | ✓        | ✓         |
 
 ¹ `incompatible_qubits` (m+n not a power of 2).
-² `block_factory_odd_m_unsupported` (registry's `_blocked` factory drops a qubit at odd m).
+² `oom_at_bs2` (compute constraint at m=n=10 on 24 GB GPU).
 
 ## Layout
 

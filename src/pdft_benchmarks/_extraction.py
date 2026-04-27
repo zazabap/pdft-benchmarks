@@ -16,9 +16,14 @@ SOURCE_TO_REGISTRY: dict[str, str] = {
     "entangled_qft": "entangled_qft",
     "tebd": "tebd",
     "mera": "mera",
+    # Older 8q runs trained block bases with inner-flavor suffix names.
     "blocked_qft": "blocked",
     "blocked_rich": "rich",
     "blocked_real": "real_rich",
+    # New runs (post-refactor pipeline) use registry keys directly.
+    "blocked": "blocked",
+    "rich": "rich",
+    "real_rich": "real_rich",
 }
 
 

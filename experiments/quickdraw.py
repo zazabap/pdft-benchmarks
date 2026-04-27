@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
-"""QuickDraw benchmark (m=n=5, 32×32) — circuit bases at `generalized`.
+"""QuickDraw benchmark (m=n=5, 32×32) — all 7 registered bases at `generalized`.
 
 `mera` is silently skipped by run_experiment because m+n=10 is not a
-power of 2. The block bases (`blocked`, `rich`, `real_rich`) are NOT
-trained here: the registry's `_blocked` helper does `m // 2` for both
-inner_m and block_log_m, which loses a qubit at odd outer m=5
-(yielding a basis at m_outer=4, expecting 16×16 input). For the
-benchmark matrix these cells are marked SKIPPED with reason
-`block_factory_odd_m_unsupported`.
+power of 2. The block bases (`blocked`, `rich`, `real_rich`) train at
+m=5 thanks to the asymmetric `_blocked` split (inner_m=3, block_log_m=2)
+in `pdft_benchmarks.bases` — a 4×4 grid of 8×8 blocks fitting a 32×32 image.
 """
 
 import argparse
@@ -26,7 +23,8 @@ def main():
     res = run_experiment(
         dataset="quickdraw",
         m=5, n=5,
-        bases=["qft", "entangled_qft", "tebd", "mera"],
+        bases=["qft", "entangled_qft", "tebd", "mera",
+               "blocked", "rich", "real_rich"],
         baselines=["fft", "dct", "block_fft_8", "block_dct_8"],
         preset=args.preset,
         output_dir=args.out,

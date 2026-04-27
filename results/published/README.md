@@ -17,18 +17,13 @@ The artifact is also archived at: [Zenodo DOI TBD].
 |                | qft | entangled_qft | tebd | mera     | blocked  | rich     | real_rich |
 |----------------|-----|---------------|------|----------|----------|----------|-----------|
 | **div2k_8q**   | ✓   | ✓             | ✓    | ✓        | ✓        | ✓        | ✓         |
-| **div2k_10q**  | ✓   | ✓             | ✓    | skipped¹ | skipped³ | skipped³ | skipped³  |
-| **quickdraw**  | ✓   | ✓             | ✓    | skipped¹ | skipped² | skipped² | skipped²  |
+| **div2k_10q**  | ✓   | ✓             | ✓    | skipped¹ | skipped² | skipped² | skipped²  |
+| **quickdraw**  | ✓   | ✓             | ✓    | skipped¹ | ✓        | ✓        | ✓         |
 
 ¹ MERA requires `m+n` to be a power of 2. Both `div2k_10q` (m+n=20) and
 `quickdraw` (m+n=10) violate this; cells contain only `SKIPPED.json`.
 
-² The `_blocked` factory in `pdft_benchmarks.bases` does
-`inner_m = m // 2; block_log_m = m // 2`, which loses a qubit at odd outer
-m=5 (yields a basis at m_outer=4 expecting 16×16 input vs. the 32×32
-QuickDraw images). Tracked as future work; cells contain only `SKIPPED.json`.
-
-³ `BlockedBasis` at m=n=10 OOMs on a 24 GB card during XLA JIT/autotuning at
+² `BlockedBasis` at m=n=10 OOMs on a 24 GB card during XLA JIT/autotuning at
 batch_size=2 — three allocator strategies tried (BFC default, cuda_malloc_async,
 platform), all failed before training started. Documented as a compute constraint.
 Running on a larger card or with bs=1 across multiple process invocations is a
@@ -41,7 +36,7 @@ future direction; cells contain only `SKIPPED.json` for now.
 |---|---|---|---|---|---|---|---|
 | **div2k_8q** | 27.30 | 27.53 | 27.56 | 27.56 | 28.09 | 29.16 | 29.18 |
 | **div2k_10q** | 31.19 | 31.41 | 31.41 | — | — | — | — |
-| **quickdraw** | 19.58 | 19.58 | 19.40 | — | — | — | — |
+| **quickdraw** | 19.58 | 19.58 | 19.40 | — | 22.41 | 23.71 | 23.68 |
 <!-- END HEADLINE NUMBERS -->
 
 ## What's in each cell

@@ -62,18 +62,25 @@ EXTRACTION_TABLE: list[dict] = [
     # m=n=10 — see SKIPPED_CELLS below. All three OOM during XLA JIT/autotuner
     # on a 24 GB card at bs=2; no allocator strategy got past compile.
 
-    # ===== QuickDraw circuit bases (3 from the 2026-04-27-060341 run) =====
+    # ===== QuickDraw all 6 active bases (from 2026-04-27-073744 run, fixed _blocked) =====
     {"cell_id": "quickdraw__qft",
-     "source_run": "_archive/quickdraw_5q_generalized_20260427-060341",
+     "source_run": "_archive/quickdraw_5q_generalized_20260427-073744",
      "source_basis_key": "qft", "dataset": "quickdraw"},
     {"cell_id": "quickdraw__entangled_qft",
-     "source_run": "_archive/quickdraw_5q_generalized_20260427-060341",
+     "source_run": "_archive/quickdraw_5q_generalized_20260427-073744",
      "source_basis_key": "entangled_qft", "dataset": "quickdraw"},
     {"cell_id": "quickdraw__tebd",
-     "source_run": "_archive/quickdraw_5q_generalized_20260427-060341",
+     "source_run": "_archive/quickdraw_5q_generalized_20260427-073744",
      "source_basis_key": "tebd", "dataset": "quickdraw"},
-    # NOTE: quickdraw block bases (blocked, rich, real_rich) are SKIPPED at
-    # m=n=5 — see SKIPPED_CELLS below for the reason.
+    {"cell_id": "quickdraw__blocked",
+     "source_run": "_archive/quickdraw_5q_generalized_20260427-073744",
+     "source_basis_key": "blocked", "dataset": "quickdraw"},
+    {"cell_id": "quickdraw__rich",
+     "source_run": "_archive/quickdraw_5q_generalized_20260427-073744",
+     "source_basis_key": "rich", "dataset": "quickdraw"},
+    {"cell_id": "quickdraw__real_rich",
+     "source_run": "_archive/quickdraw_5q_generalized_20260427-073744",
+     "source_basis_key": "real_rich", "dataset": "quickdraw"},
 ]
 
 SKIPPED_CELLS: list[dict] = [
@@ -84,17 +91,6 @@ SKIPPED_CELLS: list[dict] = [
     {"cell_id": "quickdraw__mera", "dataset": "quickdraw", "basis": "mera",
      "reason": "incompatible_qubits",
      "constraint": "m+n must be a power of 2"},
-    # Block bases at odd outer m: the registry's _blocked helper does
-    # `m // 2` for both inner_m and block_log_m, dropping a qubit at odd m.
-    {"cell_id": "quickdraw__blocked", "dataset": "quickdraw", "basis": "blocked",
-     "reason": "block_factory_odd_m_unsupported",
-     "constraint": "outer m must be even (registry _blocked uses m//2 for both halves)"},
-    {"cell_id": "quickdraw__rich", "dataset": "quickdraw", "basis": "rich",
-     "reason": "block_factory_odd_m_unsupported",
-     "constraint": "outer m must be even (registry _blocked uses m//2 for both halves)"},
-    {"cell_id": "quickdraw__real_rich", "dataset": "quickdraw", "basis": "real_rich",
-     "reason": "block_factory_odd_m_unsupported",
-     "constraint": "outer m must be even (registry _blocked uses m//2 for both halves)"},
     # Block bases at m=n=10 OOM during XLA JIT/autotuner on a 24 GB card
     # at batch_size=2. Three allocator strategies tried (BFC default,
     # cuda_malloc_async, platform allocator) — all failed before training
