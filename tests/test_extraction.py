@@ -122,3 +122,120 @@ def test_build_config_json_extracts_preset_fields():
 def test_build_config_json_raises_on_missing_preset_dataclass():
     with pytest.raises(KeyError, match="preset_dataclass"):
         build_config_json({}, m=8, n=8, basis="qft")
+
+
+import json
+import os
+from pathlib import Path
+
+# Ensure matplotlib uses a non-interactive backend (for plot generation in tests)
+os.environ.setdefault("MPLBACKEND", "Agg")
+
+from pdft_benchmarks._extraction import extract_cell, write_skipped_cell
+
+
+def _multi_kr_metrics_block(psnr=27.0):
+    """Like _fake_basis_block but covers all 4 keep ratios for plot/CSV happiness."""
+    return {"metrics": {kr: {"mean_psnr": psnr + 0.1 * i, "std_psnr": 0.5,
+                              "mean_mse": 0.001, "std_mse": 0.0,
+                              "mean_ssim": 0.8, "std_ssim": 0.0,
+                              "nan_count": 0}
+                        for i, kr in enumerate(["0.05", "0.1", "0.15", "0.2"])},
+            "time": 100.0,
+            "_pdft_py": {"warmup_s": 5.0, "device": "cuda:0",
+                         "epochs_completed": 60, "steps": 600,
+                         "n_test": 50,
+                         "eval_failed_count": {kr: 0 for kr in ["0.05", "0.1", "0.15", "0.2"]}}}
+
+
+def _multi_kr_baseline_block():
+    return {"metrics": {kr: {"mean_psnr": 20.0, "std_psnr": 0.0,
+                              "mean_mse": 0.01, "std_mse": 0.0,
+                              "mean_ssim": 0.5, "std_ssim": 0.0,
+                              "nan_count": 0}
+                        for kr in ["0.05", "0.1", "0.15", "0.2"]},
+            "time": 0.1}
+
+
+def _make_fake_source(tmp_path: Path) -> Path:
+    """Build a minimal valid source run dir."""
+    src = tmp_path / "src_run"
+    (src / "loss_history").mkdir(parents=True)
+    metrics = {
+        "qft": _multi_kr_metrics_block(27.0),
+        "fft": _multi_kr_baseline_block(),
+    }
+    (src / "metrics.json").write_text(json.dumps(metrics))
+    (src / "env.json").write_text(json.dumps({
+        "preset": "generalized",
+        "preset_dataclass": {
+            "epochs": 60, "n_train": 500, "n_test": 100, "optimizer": "adam",
+            "batch_size": 8, "warmup_frac": 0.05, "lr_peak": 0.3,
+            "lr_final": 0.0003, "max_grad_norm": 1.0,
+            "validation_split": 0.15, "early_stopping_patience": 5,
+            "seed": 0, "keep_ratios": [0.05, 0.1, 0.15, 0.2],
+        },
+    }))
+    (src / "trained_qft.json").write_text(json.dumps({"type": "QFTBasis", "m": 8, "n": 8, "tensors": []}))
+    (src / "loss_history" / "qft_loss.json").write_text(json.dumps({"step_losses": [[1.0, 0.5]]}))
+    (src / "run.log").write_text("fake log")
+    return src
+
+
+def test_extract_cell_writes_all_required_files(tmp_path):
+    src = _make_fake_source(tmp_path)
+    dest = tmp_path / "div2k_8q__qft"
+    extract_cell(
+        source_run=src,
+        cell_dir=dest,
+        source_basis_key="qft",
+        m=8, n=8,
+    )
+    assert (dest / "metrics.json").is_file()
+    assert (dest / "config.json").is_file()
+    assert (dest / "env.json").is_file()
+    assert (dest / "trained_qft.json").is_file()
+    assert (dest / "loss_history" / "qft_loss.json").is_file()
+    assert (dest / "run.log").is_file()
+
+
+def test_extract_cell_renames_blocked_qft_to_blocked(tmp_path):
+    src = tmp_path / "blocked_src"
+    (src / "loss_history").mkdir(parents=True)
+    metrics = {
+        "blocked_qft": _multi_kr_metrics_block(28.0),
+        "fft": _multi_kr_baseline_block(),
+    }
+    (src / "metrics.json").write_text(json.dumps(metrics))
+    (src / "env.json").write_text(json.dumps({
+        "preset": "generalized",
+        "preset_dataclass": {
+            "epochs": 60, "n_train": 500, "n_test": 100, "optimizer": "adam",
+            "batch_size": 8, "warmup_frac": 0.05, "lr_peak": 0.3,
+            "lr_final": 0.0003, "max_grad_norm": 1.0,
+            "validation_split": 0.15, "early_stopping_patience": 5,
+            "seed": 0, "keep_ratios": [0.05, 0.1, 0.15, 0.2],
+        },
+    }))
+    (src / "trained_blocked_qft.json").write_text("{}")
+    (src / "loss_history" / "blocked_qft_loss.json").write_text("{}")
+
+    dest = tmp_path / "div2k_8q__blocked"
+    extract_cell(source_run=src, cell_dir=dest, source_basis_key="blocked_qft", m=8, n=8)
+    assert (dest / "trained_blocked.json").is_file()
+    assert (dest / "loss_history" / "blocked_loss.json").is_file()
+    assert not (dest / "trained_blocked_qft.json").exists()
+    out_metrics = json.loads((dest / "metrics.json").read_text())
+    assert "blocked" in out_metrics
+    assert "blocked_qft" not in out_metrics
+
+
+def test_extract_cell_writes_skipped_json_for_skipped_basis(tmp_path):
+    dest = tmp_path / "div2k_10q__mera"
+    write_skipped_cell(dest, m=10, n=10, basis="mera")
+    payload = json.loads((dest / "SKIPPED.json").read_text())
+    assert payload["reason"] == "incompatible_qubits"
+    assert payload["m"] == 10
+    assert payload["n"] == 10
+    assert payload["basis"] == "mera"
+    assert sorted(p.name for p in dest.iterdir()) == ["SKIPPED.json"]

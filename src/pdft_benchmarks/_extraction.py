@@ -84,3 +84,64 @@ def build_config_json(env: dict, *, m: int, n: int, basis: str) -> dict:
         "seed": pd["seed"],
         "keep_ratios": list(pd["keep_ratios"]),
     }
+
+
+import json
+import shutil
+from pathlib import Path
+
+
+def extract_cell(
+    *,
+    source_run: Path,
+    cell_dir: Path,
+    source_basis_key: str,
+    m: int,
+    n: int,
+) -> None:
+    """Populate `cell_dir` with all canonical-cell files from `source_run`.
+
+    Calls pdft_benchmarks._report.main(cell_dir) at the end to regenerate
+    per-cell CSVs and plots from the filtered metrics.json.
+    """
+    cell_dir.mkdir(parents=True, exist_ok=True)
+    (cell_dir / "loss_history").mkdir(exist_ok=True)
+
+    src_metrics = json.loads((source_run / "metrics.json").read_text())
+    cell_metrics = filter_metrics_for_cell(src_metrics, source_basis_key=source_basis_key)
+    (cell_dir / "metrics.json").write_text(json.dumps(cell_metrics, indent=2))
+
+    shutil.copyfile(source_run / "env.json", cell_dir / "env.json")
+    src_env = json.loads((source_run / "env.json").read_text())
+
+    dest_basis = rename_basis_key(source_basis_key)
+    cfg = build_config_json(src_env, m=m, n=n, basis=dest_basis)
+    (cell_dir / "config.json").write_text(json.dumps(cfg, indent=2))
+
+    src_trained = source_run / f"trained_{source_basis_key}.json"
+    if src_trained.is_file():
+        shutil.copyfile(src_trained, cell_dir / f"trained_{dest_basis}.json")
+
+    src_loss = source_run / "loss_history" / f"{source_basis_key}_loss.json"
+    if src_loss.is_file():
+        shutil.copyfile(src_loss, cell_dir / "loss_history" / f"{dest_basis}_loss.json")
+
+    src_log = source_run / "run.log"
+    if src_log.is_file():
+        shutil.copyfile(src_log, cell_dir / "run.log")
+
+    from pdft_benchmarks._report import main as report_main
+    report_main(cell_dir)
+
+
+def write_skipped_cell(cell_dir: Path, *, m: int, n: int, basis: str) -> None:
+    """For (dataset, basis) pairs where the basis is incompatible with m+n,
+    write only SKIPPED.json into the cell dir.
+    """
+    cell_dir.mkdir(parents=True, exist_ok=True)
+    (cell_dir / "SKIPPED.json").write_text(json.dumps({
+        "reason": "incompatible_qubits",
+        "m": m, "n": n,
+        "basis": basis,
+        "constraint": "m+n must be a power of 2",
+    }, indent=2))
