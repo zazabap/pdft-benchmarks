@@ -83,3 +83,42 @@ def test_filter_raises_when_source_key_missing():
     src = {"fft": _fake_baseline_block()}
     with pytest.raises(KeyError, match="not in source metrics"):
         filter_metrics_for_cell(src, source_basis_key="qft")
+
+
+from pdft_benchmarks._extraction import build_config_json
+
+
+def test_build_config_json_extracts_preset_fields():
+    env = {
+        "preset": "generalized",
+        "preset_dataclass": {
+            "epochs": 60,
+            "n_train": 500,
+            "n_test": 100,
+            "optimizer": "adam",
+            "batch_size": 8,
+            "warmup_frac": 0.05,
+            "lr_peak": 0.3,
+            "lr_final": 0.0003,
+            "max_grad_norm": 1.0,
+            "validation_split": 0.15,
+            "early_stopping_patience": 5,
+            "seed": 0,
+            "keep_ratios": [0.05, 0.1, 0.15, 0.2],
+        },
+    }
+    cfg = build_config_json(env, m=8, n=8, basis="qft")
+    assert cfg["m"] == 8
+    assert cfg["n"] == 8
+    assert cfg["basis"] == "qft"
+    assert cfg["preset"] == "generalized"
+    assert cfg["epochs"] == 60
+    assert cfg["batch_size"] == 8
+    assert cfg["lr_peak"] == 0.3
+    assert cfg["seed"] == 0
+    assert cfg["keep_ratios"] == [0.05, 0.1, 0.15, 0.2]
+
+
+def test_build_config_json_raises_on_missing_preset_dataclass():
+    with pytest.raises(KeyError, match="preset_dataclass"):
+        build_config_json({}, m=8, n=8, basis="qft")

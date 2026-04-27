@@ -53,3 +53,34 @@ def filter_metrics_for_cell(
         if baseline in source_metrics:
             out[baseline] = source_metrics[baseline]
     return out
+
+
+def build_config_json(env: dict, *, m: int, n: int, basis: str) -> dict:
+    """Synthesize a flat config.json dict for one published cell.
+
+    Pulls all training hyperparameters from env['preset_dataclass'] (the
+    pipeline always writes this — see pipeline.py). Adds {m, n, basis}
+    so the cell is self-describing without env.json.
+    """
+    if "preset_dataclass" not in env:
+        raise KeyError("env missing required field 'preset_dataclass'")
+    pd = env["preset_dataclass"]
+    return {
+        "m": m,
+        "n": n,
+        "basis": basis,
+        "preset": env.get("preset", "unknown"),
+        "epochs": pd["epochs"],
+        "n_train": pd["n_train"],
+        "n_test": pd["n_test"],
+        "optimizer": pd["optimizer"],
+        "batch_size": pd["batch_size"],
+        "warmup_frac": pd["warmup_frac"],
+        "lr_peak": pd["lr_peak"],
+        "lr_final": pd["lr_final"],
+        "max_grad_norm": pd["max_grad_norm"],
+        "validation_split": pd["validation_split"],
+        "early_stopping_patience": pd["early_stopping_patience"],
+        "seed": pd["seed"],
+        "keep_ratios": list(pd["keep_ratios"]),
+    }
