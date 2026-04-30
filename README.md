@@ -46,20 +46,32 @@ pip install -e ".[bench,gpu]"   # GPU; pip install -e ".[bench]" for CPU-only sm
 Single dataset on a chosen GPU:
 
 ```bash
-python benchmarks/run_quickdraw.py moderate --gpu 0
-python benchmarks/run_div2k_8q.py  moderate --gpu 1
+python experiments/quickdraw.py        --gpu 0
+python experiments/div2k_8q_circuit_vs_classical.py --gpu 1
+python experiments/div2k_10q_circuit.py --gpu 0
+python experiments/div2k_10q_block.py   --gpu 0
 ```
 
-Both datasets in parallel, one per GPU:
+Both 10q and quickdraw concurrently (one per GPU), then extract:
 
 ```bash
-bash benchmarks/run_all.sh moderate
+bash scripts/run_canonical.sh                 # train
+ONLY_EXTRACT=1 bash scripts/run_canonical.sh  # then build results/published/
 ```
 
-CPU smoke for sanity (no GPU required):
+## Published results
+
+The canonical 7-basis × 3-dataset matrix lives under `results/published/`.
+See `results/published/README.md` and `results/published/MANIFEST.json`
+for the full breakdown (13 active + 8 SKIPPED cells; skip reasons documented).
+
+To re-derive a single cell:
 
 ```bash
-python benchmarks/run_quickdraw.py smoke --allow-cpu
+pip install "pdft==0.2.1"
+pip install -e ".[bench,gpu]"
+python experiments/<dataset>_<group>.py --gpu 0
+python scripts/extract_canonical_cells.py --only <dataset>__<basis>
 ```
 
 Presets: `smoke` (≤60 s on CPU sanity), `moderate` (Julia-parity, 10 epochs ×

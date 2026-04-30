@@ -1,0 +1,24 @@
+{
+  "m": 8,
+  "n": 8,
+  "basis": "blocked",
+  "preset": "generalized",
+  "epochs": 60,
+  "n_train": 500,
+  "n_test": 50,
+  "optimizer": "adam",
+  "batch_size": 50,
+  "warmup_frac": 0.05,
+  "lr_peak": 0.003,
+  "lr_final": 0.0003,
+  "max_grad_norm": 1.0,
+  "validation_split": 0.15,
+  "early_stopping_patience": 5,
+  "seed": 42,
+  "keep_ratios": [
+    0.05,
+    0.1,
+    0.15,
+    0.2
+  ]
+}

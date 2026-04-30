@@ -5,10 +5,32 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
-# Benchmark outputs (regenerable, large)
-results/
+# Benchmark outputs (regenerable, large) — ignore everything in results/
+# by default, then whitelist the structural pieces of the curated
+# publication tree. Heavy blobs (trained bases, loss histories, raw
+# archived runs) stay out of git and live in Zenodo / a GitHub Release.
+results/*
 *.png
 plots/output/
+
+# Whitelist the three top-level publication subdirs.
+!results/published/
+!results/ablations/
+!results/_archive/
+
+# Within published/: track everything except the heavy blobs.
+results/published/**/trained_*.json
+results/published/**/loss_history/
+results/published/**/run.log
+
+# Within ablations/: only keep the README in each ablation group dir;
+# the raw timestamped data sits under group/<variant>/ and stays out.
+results/ablations/*/*
+!results/ablations/*/README.md
+
+# Within _archive/: only the README.
+results/_archive/*
+!results/_archive/README.md
 
 # Local data dumps
 *.npz

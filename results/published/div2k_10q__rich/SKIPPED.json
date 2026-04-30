@@ -1,0 +1,7 @@
+{
+  "reason": "oom_at_bs2",
+  "m": 10,
+  "n": 10,
+  "basis": "rich",
+  "constraint": "BlockedBasis at m=10 exceeds 24 GB during XLA autotuning"
+}

@@ -26,10 +26,17 @@ BasisFactory = Callable[..., Any]   # (m, n, seed=0) -> AbstractSparseBasis
 
 
 def _blocked(m: int, n: int, seed: int, inner_cls):
-    inner_m = m // 2
-    inner_n = n // 2
+    # Asymmetric split: inner gets the larger half on odd dims so
+    # inner_m + block_log_m == m exactly. At even m this matches the
+    # previous symmetric split (m//2 + m//2 == m). At odd m (e.g.
+    # QuickDraw m=5) it gives inner_m=3 + block_log_m=2 instead of
+    # 2+2=4 (which would have lost a qubit).
+    inner_m = (m + 1) // 2
+    inner_n = (n + 1) // 2
+    block_log_m = m // 2
+    block_log_n = n // 2
     inner = inner_cls(m=inner_m, n=inner_n) if seed == 0 else inner_cls(m=inner_m, n=inner_n)
-    return pdft.BlockedBasis(inner=inner, block_log_m=inner_m, block_log_n=inner_n)
+    return pdft.BlockedBasis(inner=inner, block_log_m=block_log_m, block_log_n=block_log_n)
 
 
 BASIS_FACTORIES: dict[str, BasisFactory] = {
