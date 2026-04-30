@@ -32,7 +32,10 @@ def test_bases_table_has_seven_keys():
 
 
 def test_classical_baselines_constant():
-    assert CLASSICAL_BASELINES == ["fft", "dct", "block_fft_8", "block_dct_8"]
+    assert CLASSICAL_BASELINES == [
+        "fft", "dct", "block_fft_8", "block_dct_8",
+        "pca", "block_pca_8",
+    ]
 
 
 def test_mera_incompatible_datasets():

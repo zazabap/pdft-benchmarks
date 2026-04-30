@@ -38,7 +38,10 @@ def rename_basis_key(source_key: str) -> str:
     return SOURCE_TO_REGISTRY[source_key]
 
 
-CLASSICAL_BASELINES: tuple[str, ...] = ("fft", "dct", "block_fft_8", "block_dct_8")
+CLASSICAL_BASELINES: tuple[str, ...] = (
+    "fft", "dct", "block_fft_8", "block_dct_8",
+    "pca", "block_pca_8",
+)
 
 
 def filter_metrics_for_cell(
