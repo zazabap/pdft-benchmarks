@@ -176,6 +176,32 @@ The full BibTeX is in `pdft-benchmarks/docs/theory/refs.bib`.
 
 ---
 
+## Note on rank-truncation variants
+
+The benchmark code includes `pca_rank`, `block_pca_8_rank`, `dct_rank`,
+`block_dct_8_rank` — the textbook eigenvalue-rank-truncation /
+zigzag-position-truncation rules. These were added to confirm that
+KLT's L2-optimality theorem holds under its native rule (Block-PCA-rank
+beats Block-DCT-rank by 0.10 dB on DIV2K-8q at kr=0.20 — small but
+consistent across all cells, confirming the theorem).
+
+**These variants should NOT appear in the paper.** Reason: rank-rule
+loses ~7 dB to magnitude-rule on every basis, purely from
+uniform-vs-adaptive per-block bit allocation (see Berger 1971,
+*Rate Distortion Theory*, Ch. 5: water-filling). That 7 dB gap is
+about the *rule*, not the *basis* — both DCT-rank (26.30 dB) and
+PCA-rank (26.40 dB) lose by approximately equal amounts. Featuring
+them in the paper would invite readers to compare rank-rule numbers
+to magnitude-rule numbers, which is not a basis-quality comparison
+and would muddy the data-regime story.
+
+The variants stay in `src/pdft_benchmarks/pca.py` and
+`src/pdft_benchmarks/baselines.py` as **internal documentation that we
+verified the KLT theorem holds correctly within our framework** —
+defensive against the natural reviewer concern "did you apply KLT in
+its theoretically-optimal regime?" Yes; we did; the gap to DCT under
+that regime is 0.10 dB.
+
 ## Open question (for future work)
 
 If the paper wants to claim a **new framework for compression
