@@ -303,7 +303,8 @@ def run_experiment(
 
     # ----- baselines
     for name in baselines:
-        fn = BASELINE_FACTORIES[name]
+        builder = BASELINE_FACTORIES[name]
+        fn = builder(train_imgs)
         logger.info("running baseline %s", name)
         kr_metrics, elapsed = evaluate_baseline(fn, test_imgs, preset.keep_ratios)
         metrics_payload[name] = {"metrics": kr_metrics, "time": elapsed}
