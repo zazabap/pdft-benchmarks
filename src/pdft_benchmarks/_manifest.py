@@ -35,7 +35,10 @@ BASES: dict[str, dict[str, str]] = {
                       "factory": "pdft.BlockedBasis(inner=RealRichBasis, m_inner=m/2, block_log=m/2)"},
 }
 
-CLASSICAL_BASELINES = ["fft", "dct", "block_fft_8", "block_dct_8"]
+CLASSICAL_BASELINES = [
+    "fft", "dct", "block_fft_8", "block_dct_8",
+    "pca", "block_pca_8",
+]
 
 # (dataset, "mera") cells are SKIPPED whenever m+n is not a power of 2.
 MERA_INCOMPATIBLE_DATASETS = {

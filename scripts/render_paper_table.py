@@ -38,6 +38,8 @@ DISPLAY_LABEL = {
     "dct": "DCT (full-image)",
     "block_fft_8": "BlockFFT ($8 \\times 8$)",
     "block_dct_8": "BlockDCT ($8 \\times 8$)",
+    "pca": "PCA / KLT (full-image, dataset-fitted)",
+    "block_pca_8": "Block PCA ($8 \\times 8$, dataset-fitted)",
     # basic learned
     "qft": "QFT",
     "entangled_qft": "Entangled QFT",
@@ -49,7 +51,7 @@ DISPLAY_LABEL = {
     "real_rich": "Blocked RealRichBasis",
 }
 
-CLASSICAL = ["fft", "dct", "block_fft_8", "block_dct_8"]
+CLASSICAL = ["fft", "dct", "block_fft_8", "block_dct_8", "pca", "block_pca_8"]
 BASIC = ["qft", "entangled_qft", "tebd", "mera"]
 BLOCKED = ["blocked", "rich", "real_rich"]
 
@@ -171,6 +173,13 @@ def _render_dataset_section(dataset: str, vals: dict[str, dict]) -> list[str]:
     # Classical baselines
     lines.append("\\multicolumn{5}{@{}l}{\\emph{Classical fixed bases}} \\\\")
     for cb in ("fft", "dct", "block_dct_8"):
+        if cb in vals:
+            lines.append(_render_row(DISPLAY_LABEL[cb], vals[cb], bold_cols=False))
+    lines.append("\\midrule")
+
+    # Dataset-fitted linear baselines (PCA / KLT)
+    lines.append("\\multicolumn{5}{@{}l}{\\emph{Classical dataset-fitted linear bases}} \\\\")
+    for cb in ("pca", "block_pca_8"):
         if cb in vals:
             lines.append(_render_row(DISPLAY_LABEL[cb], vals[cb], bold_cols=False))
     lines.append("\\midrule")
