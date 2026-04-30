@@ -168,6 +168,54 @@ def test_block_pca_8_builder_returns_working_callable(img_32):
     assert fn._pca_basis.block == 8
 
 
+def test_zigzag_indices_8x8_starts_with_dc():
+    """Sanity: zigzag scan order starts at DC, then traces standard pattern."""
+    from pdft_benchmarks.baselines import _zigzag_indices
+
+    order = _zigzag_indices(8)
+    assert order.shape == (64,)
+    assert order[0] == 0  # DC
+    # First few zigzag positions for 8x8: (0,0), (0,1), (1,0), (2,0), (1,1), (0,2), ...
+    expected_first_6 = [0 * 8 + 0, 0 * 8 + 1, 1 * 8 + 0, 2 * 8 + 0, 1 * 8 + 1, 0 * 8 + 2]
+    np.testing.assert_array_equal(order[:6], expected_first_6)
+    # Position-set covers all 64 indices exactly once.
+    assert set(order.tolist()) == set(range(64))
+
+
+def test_block_dct_zigzag_full_keep_is_identity(img_32):
+    """zigzag at kr=1.0 recovers input."""
+    from pdft_benchmarks.baselines import block_dct_compress_zigzag
+
+    out = block_dct_compress_zigzag(img_32, keep_ratio=1.0, block=8)
+    np.testing.assert_allclose(out, img_32, atol=1e-10)
+
+
+def test_block_dct_zigzag_uniform_per_block_count(img_32):
+    """Block-DCT-zigzag keeps exactly floor(64*kr) coefs per block (uniform)."""
+    from pdft_benchmarks.baselines import block_dct_compress_zigzag
+    from scipy.fft import dct as scipy_dct
+
+    keep_ratio = 0.25
+    out = block_dct_compress_zigzag(img_32, keep_ratio=keep_ratio, block=8)
+    keep_per_block = int(np.floor(keep_ratio * 64))  # 16
+    # Re-DCT each block; assert exactly `keep_per_block` non-zero coefs.
+    n = 32
+    block = 8
+    for i in range(0, n, block):
+        for j in range(0, n, block):
+            tile = out[i : i + block, j : j + block]
+            f = scipy_dct(scipy_dct(tile, axis=0, norm="ortho"), axis=1, norm="ortho")
+            nz = int(np.sum(np.abs(f) > 1e-9))
+            assert abs(nz - keep_per_block) <= 2  # numeric slack
+
+
+def test_baseline_factories_includes_rank_variants():
+    assert "dct_rank" in BASELINE_FACTORIES
+    assert "block_dct_8_rank" in BASELINE_FACTORIES
+    assert "pca_rank" in BASELINE_FACTORIES
+    assert "block_pca_8_rank" in BASELINE_FACTORIES
+
+
 def test_global_pca_builder_returns_working_callable():
     """End-to-end: fit on small train set of (8,8) images, recover."""
     rng = np.random.default_rng(99)

@@ -40,6 +40,10 @@ DISPLAY_LABEL = {
     "block_dct_8": "BlockDCT ($8 \\times 8$)",
     "pca": "PCA / KLT (full-image, dataset-fitted)",
     "block_pca_8": "Block PCA ($8 \\times 8$, dataset-fitted)",
+    "dct_rank": "DCT (full-image, zigzag-rank)",
+    "block_dct_8_rank": "BlockDCT ($8 \\times 8$, zigzag-rank)",
+    "pca_rank": "PCA / KLT (full-image, eigenvalue-rank)",
+    "block_pca_8_rank": "Block PCA ($8 \\times 8$, eigenvalue-rank)",
     # basic learned
     "qft": "QFT",
     "entangled_qft": "Entangled QFT",
@@ -51,7 +55,11 @@ DISPLAY_LABEL = {
     "real_rich": "Blocked RealRichBasis",
 }
 
-CLASSICAL = ["fft", "dct", "block_fft_8", "block_dct_8", "pca", "block_pca_8"]
+CLASSICAL = [
+    "fft", "dct", "block_fft_8", "block_dct_8",
+    "pca", "block_pca_8",
+    "dct_rank", "block_dct_8_rank", "pca_rank", "block_pca_8_rank",
+]
 BASIC = ["qft", "entangled_qft", "tebd", "mera"]
 BLOCKED = ["blocked", "rich", "real_rich"]
 
@@ -177,9 +185,16 @@ def _render_dataset_section(dataset: str, vals: dict[str, dict]) -> list[str]:
             lines.append(_render_row(DISPLAY_LABEL[cb], vals[cb], bold_cols=False))
     lines.append("\\midrule")
 
-    # Dataset-fitted linear baselines (PCA / KLT)
-    lines.append("\\multicolumn{5}{@{}l}{\\emph{Classical dataset-fitted linear bases}} \\\\")
+    # Dataset-fitted linear baselines (PCA / KLT) — JPEG-style top-k rule.
+    lines.append("\\multicolumn{5}{@{}l}{\\emph{Classical dataset-fitted linear bases (top-$k$ magnitude)}} \\\\")
     for cb in ("pca", "block_pca_8"):
+        if cb in vals:
+            lines.append(_render_row(DISPLAY_LABEL[cb], vals[cb], bold_cols=False))
+    lines.append("\\midrule")
+
+    # Rank-truncation variants — textbook KLT-optimal rule for PCA, zigzag for DCT.
+    lines.append("\\multicolumn{5}{@{}l}{\\emph{Classical rank-truncation variants (per-block fixed budget)}} \\\\")
+    for cb in ("dct_rank", "block_dct_8_rank", "pca_rank", "block_pca_8_rank"):
         if cb in vals:
             lines.append(_render_row(DISPLAY_LABEL[cb], vals[cb], bold_cols=False))
     lines.append("\\midrule")

@@ -56,13 +56,21 @@ KEEP_RATIOS = (0.05, 0.1, 0.15, 0.2)
 
 
 def _baselines_for(dataset: str, m: int) -> list[str]:
-    """Which PCA baselines to consider for a given run.
+    """Which classical baselines to (re)evaluate for a given run.
 
-    Always returns both names; the policy skip for `pca` on div2k_10q is
-    handled inside the loop so the source metrics.json gets a
-    `{"skipped": ...}` entry that downstream extraction can propagate.
+    Includes the new PCA + rank-truncation variants. The policy skip for
+    `pca` / `pca_rank` on div2k_10q is handled inside the loop so the
+    source metrics.json gets `{"skipped": ...}` entries that downstream
+    extraction can propagate.
     """
-    return ["block_pca_8", "pca"]
+    return [
+        "block_pca_8",
+        "pca",
+        "block_pca_8_rank",
+        "pca_rank",
+        "dct_rank",
+        "block_dct_8_rank",
+    ]
 
 
 def _process_run(run_dir: Path, dataset: str, m: int, n: int, *, dry: bool) -> None:
@@ -91,8 +99,8 @@ def _process_run(run_dir: Path, dataset: str, m: int, n: int, *, dry: bool) -> N
 
     new_entries: dict = {}
     for baseline_name in _baselines_for(dataset, m):
-        # Apply policy skip: pca on div2k_10q. (Defensive — _baselines_for already filters.)
-        if baseline_name == "pca" and dataset == "div2k" and m == 10:
+        # Policy skip: any global PCA variant on div2k_10q.
+        if baseline_name in ("pca", "pca_rank") and dataset == "div2k" and m == 10:
             new_entries[baseline_name] = {"skipped": "pca_intractable_at_1m_dim"}
             print(f"  [skip] {baseline_name} (intractable at d={(2 ** m)*(2 ** n)})")
             continue
