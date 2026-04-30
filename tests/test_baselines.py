@@ -115,3 +115,36 @@ def test_block_size_must_divide_image():
 def test_dct_module_imports():
     """Sanity: scipy.fft.dct is importable. Catches missing-dependency early."""
     from scipy.fft import dct as _dct  # noqa: F401
+
+
+# ---------------------------------------------------------------------------
+# Builder-pattern contract (PR 1 — registry refactor).
+# ---------------------------------------------------------------------------
+
+from pdft_benchmarks.baselines import BASELINE_FACTORIES  # noqa: E402
+
+
+def test_baseline_factories_are_builders(img_32):
+    """Every BASELINE_FACTORIES entry is callable(train_imgs) -> callable(image, kr) -> ndarray."""
+    train_imgs = np.stack([img_32] * 4, axis=0)
+    for name, builder in BASELINE_FACTORIES.items():
+        assert callable(builder), f"{name} is not callable"
+        fn = builder(train_imgs)
+        assert callable(fn), f"{name}(train_imgs) did not return a callable"
+        recovered = fn(img_32, 0.5)
+        assert recovered.shape == img_32.shape, (
+            f"{name} recovered shape {recovered.shape} != {img_32.shape}"
+        )
+
+
+def test_legacy_baselines_ignore_train_imgs(img_32):
+    """For FFT/DCT/block_fft/block_dct, output is identical regardless of train_imgs."""
+    rng = np.random.default_rng(7)
+    train_a = np.stack([rng.uniform(0, 1, (32, 32)) for _ in range(2)], axis=0)
+    train_b = np.stack([rng.uniform(0, 1, (32, 32)) for _ in range(8)], axis=0)
+    for name in ("fft", "dct", "block_fft_8", "block_dct_8"):
+        fn_a = BASELINE_FACTORIES[name](train_a)
+        fn_b = BASELINE_FACTORIES[name](train_b)
+        out_a = fn_a(img_32, 0.3)
+        out_b = fn_b(img_32, 0.3)
+        np.testing.assert_array_equal(out_a, out_b, err_msg=f"{name} differed across train sets")
