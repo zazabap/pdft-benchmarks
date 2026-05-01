@@ -13,10 +13,20 @@ results/*
 *.png
 plots/output/
 
+# Whitelist documentation figures (small, hand-curated, referenced from docs/*.typ).
+!docs/figures/
+!docs/figures/*.png
+
 # Whitelist the three top-level publication subdirs.
 !results/published/
 !results/ablations/
 !results/_archive/
+
+# Whitelist the independent-rerun directories produced by
+# scripts/independent_quickdraw_baselines.py — small text artefacts (REPORT.md,
+# metrics.json, INDEPENDENT_REPORT.md). The script itself regenerates them in
+# ~5 s/seed, but tracking the files keeps the writeup self-verifying.
+!results/independent_quickdraw_baselines*/
 
 # Within published/: track everything except the heavy blobs.
 results/published/**/trained_*.json
