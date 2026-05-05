@@ -75,8 +75,18 @@ def _forward_magnitude(basis_or_fn, image: np.ndarray) -> np.ndarray:
     raise ValueError("forward_magnitude needs a basis with forward_transform()")
 
 
-def _baseline_freq_magnitude(baseline_name: str, image: np.ndarray) -> np.ndarray:
-    """Compute frequency magnitude for the four classical baselines."""
+def _baseline_freq_magnitude(
+    baseline_name: str,
+    image: np.ndarray,
+    *,
+    baseline_state=None,
+) -> np.ndarray:
+    """Compute frequency magnitude for the classical baselines.
+
+    For PCA baselines, requires `baseline_state` to be a fitted PcaBasis;
+    otherwise raises ValueError. Block PCA reassembles per-block coefficient
+    magnitudes into (H, W) for visualization, matching block_dct_8's shape.
+    """
     from scipy.fft import dct as scipy_dct
 
     if baseline_name == "fft":
@@ -102,6 +112,37 @@ def _baseline_freq_magnitude(baseline_name: str, image: np.ndarray) -> np.ndarra
             .swapaxes(1, 2)
             .reshape(h, w)
         )
+    if baseline_name == "block_pca_8":
+        if baseline_state is None:
+            raise ValueError("baseline_state required for block_pca_8")
+        from .pca import _tile_blocks
+        b = baseline_state.block or 8
+        h, w = image.shape
+        tiles = _tile_blocks(np.asarray(image, dtype=np.float64), b).reshape(-1, b * b)
+        coefs = (tiles - baseline_state.mean) @ baseline_state.eigenbasis.T
+        # Pad k_effective < b*b columns so each block's |coefs| still has shape (b, b).
+        k = coefs.shape[1]
+        if k < b * b:
+            padded = np.zeros((coefs.shape[0], b * b), dtype=coefs.dtype)
+            padded[:, :k] = coefs
+            coefs = padded
+        n_blocks = coefs.shape[0]
+        side = int(np.sqrt(n_blocks))
+        return (
+            np.abs(coefs).reshape(side, side, b, b)
+            .swapaxes(1, 2)
+            .reshape(h, w)
+        )
+    if baseline_name == "pca":
+        if baseline_state is None:
+            raise ValueError("baseline_state required for pca")
+        flat = image.ravel() - baseline_state.mean
+        coefs = flat @ baseline_state.eigenbasis.T  # (k,)
+        d = baseline_state.d
+        full = np.zeros(d, dtype=np.float64)
+        full[: coefs.size] = np.abs(coefs)
+        side = int(np.sqrt(d))
+        return full.reshape(side, side)
     raise ValueError(f"unknown baseline {baseline_name!r}")
 
 
@@ -472,6 +513,7 @@ def analyze_reconstructions(
     out_dir: Path,
     *,
     max_images: int | None = None,
+    baseline_state: dict[str, Any] | None = None,
 ) -> None:
     """Produce per-image reconstruction PDFs + summaries.
 
@@ -538,9 +580,18 @@ def analyze_reconstructions(
                     basis, np.asarray(img, dtype=np.float64)
                 )
             for baseline_name in baseline_fns.keys():
-                method_magnitudes[baseline_name] = _baseline_freq_magnitude(
-                    baseline_name, np.asarray(img, dtype=np.float64)
-                )
+                state = (baseline_state or {}).get(baseline_name)
+                try:
+                    method_magnitudes[baseline_name] = _baseline_freq_magnitude(
+                        baseline_name,
+                        np.asarray(img, dtype=np.float64),
+                        baseline_state=state,
+                    )
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(
+                        "analyze: baseline=%s freq-magnitude failed (img=%d): %s",
+                        baseline_name, i, e,
+                    )
             if method_magnitudes:
                 _draw_frequency_spectra(
                     img, i, method_magnitudes, per_image_dir / "frequency_spectra.pdf"

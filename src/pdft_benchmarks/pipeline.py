@@ -302,11 +302,49 @@ def run_experiment(
             }
 
     # ----- baselines
+    from .pca import fingerprint as _pca_fingerprint
+
+    baseline_fns: dict[str, Any] = {}
+    baseline_state: dict[str, Any] = {}
+
     for name in baselines:
-        fn = BASELINE_FACTORIES[name]
+        # Policy skip: global PCA is intractable at d=2^20.
+        if name == "pca" and dataset == "div2k" and m == 10:
+            logger.info(
+                "skipping baseline pca on div2k_10q — n_train=%d vs d=%d (intractable at 1M dim)",
+                preset.n_train, (2 ** m) * (2 ** n),
+            )
+            metrics_payload[name] = {"skipped": "pca_intractable_at_1m_dim"}
+            continue
+        try:
+            builder = BASELINE_FACTORIES[name]
+            fn = builder(train_imgs)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("baseline=%s fit FAILED: %s", name, e)
+            _record_failure(failures_dir, name, -1, e)
+            metrics_payload[name] = {
+                "failed": {"phase": "fit", "error": f"{type(e).__name__}: {e}"},
+                "time": 0.0,
+            }
+            continue
+        baseline_fns[name] = fn
+        baseline_state[name] = getattr(fn, "_pca_basis", None)
+
+    for name, fn in baseline_fns.items():
         logger.info("running baseline %s", name)
         kr_metrics, elapsed = evaluate_baseline(fn, test_imgs, preset.keep_ratios)
-        metrics_payload[name] = {"metrics": kr_metrics, "time": elapsed}
+        payload: dict[str, Any] = {"metrics": kr_metrics, "time": elapsed}
+        basis = baseline_state.get(name)
+        if basis is not None:
+            payload["_pdft_py"] = {"pca_fingerprint": _pca_fingerprint(basis)}
+            if basis.block == 8:
+                np.savez(
+                    output_dir / f"{name}_eigenbasis.npz",
+                    eigenbasis=basis.eigenbasis,
+                    mean=basis.mean,
+                    eigenvalues=basis.eigenvalues,
+                )
+        metrics_payload[name] = payload
 
     # ----- write metrics.json
     dump_metrics_json(metrics_payload, output_dir / "metrics.json")

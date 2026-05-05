@@ -115,3 +115,66 @@ def test_block_size_must_divide_image():
 def test_dct_module_imports():
     """Sanity: scipy.fft.dct is importable. Catches missing-dependency early."""
     from scipy.fft import dct as _dct  # noqa: F401
+
+
+# ---------------------------------------------------------------------------
+# Builder-pattern contract (PR 1 — registry refactor).
+# ---------------------------------------------------------------------------
+
+from pdft_benchmarks.baselines import BASELINE_FACTORIES  # noqa: E402
+
+
+def test_baseline_factories_are_builders(img_32):
+    """Every BASELINE_FACTORIES entry is callable(train_imgs) -> callable(image, kr) -> ndarray."""
+    rng = np.random.default_rng(42)
+    # Distinct images so PCA's covariance is non-degenerate.
+    train_imgs = rng.uniform(0.0, 1.0, size=(8, 32, 32)).astype(np.float64)
+    for name, builder in BASELINE_FACTORIES.items():
+        assert callable(builder), f"{name} is not callable"
+        fn = builder(train_imgs)
+        assert callable(fn), f"{name}(train_imgs) did not return a callable"
+        recovered = fn(img_32, 0.5)
+        assert recovered.shape == img_32.shape, (
+            f"{name} recovered shape {recovered.shape} != {img_32.shape}"
+        )
+
+
+def test_legacy_baselines_ignore_train_imgs(img_32):
+    """For FFT/DCT/block_fft/block_dct, output is identical regardless of train_imgs."""
+    rng = np.random.default_rng(7)
+    train_a = np.stack([rng.uniform(0, 1, (32, 32)) for _ in range(2)], axis=0)
+    train_b = np.stack([rng.uniform(0, 1, (32, 32)) for _ in range(8)], axis=0)
+    for name in ("fft", "dct", "block_fft_8", "block_dct_8"):
+        fn_a = BASELINE_FACTORIES[name](train_a)
+        fn_b = BASELINE_FACTORIES[name](train_b)
+        out_a = fn_a(img_32, 0.3)
+        out_b = fn_b(img_32, 0.3)
+        np.testing.assert_array_equal(out_a, out_b, err_msg=f"{name} differed across train sets")
+
+
+def test_baseline_factories_includes_pca_entries():
+    """PR 2: pca and block_pca_8 are registered."""
+    assert "pca" in BASELINE_FACTORIES
+    assert "block_pca_8" in BASELINE_FACTORIES
+
+
+def test_block_pca_8_builder_returns_working_callable(img_32):
+    """End-to-end: fit on a small train set, recover an image, shape preserved."""
+    train = np.stack([img_32] * 8, axis=0)
+    fn = BASELINE_FACTORIES["block_pca_8"](train)
+    out = fn(img_32, keep_ratio=0.5)
+    assert out.shape == img_32.shape
+    assert hasattr(fn, "_pca_basis")
+    assert fn._pca_basis.block == 8
+
+
+def test_global_pca_builder_returns_working_callable():
+    """End-to-end: fit on small train set of (8,8) images, recover."""
+    rng = np.random.default_rng(99)
+    train = rng.uniform(0.0, 1.0, size=(20, 8, 8)).astype(np.float64)
+    test = rng.uniform(0.0, 1.0, size=(8, 8)).astype(np.float64)
+    fn = BASELINE_FACTORIES["pca"](train)
+    out = fn(test, keep_ratio=0.5)
+    assert out.shape == test.shape
+    assert hasattr(fn, "_pca_basis")
+    assert fn._pca_basis.block is None

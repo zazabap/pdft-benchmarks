@@ -101,16 +101,38 @@ def block_dct_compress(image: np.ndarray, keep_ratio: float, block: int = 8) -> 
     return _join_blocks(recovered)
 
 
+from .pca import fit_block_pca, fit_global_pca, pca_compress, pca_recover
+
+
+def _block_pca_8_builder(train_imgs):
+    basis = fit_block_pca(train_imgs, block=8)
+    def fn(image, keep_ratio):
+        return pca_recover(basis, pca_compress(basis, image, keep_ratio))
+    fn._pca_basis = basis
+    return fn
+
+
+def _global_pca_builder(train_imgs):
+    basis = fit_global_pca(train_imgs)
+    def fn(image, keep_ratio):
+        return pca_recover(basis, pca_compress(basis, image, keep_ratio))
+    fn._pca_basis = basis
+    return fn
+
+
 # ----------------------------------------------------------------------------
-# Public registry: name -> compress(image, keep_ratio) -> recovered ndarray.
-# Used by pdft_benchmarks.pipeline to evaluate baselines side-by-side with
-# trained bases. Adding a new baseline = one entry here.
+# Public registry: name -> builder(train_imgs) -> stateless callable(image, keep_ratio).
+# Stateful baselines (PCA) fit on `train_imgs`; stateless baselines (FFT/DCT)
+# ignore the argument. Used by pdft_benchmarks.pipeline to evaluate baselines
+# side-by-side with trained bases. Adding a new baseline = one entry here.
 # ----------------------------------------------------------------------------
 BASELINE_FACTORIES = {
-    "fft": global_fft_compress,
-    "dct": global_dct_compress,
-    "block_fft_8": lambda img, keep_ratio: block_fft_compress(img, keep_ratio, block=8),
-    "block_dct_8": lambda img, keep_ratio: block_dct_compress(img, keep_ratio, block=8),
+    "fft":         lambda train_imgs: global_fft_compress,
+    "dct":         lambda train_imgs: global_dct_compress,
+    "block_fft_8": lambda train_imgs: lambda img, keep_ratio: block_fft_compress(img, keep_ratio, block=8),
+    "block_dct_8": lambda train_imgs: lambda img, keep_ratio: block_dct_compress(img, keep_ratio, block=8),
+    "pca":         _global_pca_builder,
+    "block_pca_8": _block_pca_8_builder,
 }
 
 __all__ = [

@@ -108,3 +108,59 @@ def test_analyze_max_images_caps(synthetic_data, tmp_path: Path):
     assert (tmp_path / "0000").is_dir()
     assert (tmp_path / "0001").is_dir()
     assert not (tmp_path / "0002").exists()
+
+
+def test_baseline_freq_magnitude_pca_branches():
+    """_baseline_freq_magnitude returns a non-negative (H, W) array for PCA branches."""
+    from pdft_benchmarks.analysis import _baseline_freq_magnitude
+    from pdft_benchmarks.pca import fit_block_pca, fit_global_pca
+
+    rng = np.random.default_rng(42)
+    train = rng.uniform(0.0, 1.0, size=(50, 32, 32)).astype(np.float64)
+    block_basis = fit_block_pca(train, block=8)
+    global_basis = fit_global_pca(train)
+
+    img = rng.uniform(0.0, 1.0, size=(32, 32)).astype(np.float64)
+    block_mag = _baseline_freq_magnitude("block_pca_8", img, baseline_state=block_basis)
+    assert block_mag.shape == img.shape
+    assert np.all(block_mag >= 0.0)
+
+    global_mag = _baseline_freq_magnitude("pca", img, baseline_state=global_basis)
+    assert global_mag.shape == img.shape
+    assert np.all(global_mag >= 0.0)
+
+
+def test_baseline_freq_magnitude_pca_requires_state():
+    """Without baseline_state, PCA branches raise ValueError."""
+    from pdft_benchmarks.analysis import _baseline_freq_magnitude
+
+    rng = np.random.default_rng(43)
+    img = rng.uniform(0.0, 1.0, size=(32, 32)).astype(np.float64)
+    with pytest.raises(ValueError, match="baseline_state required"):
+        _baseline_freq_magnitude("block_pca_8", img)
+    with pytest.raises(ValueError, match="baseline_state required"):
+        _baseline_freq_magnitude("pca", img)
+
+
+def test_analyze_reconstructions_with_pca_baseline_state(synthetic_data, tmp_path: Path):
+    """analyze_reconstructions accepts a baseline_state kwarg threading PcaBasis through."""
+    from pdft_benchmarks.baselines import BASELINE_FACTORIES
+    from pdft_benchmarks.pca import fit_block_pca
+
+    rng = np.random.default_rng(7)
+    train = rng.uniform(0.0, 1.0, size=(20, 8, 8)).astype(np.float64)
+    basis = fit_block_pca(train, block=8)
+    fn = BASELINE_FACTORIES["block_pca_8"](train)
+
+    analyze_reconstructions(
+        synthetic_data,
+        host_bases={},
+        baseline_fns={"block_pca_8": fn},
+        keep_ratios=(0.1, 0.2),
+        out_dir=tmp_path,
+        baseline_state={"block_pca_8": basis},
+    )
+    for i in range(synthetic_data.shape[0]):
+        sub = tmp_path / f"{i:04d}"
+        assert (sub / "reconstructions.pdf").is_file()
+        assert (sub / "frequency_spectra.pdf").is_file()
