@@ -35,9 +35,9 @@ ROWS = [
     ("Entangled QFT",      "entangled_qft",  "learned"),
     ("TEBD",               "tebd",           "learned"),
     ("MERA",               "mera",           "learned"),
-    ("Blocked",            "blocked",        "learned-blocked"),
-    ("Rich",               "rich",           "learned-blocked"),
-    ("Real Rich",          "real_rich",      "learned-blocked"),
+    ("Blocked-8",          "blocked_8",      "learned-blocked"),
+    ("Rich-8",             "rich_8",         "learned-blocked"),
+    ("Real Rich-8",        "real_rich_8",    "learned-blocked"),
 ]
 
 

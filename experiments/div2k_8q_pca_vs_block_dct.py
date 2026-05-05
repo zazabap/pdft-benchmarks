@@ -2,19 +2,18 @@
 """DIV2K-8q PCA-vs-block-DCT benchmark (m=n=8, 256×256 grayscale).
 
 Trains the seven registered parametric bases (qft, entangled_qft, tebd,
-mera, blocked, rich, real_rich) and evaluates each against six classical
-baselines: global FFT, global DCT, 8×8-block FFT, 8×8-block DCT, global
-PCA, and 8×8-block PCA. Includes PCA + block-PCA in the trained run so
-the writeup's headline numbers come from a single source.
+mera, blocked_8, rich_8, real_rich_8) and evaluates each against six
+classical baselines: global FFT, global DCT, 8×8-block FFT, 8×8-block
+DCT, global PCA, and 8×8-block PCA. Includes PCA + block-PCA in the
+trained run so the writeup's headline numbers come from a single source.
 
 MERA actually runs at this geometry (m+n=16 = 2^4, unlike QuickDraw
-where m+n=10 silently skips MERA). Block bases (blocked, rich,
-real_rich) train at m=8 with the symmetric `_blocked` split
-(inner_m=4, block_log_m=4), giving 16×16 grids of 16×16 blocks on
-256×256 images. Note: classical block_dct_8 uses 8×8 blocks — the
-trained block bases (16×16) and classical block-DCT (8×8) are NOT at
-the same block scale; this mirrors the QuickDraw pattern (4×4 trained
-vs 8×8 classical).
+where m+n=10 silently skips MERA). Block bases use the *_8 factories
+(`blocked_8`, `rich_8`, `real_rich_8`) which pin inner_m=inner_n=3 →
+8×8 pixel blocks → 32×32 grid on 256×256 images. This is
+apples-to-apples with classical block_dct_8 / block_fft_8 (also 8×8
+patches), unlike the default `blocked` / `rich` / `real_rich` factories
+which would give 16×16 blocks at m=8.
 
 GPU isolation: the --gpu flag sets CUDA_VISIBLE_DEVICES BEFORE
 importing pdft_benchmarks (which transitively imports JAX). JAX
@@ -28,9 +27,9 @@ Outputs land in `--out` directly. To use both GPUs:
         --gpu 0 --bases qft,entangled_qft,tebd,mera \\
         --out results/div2k_8q_pca_vs_block_dct/_runs/unblocked
 
-    # Terminal B — GPU 1 — 3 block-wrapped bases
+    # Terminal B — GPU 1 — 3 block-wrapped bases (8×8 blocks)
     python experiments/div2k_8q_pca_vs_block_dct.py \\
-        --gpu 1 --bases blocked,rich,real_rich \\
+        --gpu 1 --bases blocked_8,rich_8,real_rich_8 \\
         --out results/div2k_8q_pca_vs_block_dct/_runs/blocked
 
 After both finish, cellify with `tools/cellify_run.py` to assemble the
@@ -42,7 +41,7 @@ import os
 import sys
 
 ALL_BASES = ("qft", "entangled_qft", "tebd", "mera",
-             "blocked", "rich", "real_rich")
+             "blocked_8", "rich_8", "real_rich_8")
 BASELINES = ("fft", "dct", "block_fft_8", "block_dct_8", "pca", "block_pca_8")
 
 
