@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Render a single PNG: rows = methods, cols = (freq spectrum, reconstruction).
 
-Used by results/quickdraw_pca_vs_block_dct/writeup.typ to embed a side-by-side
-visualisation of each transform's behaviour on one representative
-QuickDraw test image at one keep ratio.
+Used by results/<dataset>_pca_vs_block_dct/writeup.typ (QuickDraw or
+DIV2K-8q, selected via --dataset) to embed a side-by-side visualisation
+of each transform's behaviour on representative test images at multiple
+keep ratios.
 
-Loads trained bases from results/quickdraw_pca_vs_block_dct/by_basis/{name}/trained_{name}.json,
+Loads trained bases from results/<dataset>_pca_vs_block_dct/by_basis/{name}/trained_{name}.json,
 fits classical PCA baselines on the same train split, then applies the
 shared analysis helpers to compute frequency magnitudes and clipped
 recoveries for each method.
@@ -92,11 +93,13 @@ def main():
             "by_basis": "results/quickdraw_pca_vs_block_dct/by_basis",
             "out_default": "results/quickdraw_pca_vs_block_dct/figures/freq_recon_grid.png",
             "img_size": 32,
+            "title_label": "QuickDraw",
         },
         "div2k_8q": {
             "by_basis": "results/div2k_8q_pca_vs_block_dct/by_basis",
             "out_default": "results/div2k_8q_pca_vs_block_dct/figures/freq_recon_grid.png",
             "img_size": 256,
+            "title_label": "DIV2K-8q",
         },
     }
     cfg = DATASET_CONFIG[args.dataset]
@@ -214,7 +217,7 @@ def main():
             gridspec_kw={"wspace": 0.04, "hspace": 0.04},
         )
         fig.suptitle(
-            f"QuickDraw test image #{i_idx} — reconstruction across "
+            f"{cfg['title_label']} test image #{i_idx} — reconstruction across "
             f"keep ratios (rows) × bases (cols)  |  "
             f"cols 1–{len(block_methods)}: 8×8 block-wrapped  |  "
             f"cols {len(block_methods)+1}–{n_methods}: unblocked / global",
@@ -280,7 +283,7 @@ def main():
                          "width_ratios": [1] * n_cols + [0.12]},
         )
         fig_f.suptitle(
-            f"QuickDraw test image #{i_idx} — log|F| (peak-normalised) per basis  |  "
+            f"{cfg['title_label']} test image #{i_idx} — log|F| (peak-normalised) per basis  |  "
             f"same column order as the recon grid above",
             fontsize=9.5, y=0.995,
         )
