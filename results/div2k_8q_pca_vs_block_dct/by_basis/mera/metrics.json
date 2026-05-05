@@ -38,9 +38,9 @@
         "nan_count": 0
       }
     },
-    "time": 291.18840332422405,
+    "time": 281.8724765414372,
     "_pdft_py": {
-      "warmup_s": 8.630354256369174,
+      "warmup_s": 1.5641216579824686,
       "device": "cuda:0",
       "epochs_completed": 60,
       "steps": 540,

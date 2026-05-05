@@ -133,18 +133,27 @@ def main():
     print(f"[viz] {len(images)} images at indices {image_indices}, ρ={keep_ratios}")
 
     # ---- Load trained bases ----
-    trained_names = ["qft", "entangled_qft", "tebd", "blocked", "rich", "real_rich"]
+    # Discover from disk: any <by_basis>/<name>/trained_<name>.json present.
+    # This handles both datasets and any future basis names without
+    # hardcoding (e.g. blocked vs blocked_8, with/without mera).
+    by_basis_root = Path(cfg["by_basis"])
     trained: dict = {}
-    for name in trained_names:
-        path = Path(cfg["by_basis"]) / name / f"trained_{name}.json"
-        if not path.exists():
-            print(f"[viz] skip {name} (no {path})")
-            continue
-        try:
-            trained[name] = load_trained_basis(path)
-            print(f"[viz] loaded {name}")
-        except Exception as e:
-            print(f"[viz] failed to load {name}: {e}")
+    if by_basis_root.is_dir():
+        for cell in sorted(by_basis_root.iterdir()):
+            if not cell.is_dir():
+                continue
+            name = cell.name
+            path = cell / f"trained_{name}.json"
+            if not path.exists():
+                print(f"[viz] skip {name} (no {path.name})")
+                continue
+            try:
+                trained[name] = load_trained_basis(path)
+                print(f"[viz] loaded {name}")
+            except Exception as e:
+                print(f"[viz] failed to load {name}: {e}")
+    else:
+        print(f"[viz] WARN: {by_basis_root} not a directory; no trained bases loaded")
 
     # ---- Build classical baselines (fit on same train split) ----
     classical_names = ["fft", "dct", "block_fft_8", "block_dct_8", "pca", "block_pca_8"]
@@ -190,11 +199,20 @@ def main():
             rec[(i_idx, kr)] = per_method
 
     # ---- Plot — one separate PNG per test image ----
-    block_methods  = ["rich", "real_rich", "blocked", "block_dct_8", "block_pca_8", "block_fft_8"]
-    global_methods = ["qft", "entangled_qft", "tebd", "pca", "dct", "fft"]
+    # Method ordering: block-wrapped on the left, global on the right.
+    # Use a preferred-order list that includes both legacy (blocked/rich/...) and
+    # new (*_8) trained names; whichever exists in `rec` gets included.
+    block_methods_pref = [
+        # trained block-wrapped (legacy default-split + new fixed-8 variants)
+        "rich", "real_rich", "blocked",
+        "rich_8", "real_rich_8", "blocked_8",
+        # classical 8x8-block baselines
+        "block_dct_8", "block_pca_8", "block_fft_8",
+    ]
+    global_methods_pref = ["qft", "entangled_qft", "tebd", "mera", "pca", "dct", "fft"]
     sample_key = (image_indices[0], keep_ratios[0])
-    block_methods  = [m for m in block_methods  if m in rec[sample_key]]
-    global_methods = [m for m in global_methods if m in rec[sample_key]]
+    block_methods  = [m for m in block_methods_pref  if m in rec[sample_key]]
+    global_methods = [m for m in global_methods_pref if m in rec[sample_key]]
     methods = block_methods + global_methods
     n_methods = len(methods)
     n_cols = 1 + n_methods
