@@ -1,0 +1,201 @@
+% References for pdft theory framing.
+% Curated for: KLT/DCT optimality, rate-distortion theory,
+% learned image compression, tensor networks, entanglement entropy.
+
+% ===========================================================================
+% Information-theoretic foundations
+% ===========================================================================
+
+@article{shannon1948,
+  author  = {Shannon, C. E.},
+  title   = {A Mathematical Theory of Communication},
+  journal = {Bell System Technical Journal},
+  volume  = {27},
+  pages   = {379--423, 623--656},
+  year    = {1948},
+}
+
+@inproceedings{shannon1959rd,
+  author    = {Shannon, C. E.},
+  title     = {Coding theorems for a discrete source with a fidelity criterion},
+  booktitle = {IRE National Convention Record, Part 4},
+  pages     = {142--163},
+  year      = {1959},
+}
+
+@book{cover2006,
+  author    = {Cover, Thomas M. and Thomas, Joy A.},
+  title     = {Elements of Information Theory},
+  edition   = {2nd},
+  publisher = {Wiley},
+  year      = {2006},
+}
+
+@book{berger1971,
+  author    = {Berger, Toby},
+  title     = {Rate Distortion Theory: A Mathematical Basis for Data Compression},
+  publisher = {Prentice-Hall},
+  year      = {1971},
+}
+
+% ===========================================================================
+% KLT / DCT classical results
+% ===========================================================================
+
+@article{ahmed1974,
+  author  = {Ahmed, N. and Natarajan, T. and Rao, K. R.},
+  title   = {Discrete Cosine Transform},
+  journal = {IEEE Transactions on Computers},
+  volume  = {C-23},
+  number  = {1},
+  pages   = {90--93},
+  year    = {1974},
+}
+
+@article{jain1979,
+  author  = {Jain, Anil K.},
+  title   = {A sinusoidal family of unitary transforms},
+  journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  volume  = {1},
+  number  = {4},
+  pages   = {356--365},
+  year    = {1979},
+}
+
+@article{effros2004suboptimality,
+  author  = {Effros, Michelle and Feng, Hanying and Zeger, Kenneth},
+  title   = {Suboptimality of the {Karhunen}--{Loève} transform for transform coding},
+  journal = {IEEE Transactions on Information Theory},
+  volume  = {50},
+  number  = {8},
+  pages   = {1605--1619},
+  year    = {2004},
+}
+
+@article{goyal2001,
+  author  = {Goyal, Vivek K.},
+  title   = {Theoretical foundations of transform coding},
+  journal = {IEEE Signal Processing Magazine},
+  volume  = {18},
+  number  = {5},
+  pages   = {9--21},
+  year    = {2001},
+}
+
+@book{britanak2007,
+  author    = {Britanak, Vladimir and Yip, Patrick C. and Rao, K. R.},
+  title     = {Discrete Cosine and Sine Transforms: General Properties, Fast Algorithms and Integer Approximations},
+  publisher = {Academic Press},
+  year      = {2007},
+}
+
+% ===========================================================================
+% Sparsity / k-term approximation
+% ===========================================================================
+
+@article{donoho1994,
+  author  = {Donoho, David L. and Johnstone, Iain M.},
+  title   = {Ideal spatial adaptation by wavelet shrinkage},
+  journal = {Biometrika},
+  volume  = {81},
+  pages   = {425--455},
+  year    = {1994},
+}
+
+@article{devore1998,
+  author  = {DeVore, Ronald A.},
+  title   = {Nonlinear approximation},
+  journal = {Acta Numerica},
+  volume  = {7},
+  pages   = {51--150},
+  year    = {1998},
+}
+
+@book{mallat1999,
+  author    = {Mallat, Stéphane},
+  title     = {A Wavelet Tour of Signal Processing},
+  edition   = {2nd},
+  publisher = {Academic Press},
+  year      = {1999},
+}
+
+@article{candes2006,
+  author  = {Candès, Emmanuel J. and Romberg, Justin K. and Tao, Terence},
+  title   = {Robust uncertainty principles: Exact signal reconstruction from highly incomplete frequency information},
+  journal = {IEEE Transactions on Information Theory},
+  volume  = {52},
+  number  = {2},
+  pages   = {489--509},
+  year    = {2006},
+}
+
+% ===========================================================================
+% Learned image compression (the framework our method sits in)
+% ===========================================================================
+
+@inproceedings{balle2017,
+  author    = {Ballé, Johannes and Laparra, Valero and Simoncelli, Eero P.},
+  title     = {End-to-end optimized image compression},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2017},
+}
+
+@inproceedings{theis2017,
+  author    = {Theis, Lucas and Shi, Wenzhe and Cunningham, Andrew and Huszár, Ferenc},
+  title     = {Lossy image compression with compressive autoencoders},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2017},
+}
+
+@inproceedings{yang2023,
+  author    = {Yang, Ruihan and Mandt, Stephan},
+  title     = {Lossy image compression with conditional diffusion models},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2023},
+}
+
+% ===========================================================================
+% Tensor networks / quantum-inspired ML (the structural class of pdft)
+% ===========================================================================
+
+@article{schumacher1995,
+  author  = {Schumacher, Benjamin},
+  title   = {Quantum coding},
+  journal = {Physical Review A},
+  volume  = {51},
+  pages   = {2738--2747},
+  year    = {1995},
+}
+
+@article{verstraete2008,
+  author  = {Verstraete, F. and Cirac, J. I. and Latorre, J. I.},
+  title   = {Matrix product density operators: Renormalization fixed points and boundary theories},
+  journal = {Annals of Physics},
+  volume  = {322},
+  pages   = {1452--1521},
+  year    = {2008},
+}
+
+@article{vidal2007,
+  author  = {Vidal, G.},
+  title   = {Entanglement renormalization},
+  journal = {Physical Review Letters},
+  volume  = {99},
+  pages   = {220405},
+  year    = {2007},
+}
+
+@inproceedings{stoudenmire2016,
+  author    = {Stoudenmire, E. M. and Schwab, David J.},
+  title     = {Supervised learning with tensor networks},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2016},
+}
+
+@article{glasser2020,
+  author  = {Glasser, Ivan and Sweke, Ryan and Pancotti, Nicola and Eisert, Jens and Cirac, J. Ignacio},
+  title   = {Probabilistic graphical models and tensor networks: A hybrid framework},
+  journal = {arXiv preprint},
+  volume  = {arXiv:2006.16264},
+  year    = {2020},
+}
