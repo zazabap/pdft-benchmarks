@@ -180,6 +180,55 @@ def pca_compress(basis: PcaBasis, image: np.ndarray, keep_ratio: float) -> np.nd
     return np.where(mask, coefs, 0.0)
 
 
+def pca_compress_rank(basis: PcaBasis, image: np.ndarray, keep_ratio: float) -> np.ndarray:
+    """Forward + EIGENVALUE-RANK truncation (textbook KLT-optimal rule).
+
+    For block PCA: keep the first floor(b*b * keep_ratio) eigenvector
+    positions per block (uniform budget per block, not pooled across blocks).
+    For global PCA: keep the first floor(d * keep_ratio) eigenvector positions
+    (capped at k_effective for rank-deficient fits).
+
+    Under this rule, KLT is the MSE-optimal linear transform for any signal
+    whose covariance matches the fit — Block-PCA should beat Block-DCT on
+    the datasets it was fit on. Contrast `pca_compress` which uses the
+    JPEG-style top-k-by-magnitude pooling rule (DCT-favorable in practice).
+    """
+    image = np.asarray(image, dtype=np.float64)
+    if basis.block is not None:
+        h, w = image.shape
+        b = basis.block
+        _check_block_divides(h, b)
+        _check_block_divides(w, b)
+        tiles = _tile_blocks(image, b).reshape(-1, b * b)
+        patches_centered = tiles - basis.mean
+        coefs = patches_centered @ basis.eigenbasis.T  # (n_blocks, k)
+        k_eff = coefs.shape[1]
+        keep_per_block = max(1, int(np.floor(b * b * keep_ratio)))
+        keep_per_block = min(keep_per_block, k_eff)  # cap by rank-deficiency
+        if keep_per_block >= coefs.shape[1]:
+            return coefs.copy()
+        out = np.zeros_like(coefs)
+        out[:, :keep_per_block] = coefs[:, :keep_per_block]
+        return out
+
+    # Global PCA path.
+    if image.size != basis.d:
+        side = int(np.sqrt(basis.d))
+        raise ValueError(
+            f"global PCA was fit on shape ({side}, {side}); got {image.shape}"
+        )
+    flat = image.ravel() - basis.mean
+    coefs = flat @ basis.eigenbasis.T  # (k_eff,)
+    k_eff = coefs.size
+    keep = max(1, int(np.floor(basis.d * keep_ratio)))
+    keep = min(keep, k_eff)
+    if keep >= k_eff:
+        return coefs.copy()
+    out = np.zeros_like(coefs)
+    out[:keep] = coefs[:keep]
+    return out
+
+
 def pca_recover(basis: PcaBasis, coefs: np.ndarray) -> np.ndarray:
     """Inverse-transform thresholded coefficients back to image space."""
     if basis.block is not None:

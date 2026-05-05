@@ -85,6 +85,82 @@ def block_fft_compress(image: np.ndarray, keep_ratio: float, block: int = 8) -> 
     return _join_blocks(recovered)
 
 
+def _zigzag_indices(n: int) -> np.ndarray:
+    """Return the zigzag scan order for an (n, n) coefficient grid.
+
+    Output is a length-n*n int array of flat indices, ordered low-frequency
+    first (matches JPEG's canonical 8x8 zigzag). Position 0 is the DC
+    coefficient; subsequent positions trace anti-diagonals.
+    """
+    out = np.empty(n * n, dtype=np.intp)
+    k = 0
+    for s in range(2 * n - 1):
+        if s % 2 == 0:
+            # bottom-left to top-right along this anti-diagonal
+            i_start = min(s, n - 1)
+            i_end = max(0, s - n + 1)
+            for i in range(i_start, i_end - 1, -1):
+                j = s - i
+                out[k] = i * n + j
+                k += 1
+        else:
+            # top-right to bottom-left
+            j_start = min(s, n - 1)
+            j_end = max(0, s - n + 1)
+            for j in range(j_start, j_end - 1, -1):
+                i = s - j
+                out[k] = i * n + j
+                k += 1
+    return out
+
+
+def global_dct_compress_zigzag(image: np.ndarray, keep_ratio: float) -> np.ndarray:
+    """Global DCT with zigzag-position truncation (rank-style rule).
+
+    Keeps the first floor(H*W * keep_ratio) coefficients in zigzag scan order
+    (low-frequency first). Contrast `global_dct_compress` which keeps the
+    top-k by magnitude — the rank-style rule is the fair comparator to
+    eigenvalue-rank PCA.
+    """
+    h, w = image.shape
+    if h != w:
+        raise ValueError(f"zigzag DCT currently requires square images; got {image.shape}")
+    freq = dct(dct(image, axis=0, norm="ortho"), axis=1, norm="ortho")
+    total = freq.size
+    keep = max(1, int(np.floor(total * keep_ratio)))
+    if keep >= total:
+        return idct(idct(freq, axis=0, norm="ortho"), axis=1, norm="ortho")
+    order = _zigzag_indices(h)
+    flat = freq.ravel()
+    mask_flat = np.zeros_like(flat, dtype=bool)
+    mask_flat[order[:keep]] = True
+    masked = np.where(mask_flat.reshape(freq.shape), freq, 0.0)
+    return idct(idct(masked, axis=0, norm="ortho"), axis=1, norm="ortho")
+
+
+def block_dct_compress_zigzag(image: np.ndarray, keep_ratio: float, block: int = 8) -> np.ndarray:
+    """Block DCT-II with zigzag-position truncation per block (uniform per-block budget)."""
+    h, w = image.shape
+    _check_block_divides(h, block)
+    _check_block_divides(w, block)
+
+    tiles = _split_blocks(image, block)  # (H/b, W/b, b, b)
+    freq = dct(dct(tiles, axis=-2, norm="ortho"), axis=-1, norm="ortho")
+    keep_per_block = max(1, int(np.floor(block * block * keep_ratio)))
+    keep_per_block = min(keep_per_block, block * block)
+    if keep_per_block >= block * block:
+        recovered = idct(idct(freq, axis=-2, norm="ortho"), axis=-1, norm="ortho")
+        return _join_blocks(recovered)
+    order = _zigzag_indices(block)
+    keep_positions = order[:keep_per_block]
+    mask_2d = np.zeros((block, block), dtype=bool)
+    mask_2d.flat[keep_positions] = True
+    # Broadcast mask across (n_br, n_bc, b, b)
+    masked = np.where(mask_2d, freq, 0.0)
+    recovered = idct(idct(masked, axis=-2, norm="ortho"), axis=-1, norm="ortho")
+    return _join_blocks(recovered)
+
+
 def block_dct_compress(image: np.ndarray, keep_ratio: float, block: int = 8) -> np.ndarray:
     """Block DCT-II (8x8 default). Top-k% magnitudes globally across all blocks."""
     h, w = image.shape
@@ -101,7 +177,10 @@ def block_dct_compress(image: np.ndarray, keep_ratio: float, block: int = 8) -> 
     return _join_blocks(recovered)
 
 
-from .pca import fit_block_pca, fit_global_pca, pca_compress, pca_recover
+from .pca import (
+    fit_block_pca, fit_global_pca,
+    pca_compress, pca_compress_rank, pca_recover,
+)
 
 
 def _block_pca_8_builder(train_imgs):
@@ -120,6 +199,22 @@ def _global_pca_builder(train_imgs):
     return fn
 
 
+def _block_pca_8_rank_builder(train_imgs):
+    basis = fit_block_pca(train_imgs, block=8)
+    def fn(image, keep_ratio):
+        return pca_recover(basis, pca_compress_rank(basis, image, keep_ratio))
+    fn._pca_basis = basis
+    return fn
+
+
+def _global_pca_rank_builder(train_imgs):
+    basis = fit_global_pca(train_imgs)
+    def fn(image, keep_ratio):
+        return pca_recover(basis, pca_compress_rank(basis, image, keep_ratio))
+    fn._pca_basis = basis
+    return fn
+
+
 # ----------------------------------------------------------------------------
 # Public registry: name -> builder(train_imgs) -> stateless callable(image, keep_ratio).
 # Stateful baselines (PCA) fit on `train_imgs`; stateless baselines (FFT/DCT)
@@ -127,18 +222,26 @@ def _global_pca_builder(train_imgs):
 # side-by-side with trained bases. Adding a new baseline = one entry here.
 # ----------------------------------------------------------------------------
 BASELINE_FACTORIES = {
-    "fft":         lambda train_imgs: global_fft_compress,
-    "dct":         lambda train_imgs: global_dct_compress,
-    "block_fft_8": lambda train_imgs: lambda img, keep_ratio: block_fft_compress(img, keep_ratio, block=8),
-    "block_dct_8": lambda train_imgs: lambda img, keep_ratio: block_dct_compress(img, keep_ratio, block=8),
-    "pca":         _global_pca_builder,
-    "block_pca_8": _block_pca_8_builder,
+    "fft":              lambda train_imgs: global_fft_compress,
+    "dct":              lambda train_imgs: global_dct_compress,
+    "block_fft_8":      lambda train_imgs: lambda img, keep_ratio: block_fft_compress(img, keep_ratio, block=8),
+    "block_dct_8":      lambda train_imgs: lambda img, keep_ratio: block_dct_compress(img, keep_ratio, block=8),
+    "pca":              _global_pca_builder,
+    "block_pca_8":      _block_pca_8_builder,
+    # Rank-truncation variants (textbook KLT-optimal rule for PCA;
+    # zigzag scan order for DCT — fair comparator to eigenvalue-rank PCA).
+    "dct_rank":         lambda train_imgs: global_dct_compress_zigzag,
+    "block_dct_8_rank": lambda train_imgs: lambda img, keep_ratio: block_dct_compress_zigzag(img, keep_ratio, block=8),
+    "pca_rank":         _global_pca_rank_builder,
+    "block_pca_8_rank": _block_pca_8_rank_builder,
 }
 
 __all__ = [
     "BASELINE_FACTORIES",
     "block_dct_compress",
+    "block_dct_compress_zigzag",
     "block_fft_compress",
     "global_dct_compress",
+    "global_dct_compress_zigzag",
     "global_fft_compress",
 ]

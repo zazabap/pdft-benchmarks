@@ -253,6 +253,50 @@ def test_fingerprint_fields_complete():
     assert len(fp["eigenvalue_top10"]) == 10
 
 
+def test_pca_compress_rank_block_per_block_count():
+    """Block PCA-rank keeps exactly floor(64*kr) coefs PER BLOCK (uniform budget)."""
+    from pdft_benchmarks.pca import fit_block_pca, pca_compress_rank
+
+    rng = np.random.default_rng(40)
+    train = rng.uniform(0.0, 1.0, size=(100, 32, 32)).astype(np.float64)
+    basis = fit_block_pca(train, block=8)
+    test = rng.uniform(0.0, 1.0, size=(32, 32)).astype(np.float64)
+    coefs = pca_compress_rank(basis, test, keep_ratio=0.25)
+    keep_per_block = int(np.floor(0.25 * 64))  # 16
+    n_blocks = (32 // 8) ** 2
+    assert coefs.shape == (n_blocks, 64)
+    # Every block keeps exactly `keep_per_block` non-zero coefs (positions 0..k-1).
+    nonzero_per_block = np.sum(coefs != 0, axis=1)
+    assert np.all(nonzero_per_block == keep_per_block)
+    # Specifically positions 0..15 are kept; 16..63 zeroed.
+    assert np.all(coefs[:, keep_per_block:] == 0)
+
+
+def test_pca_compress_rank_full_keep_is_identity_when_full_rank():
+    """At keep_ratio=1.0 with full-rank fit, rank-truncation recovers exactly."""
+    from pdft_benchmarks.pca import fit_block_pca, pca_compress_rank, pca_recover
+
+    rng = np.random.default_rng(41)
+    train = rng.uniform(0.0, 1.0, size=(100, 32, 32)).astype(np.float64)
+    basis = fit_block_pca(train, block=8)
+    test = rng.uniform(0.0, 1.0, size=(32, 32)).astype(np.float64)
+    rec = pca_recover(basis, pca_compress_rank(basis, test, keep_ratio=1.0))
+    np.testing.assert_allclose(rec, test, atol=1e-10)
+
+
+def test_global_pca_rank_caps_at_k_effective():
+    """Rank-deficient global PCA-rank: keep saturates at k_effective."""
+    from pdft_benchmarks.pca import fit_global_pca, pca_compress_rank
+
+    rng = np.random.default_rng(42)
+    train = rng.uniform(0.0, 1.0, size=(4, 16, 16)).astype(np.float64)
+    basis = fit_global_pca(train)  # k_effective <= 4
+    k_eff = basis.eigenbasis.shape[0]
+    test = rng.uniform(0.0, 1.0, size=(16, 16)).astype(np.float64)
+    coefs = pca_compress_rank(basis, test, keep_ratio=1.0)  # wants 256, has <=4
+    assert int(np.sum(coefs != 0)) == k_eff
+
+
 def test_block_pca_top_eigenvector_is_dc_for_smooth_images():
     """For natural-image-like (smooth gradient + small noise) corpus, the top
     block eigenvector should be approximately the DC vector ones/sqrt(64)."""
