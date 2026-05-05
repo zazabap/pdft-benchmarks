@@ -79,9 +79,29 @@ def main():
     ap.add_argument("--n-train", type=int, default=500)
     ap.add_argument("--n-test", type=int, default=50)
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--out", default="results/quickdraw_pca_vs_block_dct/figures/freq_recon_grid.png")
+    ap.add_argument("--out", default=None,
+                    help="Output PNG path. None → auto-derived from --dataset.")
     ap.add_argument("--gpu", type=int, default=0)
+    ap.add_argument("--dataset", choices=["quickdraw", "div2k_8q"],
+                    default="quickdraw",
+                    help="Which dataset+experiment-tree to render against.")
     args = ap.parse_args()
+
+    DATASET_CONFIG = {
+        "quickdraw": {
+            "by_basis": "results/quickdraw_pca_vs_block_dct/by_basis",
+            "out_default": "results/quickdraw_pca_vs_block_dct/figures/freq_recon_grid.png",
+            "img_size": 32,
+        },
+        "div2k_8q": {
+            "by_basis": "results/div2k_8q_pca_vs_block_dct/by_basis",
+            "out_default": "results/div2k_8q_pca_vs_block_dct/figures/freq_recon_grid.png",
+            "img_size": 256,
+        },
+    }
+    cfg = DATASET_CONFIG[args.dataset]
+    if args.out is None:
+        args.out = cfg["out_default"]
 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
     os.environ.setdefault("JAX_ENABLE_X64", "1")
@@ -93,13 +113,19 @@ def main():
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from pdft_benchmarks.datasets import load_quickdraw
     from pdft_benchmarks.baselines import BASELINE_FACTORIES
     from pdft_benchmarks.analysis import (
         _forward_magnitude, _baseline_freq_magnitude, _peak_normalized_log,
     )
 
-    train, test = load_quickdraw(args.n_train, args.n_test, seed=args.seed, img_size=32)
+    if args.dataset == "quickdraw":
+        from pdft_benchmarks.datasets import load_quickdraw
+        train, test = load_quickdraw(args.n_train, args.n_test, seed=args.seed, img_size=cfg["img_size"])
+    elif args.dataset == "div2k_8q":
+        from pdft_benchmarks.datasets import load_div2k
+        train, test = load_div2k(args.n_train, args.n_test, seed=args.seed, size=cfg["img_size"])
+    else:
+        raise ValueError(f"unknown dataset: {args.dataset}")
     images = [np.asarray(test[i], dtype=np.float64) for i in image_indices]
     print(f"[viz] {len(images)} images at indices {image_indices}, ρ={keep_ratios}")
 
@@ -107,7 +133,7 @@ def main():
     trained_names = ["qft", "entangled_qft", "tebd", "blocked", "rich", "real_rich"]
     trained: dict = {}
     for name in trained_names:
-        path = Path(f"results/quickdraw_pca_vs_block_dct/by_basis/{name}/trained_{name}.json")
+        path = Path(cfg["by_basis"]) / name / f"trained_{name}.json"
         if not path.exists():
             print(f"[viz] skip {name} (no {path})")
             continue
