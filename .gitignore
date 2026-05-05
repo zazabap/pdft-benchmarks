@@ -4,46 +4,16 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
-
-# Benchmark outputs (regenerable, large) — ignore everything in results/
-# by default, then whitelist the structural pieces of the curated
-# publication tree. Heavy blobs (trained bases, loss histories, raw
-# archived runs) stay out of git and live in Zenodo / a GitHub Release.
-results/*
-*.png
-plots/output/
-
-# Whitelist documentation figures (small, hand-curated, referenced from docs/*.typ).
-!docs/figures/
-!docs/figures/*.png
-
-# Whitelist the three top-level publication subdirs.
-!results/published/
-!results/ablations/
-!results/_archive/
-
-# Whitelist the independent-rerun directories produced by
-# scripts/independent_quickdraw_baselines.py — small text artefacts (REPORT.md,
-# metrics.json, INDEPENDENT_REPORT.md). The script itself regenerates them in
-# ~5 s/seed, but tracking the files keeps the writeup self-verifying.
-!results/independent_quickdraw_baselines*/
-
-# Within published/: track everything except the heavy blobs.
-results/published/**/trained_*.json
-results/published/**/loss_history/
-results/published/**/run.log
-
-# Within ablations/: only keep the README in each ablation group dir;
-# the raw timestamped data sits under group/<variant>/ and stays out.
-results/ablations/*/*
-!results/ablations/*/README.md
-
-# Within _archive/: only the README.
-results/_archive/*
-!results/_archive/README.md
+.cache/
+.jax_cache/
 
 # Local data dumps
 *.npz
 *.json.gz
-.cache/
-.jax_cache/
+
+# results/ — track curated text artifacts (metrics, csvs, figures, tables,
+# writeup); ignore heavy regeneratable blobs.
+results/**/trained_*.json
+results/**/loss_history/
+results/**/run.log
+results/**/failures/
