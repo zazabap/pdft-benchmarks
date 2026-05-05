@@ -1,7 +1,12 @@
 % Trimmed headline rate-distortion table for the paper.
-% 6 rows (3 classical + 3 learned) instead of the original 10.
+% 7 rows (3 classical-fixed + 1 classical-fitted + 3 learned)
 % Drop-in replacement for parametric-dft-paper/tables/published_8q_quickdraw.tex.
 % Numbers regenerated from results/published/ on 2026-04-30.
+%
+% Block-PCA 8x8 included as the dataset-fitted linear (KLT) baseline:
+% it shows that unconstrained linear data-fitting does NOT beat
+% BlockDCT on either dataset, ruling out generic dataset-fitting as
+% the explanation for Blocked RealRichBasis's gain on QuickDraw.
 
 \begin{tabular}{lcccccccc}
 \toprule
@@ -14,20 +19,31 @@ FFT                       & 15.26 / 0.477 & 17.32 / 0.590 & 19.01 / 0.646 & 20.5
 DCT (full-image)          & 16.13 / 0.533 & 18.44 / 0.629 & 20.33 / 0.675 & 22.03 / 0.705 & 25.36 / 0.718 & 27.61 / 0.805 & 29.33 / 0.853 & 30.85 / 0.885 \\
 BlockDCT ($8 \times 8$)   & 17.20 / 0.722 & 20.70 / 0.822 & 23.72 / 0.873 & 26.63 / 0.907 & 26.11 / 0.746 & 29.41 / 0.857 & 31.86 / 0.908 & \textbf{34.01 / 0.937} \\
 \midrule
+\multicolumn{9}{@{}l}{\emph{Classical dataset-fitted (KLT) baseline}} \\
+Block-PCA ($8 \times 8$)  & 16.95 / 0.621 & 20.46 / 0.727 & 23.34 / 0.773 & 25.95 / 0.801 & 25.93 / 0.737 & 29.05 / 0.845 & 31.42 / 0.898 & 33.51 / 0.929 \\
+\midrule
 \multicolumn{9}{@{}l}{\emph{Learned bases (this work)}} \\
-QFT (basic, full-image)         & 16.72 / 0.694 & 19.58 / 0.798 & 22.06 / 0.840 & 24.35 / 0.873 & 24.91 / 0.716 & 27.30 / 0.810 & 29.20 / 0.862 & 30.91 / 0.896 \\
-Entangled QFT (basic, full-image)& 16.72 / 0.692 & 19.58 / 0.794 & 22.05 / 0.839 & 24.35 / 0.872 & 25.07 / 0.719 & 27.53 / 0.814 & 29.48 / 0.866 & 31.23 / 0.900 \\
+QFT (basic, full-image)              & 16.72 / 0.694 & 19.58 / 0.798 & 22.06 / 0.840 & 24.35 / 0.873 & 24.91 / 0.716 & 27.30 / 0.810 & 29.20 / 0.862 & 30.91 / 0.896 \\
+Entangled QFT (basic, full-image)    & 16.72 / 0.692 & 19.58 / 0.794 & 22.05 / 0.839 & 24.35 / 0.872 & 25.07 / 0.719 & 27.53 / 0.814 & 29.48 / 0.866 & 31.23 / 0.900 \\
 Blocked RealRichBasis ($8 \times 8$) & 18.79 / 0.826 & 23.68 / 0.914 & 28.05 / 0.951 & \textbf{32.37 / 0.967} & 25.97 / 0.739 & 29.18 / 0.851 & 31.59 / 0.902 & 33.70 / 0.933 \\
 \bottomrule
 \end{tabular}
 % Formatting note: bold marks the per-dataset winner at 20% retention.
-% On DIV2K-8q this is BlockDCT (34.01 dB); on Quick Draw this is the
-% learned Blocked RealRichBasis (32.37 dB) — the +5.7 dB gap that
-% supports paper finding #2 (data-regime-dependent gain).
+% On DIV2K-8q the winner is BlockDCT (34.01 dB); on Quick Draw it is
+% the learned Blocked RealRichBasis (32.37 dB) — the +5.7 dB gap that
+% supports the paper's data-regime finding.
 %
-% Bases moved to appendix:
+% Block-PCA loses to BlockDCT on both datasets (33.51 < 34.01 and
+% 25.95 < 26.63), confirming that unconstrained linear KLT-fitting
+% does not explain the gain — the gain is specific to the structured
+% parametric quantum-circuit family.
+%
+% Bases moved to Appendix B:
 %   - TEBD (≈ MERA on DIV2K-8q at every cell; 24.01 dB on QD)
 %   - MERA (only defined when m+n is a power of 2 — DIV2K-8q only)
 %   - Blocked QFT (strictly dominated by Blocked RichBasis)
 %   - Blocked RichBasis (QuickDraw winner at 32.60 dB; subsumed by
 %     RealRichBasis in headline since the difference is < 0.25 dB)
+%   - Block-PCA rank-truncation variants (eigenvalue-rank rule;
+%     uniform per-block budget loses ~5 dB to the magnitude rule
+%     due to fixed-vs-adaptive bit-allocation, not basis quality).
