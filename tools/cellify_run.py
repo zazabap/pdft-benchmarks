@@ -95,6 +95,26 @@ def cellify(in_dir: Path, out_dir: Path, bases: list[str] | None,
 
         print(f"[cellify] wrote {cell}/")
 
+    # Baseline-keyed entries from the aggregate metrics.json get saved
+    # to <out>/_baselines.json for the paper-table renderer. (Cellify
+    # treats every top-level key NOT in target_bases as a baseline
+    # key.)
+    baseline_entries = {k: v for k, v in metrics.items()
+                        if k not in target_bases}
+    if baseline_entries:
+        baselines_path = out_dir / "_baselines.json"
+        # Merge with any pre-existing _baselines.json from a previous
+        # cellify of a sibling _runs/<group>/ — different groups train
+        # different bases but the baseline numbers should agree across
+        # groups (all baselines are evaluated against every group's
+        # train split, which is the same seed).
+        if baselines_path.exists():
+            existing = json.loads(baselines_path.read_text())
+            existing.update(baseline_entries)
+            baseline_entries = existing
+        baselines_path.write_text(json.dumps(baseline_entries, indent=2))
+        print(f"[cellify] wrote {baselines_path}")
+
     return 0
 
 
