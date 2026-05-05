@@ -7,7 +7,7 @@ rows as a grid of small images so you can see what the basis actually
 looks like — analogous to the classic "eigenfaces" plot.
 
 Outputs:
-  docs/figures/pca_basis.png — 3-panel figure showing
+  results/quickdraw_pca_vs_block_dct/figures/pca_basis.png — 3-panel figure showing
     (top)    block_PCA top-16 eigen-patches  (8×8 each)
     (middle) DCT       top-16 basis patches  (8×8 each)  for reference
     (bottom) global PCA top-16 eigen-images  (32×32 each)
@@ -27,7 +27,7 @@ def main():
     ap.add_argument("--n-test", type=int, default=50)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--top-k", type=int, default=16)
-    ap.add_argument("--out", default="docs/figures/pca_basis.png")
+    ap.add_argument("--out", default="results/quickdraw_pca_vs_block_dct/figures/pca_basis.png")
     ap.add_argument("--gpu", type=int, default=0)
     args = ap.parse_args()
 

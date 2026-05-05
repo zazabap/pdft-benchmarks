@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Render a single PNG: rows = methods, cols = (freq spectrum, reconstruction).
 
-Used by docs/global_pca_vs_block_dct.typ to embed a side-by-side
+Used by results/quickdraw_pca_vs_block_dct/writeup.typ to embed a side-by-side
 visualisation of each transform's behaviour on one representative
 QuickDraw test image at one keep ratio.
 
-Loads trained bases from results/published/quickdraw__{name}/trained_{name}.json,
+Loads trained bases from results/quickdraw_pca_vs_block_dct/by_basis/{name}/trained_{name}.json,
 fits classical PCA baselines on the same train split, then applies the
 shared analysis helpers to compute frequency magnitudes and clipped
 recoveries for each method.
@@ -79,7 +79,7 @@ def main():
     ap.add_argument("--n-train", type=int, default=500)
     ap.add_argument("--n-test", type=int, default=50)
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--out", default="docs/figures/freq_recon_grid.png")
+    ap.add_argument("--out", default="results/quickdraw_pca_vs_block_dct/figures/freq_recon_grid.png")
     ap.add_argument("--gpu", type=int, default=0)
     args = ap.parse_args()
 
@@ -107,7 +107,7 @@ def main():
     trained_names = ["qft", "entangled_qft", "tebd", "blocked", "rich", "real_rich"]
     trained: dict = {}
     for name in trained_names:
-        path = Path(f"results/published/quickdraw__{name}/trained_{name}.json")
+        path = Path(f"results/quickdraw_pca_vs_block_dct/by_basis/{name}/trained_{name}.json")
         if not path.exists():
             print(f"[viz] skip {name} (no {path})")
             continue

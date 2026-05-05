@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the LaTeX table for the paper from results/published/.
+"""Generate the LaTeX table for the paper from per-cell rate-distortion CSVs.
 
 Produces one tabular block per dataset, with three subgroups
 (classical / basic / block-wrapped) following the layout of
@@ -8,17 +8,19 @@ learned subgroup in bold" rule is applied per-subgroup, per-dataset:
 the cell with the highest mean PSNR at keep=0.20 within a
 (dataset, subgroup) pair gets all four cells bolded.
 
-Reads:
-    results/published/<dataset>__<basis>/rate_distortion_psnr.csv
-    results/published/<dataset>__<basis>/rate_distortion_ssim.csv
+Reads (TODO — see in-line note at --published-root: the directory walk
+still expects the old <root>/<dataset>__<basis>/ shape from before the
+repo-reorg; rework before next regen):
+    <published-root>/<dataset>__<basis>/rate_distortion_psnr.csv
+    <published-root>/<dataset>__<basis>/rate_distortion_ssim.csv
 
 Writes:
-    --out (default: tables/published_8q_quickdraw.tex)
+    --out (default: results/quickdraw_pca_vs_block_dct/tables/published_8q_quickdraw.tex)
 
 Usage:
-    python scripts/render_paper_table.py
-    python scripts/render_paper_table.py --datasets div2k_8q,quickdraw
-    python scripts/render_paper_table.py --out /home/claude-user/parametric-dft-paper/tables/published_8q_quickdraw.tex
+    python tools/render_paper_table.py
+    python tools/render_paper_table.py --datasets div2k_8q,quickdraw
+    python tools/render_paper_table.py --out /home/claude-user/parametric-dft-paper/tables/published_8q_quickdraw.tex
 """
 
 from __future__ import annotations
@@ -211,10 +213,12 @@ def render(datasets: list[str], published_root: Path) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--published-root", default="results/published", type=Path)
+    # TODO(repo-reorg): walks <root>/<dataset>__<basis>/; new layout is
+    # <root>/<basis>/. Rework before next paper-table regen.
+    parser.add_argument("--published-root", default="results/quickdraw_pca_vs_block_dct/by_basis", type=Path)
     parser.add_argument("--datasets", default="div2k_8q,quickdraw",
                         help="comma-separated dataset ids in the order they should appear")
-    parser.add_argument("--out", default="tables/published_8q_quickdraw.tex", type=Path)
+    parser.add_argument("--out", default="results/quickdraw_pca_vs_block_dct/tables/published_8q_quickdraw.tex", type=Path)
     args = parser.parse_args(argv)
 
     datasets = [d.strip() for d in args.datasets.split(",") if d.strip()]
