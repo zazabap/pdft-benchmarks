@@ -26,7 +26,7 @@ Default args:
   QuickDraw)
 - `--gpu None` (auto)
 - `--out None` (lets `run_experiment` use its timestamped default)
-- `--bases qft,entangled_qft,tebd,mera,blocked,rich,real_rich`
+- `--bases qft,entangled_qft,tebd,mera,blocked_8,rich_8,real_rich_8`
   (comma-separated; lets the user split across GPUs)
 
 **GPU isolation contract:** the entry point MUST set
@@ -45,14 +45,18 @@ omits PCA from baselines; the DIV2K version intentionally includes
 them. The independent-rerun tool then verifies a subset rather than
 sourcing headline numbers.)
 
-Block bases (`blocked`, `rich`, `real_rich`) train at m=8 with the
-standard symmetric `_blocked` split (`inner_m=4, block_log_m=4`),
-giving a **16×16 grid of 16×16 blocks** on a 256×256 image. Note:
-the classical baseline `block_dct_8` uses 8×8 blocks, so the trained
-block bases (16×16) and the classical block-DCT (8×8) are NOT at the
-same block scale. This mirrors the QuickDraw pattern (trained 4×4
-blocks at m=5 vs classical 8×8), so the comparison framing carries
-over directly. The writeup notes the asymmetry rather than hiding it.
+Block bases use the **`*_8` factories** (`blocked_8`, `rich_8`,
+`real_rich_8`) added in PR #11 — these pin `inner_m=inner_n=3`
+regardless of m, giving 8×8 pixel blocks at any image size. At
+DIV2K m=8: 64-dim inner basis (QFT/Rich/RealRich) replicated across
+a **32×32 grid of 8×8 blocks** on the 256×256 image. **This is
+apples-to-apples with classical `block_dct_8` / `block_fft_8`** —
+all four block methods transform 8×8 patches, so the trained-vs-
+classical comparison is at the same spatial scale. (The default
+`blocked` / `rich` / `real_rich` factories are NOT used here; they
+would give 16×16 blocks at m=8, which the QuickDraw geometry
+accidentally avoided because m=5 happens to map to 8×8 blocks under
+the default split.)
 
 ### Cellify tool — `tools/cellify_run.py` (NEW)
 Reads a flat `run_experiment` output dir and emits a
@@ -181,9 +185,9 @@ python experiments/div2k_8q_pca_vs_block_dct.py \
     --gpu 0 --bases qft,entangled_qft,tebd,mera \
     --out results/div2k_8q_pca_vs_block_dct/_runs/unblocked
 
-# Terminal B — GPU 1 — 3 block-wrapped bases
+# Terminal B — GPU 1 — 3 block-wrapped bases (8×8 blocks, 32×32 grid)
 python experiments/div2k_8q_pca_vs_block_dct.py \
-    --gpu 1 --bases blocked,rich,real_rich \
+    --gpu 1 --bases blocked_8,rich_8,real_rich_8 \
     --out results/div2k_8q_pca_vs_block_dct/_runs/blocked
 ```
 
