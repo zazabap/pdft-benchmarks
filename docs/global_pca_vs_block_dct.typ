@@ -4,6 +4,7 @@
 #set heading(numbering: "1.")
 
 #import "@preview/quill:0.7.1": *
+#import "@preview/wrap-it:0.1.1": wrap-content
 
 #align(center)[
   #text(size: 16pt, weight: "bold")[QuickDraw — trained bases vs classical baselines]
@@ -11,20 +12,66 @@
 
 #v(0.5em)
 
-= Setup
+= Main result
+
+We introduce a parametric quantum-circuit family of unitary image
+bases with $O(N log N)$ forward / inverse cost and $O(log N)$
+trainable parameters per dimension. *(i)* On line-drawing imagery
+(QuickDraw, $32 times 32$), the trained block-wrapped basis exceeds
+every linear classical baseline tested — including the dataset-fitted
+optimum BlockPCA-8 — by *$+5.97$ dB* PSNR over BlockDCT-8 at
+$rho = 0.20$, after $approx 5$ minutes of training on a single RTX
+3090. *(ii)* On natural images (DIV2K, $256 times 256$), the same
+family matches BlockDCT-8 to within $approx 0.3$ dB, saturating the
+*Ahmed–Natarajan–Rao limit* under which the KLT of a stationary
+Gaussian AR(1) source converges to the DCT. *(iii)* Accordingly, the
+parametric basis offers a rigorous improvement over BlockDCT on image
+distributions whose patch statistics depart from stationary Gaussian
+AR(1), and parity on those that do not.
+
+= Setup + pipeline
 
 $ m = n = 5, quad d = 2^m dot 2^n = 32 times 32 = 1024 $
-$ N_"train" = 500, quad N_"test" = 50, quad "seed" = 42 $
-$ "keep ratio" rho in {0.05, 0.10, 0.15, 0.20} $
+$ N_"train" = 500, quad N_"test" = 50, quad "seed" = 42, quad rho in {0.05, 0.10, 0.15, 0.20} $
 
-= Pipeline (per image $x in [0,1]^d$, basis $Phi$)
+Per image $x in [0,1]^d$ with basis $Phi$:
 
 $ y = Phi x quad ("forward") $
-$ k = floor(rho dot d), quad y'_i = cases(y_i &"if" |y_i| in "top-"k, 0 &"else") $
+$ k = floor(rho dot d), quad y'_i = cases(y_i &"if" |y_i| in "top-"k, 0 &"else") quad ("compression") $
 $ hat(x) = "clip"(Phi^(-1) y', 0, 1), quad "MSE" = 1/d norm(x - hat(x))_2^2, quad "PSNR" = 10 log_10 (1\/"MSE") $
 
 For block transforms: same pipeline applied independently to each
 $8 times 8$ tile, top-$k$ pooled across all blocks.
+
+*AR(1) (first-order autoregressive).* Each pixel = $rho_("AR")$ ×
+previous + small Gaussian noise:
+$ x_n = rho_("AR") x_(n-1) + epsilon_n, quad epsilon_n tilde cal(N)(0, sigma_epsilon^2) $
+$rho_("AR") arrow.r 1$ Gaussian → KLT collapses to DCT
+(Ahmed–Natarajan–Rao). Empirical lag-1 autocorrelation
+$hat(rho)_("AR") = 1/2 (hat(rho)_"row" + hat(rho)_"col")$ across
+multiple samples: *DIV2K natural images* (4 different scenes,
+centre $256 times 256$ crops) cluster in $hat(rho)_("AR") in [0.84,
+0.99]$ — close to the image-row-like regime, $rho approx 1$, where
+BlockDCT is near-optimal; *QuickDraw drawings* (3 samples, single
+$28 times 28$ each) cluster tightly at $hat(rho)_("AR") approx 0.70$
+— further from the AR(1)–Gaussian limit, leaving room for a trained
+basis to beat BlockDCT. The two distributions barely overlap, exactly
+the QuickDraw vs DIV2K asymmetry the results table shows. Distinct
+from the keep-ratio $rho$ above.
+
+#figure(
+  image("figures/ar1_examples.png", width: 100%),
+  caption: [*Top row*: three synthetic AR(1)–Gaussian fields at
+            $rho = 0, 0.5, 0.95$ (sanity-checking $hat(rho)$); DIV2K
+            #0250 centre crop; QuickDraw drawing #0. *Bottom row*:
+            three more DIV2K samples (#0001, #0050, #0100) and two
+            more QuickDraw drawings (#1, #2) — confirming the
+            $hat(rho)_("AR")$ values are robust across samples and
+            the two datasets cluster at different points on the AR(1)
+            axis. QuickDraw panels are single $28 times 28$ drawings
+            nearest-neighbour upscaled $9 times$ for visual size;
+            $hat(rho)$ is computed on the native pixels.]
+)
 
 = Fits — what is $Phi$ for each method?
 
@@ -40,14 +87,14 @@ $8 times 8$ tile, top-$k$ pooled across all blocks.
 
     [`pca` (global)],
     [$Phi = V^T$, where \ $Sigma = V Lambda V^T$, \ $Sigma = 1/(N-1) sum_(i=1)^N (x_i - mu)(x_i - mu)^T$ \ fit on $N = 500$ images, $d = 1024$],
-    [$d times d = 1024 times 1024$ \ rank $<= N - 1 = 499$ (deficient)],
+    [$Phi$ is $d times d = 1024 times 1024$ \ (size depends on $d$, not on $N$ — \ $Sigma$ is a sum of $N$ outer \ products of dim $d times d$) \ rank$(Sigma) <= N - 1 = 499$ (deficient)],
     [$Phi (x - mu)$],
     [top-$k$: $y_i dot bb(1)[|y_i| >= tau_k]$, $k = floor(rho dot d)$, $rho in {.05,.10,.15,.20}$ \ (rank: keep $i = 0, dots, k-1$)],
     [$Phi^T y' + mu$],
 
     [`block_pca_8`],
     [$Phi = V_b^T$, where \ $Sigma_b = V_b Lambda_b V_b^T$, \ $Sigma_b = 1/(N_p-1) sum_(j=1)^(N_p) (p_j - mu_b)(p_j - mu_b)^T$ \ fit on $N_p = 8000$ patches],
-    [$64 times 64$ per block, full rank \ shared across all $4 times 4$ blocks],
+    [$Phi$ is $64 times 64$ per block, full rank \ ($Sigma_b$ is $d_b times d_b = 64 times 64$ \ regardless of $N_p$) \ shared across all $4 times 4$ blocks],
     [per block: $Phi (p - mu_b)$],
     [top-$k$ pooled across all blocks, keep $k = floor(rho dot 1024)$ largest \ (rank: per-block keep $i = 0, dots, k_b - 1$, $k_b = floor(rho dot 64)$)],
     [per block: $Phi^T y' + mu_b$, then re-tile],
