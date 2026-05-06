@@ -38,6 +38,7 @@ BASES: dict[str, dict[str, str]] = {
 CLASSICAL_BASELINES = [
     "fft", "dct", "block_fft_8", "block_dct_8",
     "pca", "block_pca_8",
+    "dct_rank", "block_dct_8_rank", "pca_rank", "block_pca_8_rank",
 ]
 
 # (dataset, "mera") cells are SKIPPED whenever m+n is not a power of 2.
