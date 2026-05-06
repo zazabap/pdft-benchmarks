@@ -27,21 +27,23 @@ asymmetry.
 | QFT         | 24.91  | 27.30  | 29.20  | 30.91  |
 | FFT         | 24.50  | 26.54  | 28.07  | 29.39  |
 | Block-FFT 8 | 24.47  | 27.10  | 29.06  | 30.79  |
-| PCA         | 18.15  | 18.15  | 18.15  | 18.15  |
+| PCA         | 16.77  | 17.18  | 17.42  | 17.58  |
 
 Notable findings:
 - **Block-DCT 8 leads at every keep ratio.** Real Rich-8 trails by
   only 0.13–0.33 dB across the range.
 - **TEBD and MERA produce identical PSNR** at this geometry — flagged
   as a curious finding worth investigating.
-- **Global PCA saturates at 18.15 dB** because n_train=500 ≪ d=65536:
-  the PCA basis has rank ≤ 500, so any keep ratio above 500/65536 ≈
-  0.0076 keeps the full reconstruction. The rank-rule control
-  `pca_rank` confirms this — same 18.15 dB at every keep ratio,
-  since rho ≥ 0.05 already saturates the rank-499 subspace regardless
-  of which truncation rule is used. Block-PCA 8 dodges this by
-  fitting per-block (each 8×8 block has up to 64 components, fit on
-  ~3.2M extracted patches).
+- **Global PCA tops out at ~17.6 dB** at ρ=0.20 — 13 dB behind
+  Block-DCT 8 — because n_train=500 ≪ d=65536: the PCA basis has
+  rank ≤ 499 and the rank-499 projection error itself is ~18.15 dB.
+  The truncation rule keeps top-k by magnitude with budget
+  `floor(min(d, k_eff) * keep_ratio)` — the `min(d, k_eff)` clause
+  is the rate-fair fix: without it, the nominal `floor(d * ρ)`
+  budget exceeds k_eff at all reported ρ and the rule degenerates
+  into a no-op (all 499 coefs returned unchanged). Block-PCA 8
+  dodges the rank ceiling by fitting per-block (each 8×8 block has
+  up to 64 components, fit on ~3.2M extracted patches).
 - **Top-k pooling beats per-block rank rule on block transforms**
   by 3.7–7.7 dB on `block_dct_8` and `block_pca_8`. Magnitude-pooled
   top-k can spend the global budget on textured blocks; the rank

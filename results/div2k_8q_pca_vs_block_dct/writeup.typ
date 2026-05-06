@@ -24,10 +24,12 @@ limit* under which the KLT of a stationary Gaussian AR(1) source
 converges to the DCT. *(ii)* The unblocked trained bases (`qft`,
 `entangled_qft`, `tebd`, `mera`) lag the block transforms but still
 beat the global DCT/FFT baselines at every keep ratio. *(iii)*
-*Global PCA saturates at 18.15 dB across all keep ratios* — a real
-geometry constraint at $N_"train" = 500$, where the data covariance
-has rank at most $499$ on a $d = 65536$-dim image. Block-PCA-8 dodges
-this by fitting a per-block KLT on $approx 3.2$ M extracted patches.
+*Global PCA tops out at $approx 17.6$ dB at $rho = 0.20$* and is
+$13$ dB behind Block-DCT-8 — a real geometry constraint at
+$N_"train" = 500$, where the data covariance has rank at most $499$
+on a $d = 65536$-dim image (the rank-$499$ projection error itself
+is $approx 18.15$ dB). Block-PCA-8 dodges this by fitting a per-block
+KLT on $approx 3.2$ M extracted patches.
 *(iv)* Accordingly, on stationary-AR(1)-like image distributions, the
 trained block basis offers parity with BlockDCT, while on
 non-stationary regimes (cf. companion QuickDraw $32 times 32$
@@ -178,12 +180,12 @@ drawings.
       [★ `mera`         ], [*25.09*], [*27.56*], [*29.52*], [*31.28*],
 
       table.cell(colspan: 5, fill: luma(235))[*Classical, top-$k$ rule*],
-      [`pca`          ], [18.15], [18.15], [18.15], [18.15],
+      [`pca`          ], [16.77], [17.18], [17.42], [17.58],
       [`dct`          ], [*25.36*], [*27.61*], [*29.33*], [*30.85*],
       [`fft`          ], [24.50], [26.54], [28.07], [29.39],
 
       table.cell(colspan: 5, fill: luma(235))[*Classical, rank rule (control)*],
-      [`pca_rank`     ], [18.15], [18.15], [18.15], [18.15],
+      [`pca_rank`     ], [16.36], [16.81], [17.05], [17.22],
       [`dct_rank`     ], [23.43], [25.06], [26.29], [27.39],
     ),
 
@@ -243,20 +245,26 @@ The key facts the table encodes:
   decimal — the orthogonal restriction $O((4))$ inside each block is
   not costing accuracy at this geometry.
 
-- *Global PCA saturates at 18.15 dB across all four keep ratios.*
-  This is not a numerical glitch — at $N_"train" = 500$ the data
-  covariance has rank $<= 499$ on a $d = 65536$-dim image, so any
-  keep ratio above $499 / 65536 approx 0.0076$ is already keeping
-  the *full* rank-$499$ reconstruction; the PSNR ceiling is the
-  reconstruction-from-mean-plus-rank-499-projection error itself, not
-  a top-$k$ effect. The control variant `pca_rank` (rank rule, keep
-  the first $floor(rho dot d)$ eigenvectors) gives the *same* $18.15$
-  dB at every $rho$ — confirming the diagnosis: every $rho >= 0.05$
-  saturates the rank-$499$ subspace, and the rule (top-$k$ vs rank)
-  is irrelevant once you are at the cap. Block-PCA-8 dodges the rank
-  ceiling entirely by fitting a $64 times 64$ KLT per $8 times 8$
-  block on $approx 3.2$ M extracted patches — its covariance is
-  full-rank at $d_b = 64$.
+- *Global PCA tops out at $approx 17.6$ dB even at $rho = 0.20$* —
+  $13$ dB below Block-DCT-8 at the same ratio. The underlying
+  obstruction is rank deficiency: at $N_"train" = 500$ the data
+  covariance has rank $<= 499$ on a $d = 65536$-dim image, so the
+  fitted basis spans a rank-$499$ subspace and *that* projection
+  error is the floor (the "rank-$499$ ceiling" at $approx 18.15$
+  dB). The truncation rule keeps top-$k$ by magnitude *within* the
+  $499$-coefficient signal projected onto this basis, with budget
+  $k = floor("min"(d, k_"eff") dot rho)$ — i.e., $rho$-fraction of
+  the available basis when the nominal $rho dot d$ would saturate
+  it (without this rate-fair fix the rule degenerates into a no-op,
+  silently keeping all $499$ coefs at every $rho >= 0.0076$).
+  `pca_rank` (KLT rank rule on the same $499$-dim signal) lands
+  $approx 0.4$ dB below `pca` (top-$k$): consistent with QuickDraw,
+  where top-$k$-by-magnitude beats per-image rank truncation despite
+  KLT's expectation-optimality, because real images deviate from the
+  fit covariance and per-image magnitude pooling adapts. Block-PCA-8
+  dodges the rank ceiling entirely by fitting a $64 times 64$ KLT
+  per $8 times 8$ block on $approx 3.2$ M extracted patches — its
+  covariance is full-rank at $d_b = 64$.
 
 - *Top-$k$ pooling beats per-block rank rule on block transforms.*
   `block_dct_8` (top-$k$, magnitude-pooled across all 1024 blocks)
@@ -316,10 +324,14 @@ The key facts the table encodes:
             Same column order as the freq-space figure above. PSNR
             (dB) annotated per cell. Textured imagery stresses every
             method at low $rho$: at $rho = 0.05$, `block_dct_8`
-            leads, `real_rich_8` essentially ties, and `pca` is at the
-            18.15-dB rank ceiling. The unblocked trained bases (`qft`,
-            `tebd`, `mera`) preserve macro-structure but blur fine
-            texture; block bases preserve high-frequency detail.]
+            leads, `real_rich_8` essentially ties, and `pca` lags
+            $approx 9$ dB behind — the global PCA basis can only
+            represent signal in its rank-$499$ subspace, and the
+            top-$k$-of-$"min"(d, k_"eff") dot rho$ rule selects only
+            $24$ of those $499$ modes at $rho = 0.05$. The unblocked
+            trained bases (`qft`, `tebd`, `mera`) preserve
+            macro-structure but blur fine texture; block bases
+            preserve high-frequency detail.]
 )
 
 #pagebreak(weak: true)
@@ -344,9 +356,10 @@ The key facts the table encodes:
             transform: at $rho = 0.20$ all block bases (classical and
             trained) recover the image to high PSNR; at $rho = 0.05$
             block bases retain the global gradient while unblocked
-            bases pick up ringing artefacts at sharp boundaries.
-            `pca` is again pinned at 18.15 dB — the rank-499 ceiling
-            limits even smooth-image reconstruction.]
+            bases pick up ringing artefacts at sharp boundaries. `pca`
+            is again well below the block transforms — even on smooth
+            content the rank-$499$ basis cannot match a $65536$-dim
+            block-DCT decomposition.]
 )
 
 = Matching summary — bench name $arrow$ paper figure
