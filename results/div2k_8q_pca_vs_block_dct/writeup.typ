@@ -181,6 +181,10 @@ drawings.
       [`pca`          ], [18.15], [18.15], [18.15], [18.15],
       [`dct`          ], [*25.36*], [*27.61*], [*29.33*], [*30.85*],
       [`fft`          ], [24.50], [26.54], [28.07], [29.39],
+
+      table.cell(colspan: 5, fill: luma(235))[*Classical, rank rule (control)*],
+      [`pca_rank`     ], [18.15], [18.15], [18.15], [18.15],
+      [`dct_rank`     ], [23.43], [25.06], [26.29], [27.39],
     ),
 
     // Right column — block-wrapped (8×8 inner transform)
@@ -203,6 +207,10 @@ drawings.
       [`block_dct_8`  ], [*26.11*], [*29.41*], [*31.86*], [*34.01*],
       [`block_pca_8`  ], [25.93], [29.05], [31.42], [33.51],
       [`block_fft_8`  ], [24.47], [27.10], [29.06], [30.79],
+
+      table.cell(colspan: 5, fill: rgb("#dde8f7"))[*Classical, rank rule (control)*],
+      [`block_dct_8_rank`], [22.35], [24.11], [25.20], [26.30],
+      [`block_pca_8_rank`], [22.38], [24.17], [25.35], [26.40],
     ),
   )),
   caption: [Side-by-side: unblocked / full-image methods (left, gray
@@ -241,9 +249,26 @@ The key facts the table encodes:
   keep ratio above $499 / 65536 approx 0.0076$ is already keeping
   the *full* rank-$499$ reconstruction; the PSNR ceiling is the
   reconstruction-from-mean-plus-rank-499-projection error itself, not
-  a top-$k$ effect. Block-PCA-8 dodges the rank ceiling entirely by
-  fitting a $64 times 64$ KLT per $8 times 8$ block on $approx 3.2$ M
-  extracted patches — its covariance is full-rank at $d_b = 64$.
+  a top-$k$ effect. The control variant `pca_rank` (rank rule, keep
+  the first $floor(rho dot d)$ eigenvectors) gives the *same* $18.15$
+  dB at every $rho$ — confirming the diagnosis: every $rho >= 0.05$
+  saturates the rank-$499$ subspace, and the rule (top-$k$ vs rank)
+  is irrelevant once you are at the cap. Block-PCA-8 dodges the rank
+  ceiling entirely by fitting a $64 times 64$ KLT per $8 times 8$
+  block on $approx 3.2$ M extracted patches — its covariance is
+  full-rank at $d_b = 64$.
+
+- *Top-$k$ pooling beats per-block rank rule on block transforms.*
+  `block_dct_8` (top-$k$, magnitude-pooled across all 1024 blocks)
+  scores $26.11 / 29.41 / 31.86 / 34.01$ dB at the four ratios;
+  `block_dct_8_rank` (rank rule, *uniform* keep $k_b = floor(rho
+  dot 64)$ per block) scores $22.35 / 24.11 / 25.20 / 26.30$ — a
+  3.7–7.7 dB gap. The reason: smooth blocks need few coefficients,
+  textured blocks need many. Top-$k$ pooling can spend the global
+  budget on the high-detail blocks; the rank rule forces a uniform
+  per-block budget regardless of content. Same effect for `block_pca_8`
+  vs `block_pca_8_rank` ($25.93$/$29.05$/$31.42$/$33.51$ vs $22.38$/$24.17$/$25.35$/$26.40$).
+  The headline tables use the top-$k$ rule for all methods.
 
 - *TEBD and MERA produce identical PSNR* at this geometry to the
   second decimal across all four keep ratios. Curious finding worth
