@@ -2,8 +2,10 @@
 
 m=n=8, 256×256 grayscale natural images. Seven trainable parametric
 bases (qft, entangled_qft, tebd, mera, blocked_8, rich_8, real_rich_8)
-benchmarked against six classical baselines (FFT, DCT, block_FFT_8,
-block_DCT_8, PCA, block_PCA_8) at keep ratios 0.05 / 0.10 / 0.15 / 0.20.
+benchmarked against ten classical baselines (FFT, DCT, block_FFT_8,
+block_DCT_8, PCA, block_PCA_8 under the headline top-k rule, plus
+dct_rank, block_dct_8_rank, pca_rank, block_pca_8_rank as rank-rule
+controls) at keep ratios 0.05 / 0.10 / 0.15 / 0.20.
 
 All block methods (classical and trained) operate on **8×8 patches** —
 the trained block bases use the `*_8` factory variants which pin
@@ -34,9 +36,16 @@ Notable findings:
   as a curious finding worth investigating.
 - **Global PCA saturates at 18.15 dB** because n_train=500 ≪ d=65536:
   the PCA basis has rank ≤ 500, so any keep ratio above 500/65536 ≈
-  0.0076 keeps the full reconstruction. Block-PCA 8 dodges this by
+  0.0076 keeps the full reconstruction. The rank-rule control
+  `pca_rank` confirms this — same 18.15 dB at every keep ratio,
+  since rho ≥ 0.05 already saturates the rank-499 subspace regardless
+  of which truncation rule is used. Block-PCA 8 dodges this by
   fitting per-block (each 8×8 block has up to 64 components, fit on
   ~3.2M extracted patches).
+- **Top-k pooling beats per-block rank rule on block transforms**
+  by 3.7–7.7 dB on `block_dct_8` and `block_pca_8`. Magnitude-pooled
+  top-k can spend the global budget on textured blocks; the rank
+  rule forces uniform per-block allocation regardless of content.
 - **MERA actually runs** at this geometry (m+n=16 = 2⁴, unlike
   QuickDraw m+n=10 where MERA is silently skipped).
 
