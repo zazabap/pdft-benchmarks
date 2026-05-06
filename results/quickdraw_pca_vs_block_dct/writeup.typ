@@ -85,19 +85,19 @@ from the keep-ratio $rho$ above.
       [*forward $y =$*], [*compression $y' =$*], [*inverse $x =$*],
     ),
 
-    [`pca` (global)],
-    [$Phi = V^T$, where \ $Sigma = V Lambda V^T$, \ $Sigma = 1/(N-1) sum_(i=1)^N (x_i - mu)(x_i - mu)^T$ \ fit on $N = 500$ images, $d = 1024$],
-    [$Phi$ is $d times d = 1024 times 1024$ \ (size depends on $d$, not on $N$ — \ $Sigma$ is a sum of $N$ outer \ products of dim $d times d$) \ rank$(Sigma) <= N - 1 = 499$ (deficient)],
-    [$Phi (x - mu)$],
-    [top-$k$: $y_i dot bb(1)[|y_i| >= tau_k]$, $k = floor(rho dot d)$, $rho in {.05,.10,.15,.20}$ \ (rank: keep $i = 0, dots, k-1$)],
-    [$Phi^T y' + mu$],
+    [`bd_pca` (bilateral 2D-PCA)],
+    [$U, V$ from SVDs of column- and row-stacked centered images: \ $Sigma_"col" = 1/(N W - 1) sum_i (X_i - bar(X))(X_i - bar(X))^T$ ($H times H$) \ $Sigma_"row" = 1/(N H - 1) sum_i (X_i - bar(X))^T (X_i - bar(X))$ ($W times W$) \ fit on $N=500$ images at $H=W=32$ \ ($N H = N W = 16000$ samples per axis)],
+    [$U$ is $H times H = 32 times 32$, full rank \ $V$ is $W times W = 32 times 32$, full rank \ (each axis has $16000 >> 32$ samples)],
+    [$Y = U^T (X - bar(X)) V$, shape $H times W$],
+    [top-$k$ on $Y$: $Y_(i j) dot bb(1)[|Y_(i j)| >= tau_k]$, $k = floor(rho dot H W) = floor(rho dot d)$ \ (same rate as DCT)],
+    [$U Y' V^T + bar(X)$],
 
-    [`block_pca_8`],
-    [$Phi = V_b^T$, where \ $Sigma_b = V_b Lambda_b V_b^T$, \ $Sigma_b = 1/(N_p-1) sum_(j=1)^(N_p) (p_j - mu_b)(p_j - mu_b)^T$ \ fit on $N_p = 8000$ patches],
-    [$Phi$ is $64 times 64$ per block, full rank \ ($Sigma_b$ is $d_b times d_b = 64 times 64$ \ regardless of $N_p$) \ shared across all $4 times 4$ blocks],
-    [per block: $Phi (p - mu_b)$],
-    [top-$k$ pooled across all blocks, keep $k = floor(rho dot 1024)$ largest \ (rank: per-block keep $i = 0, dots, k_b - 1$, $k_b = floor(rho dot 64)$)],
-    [per block: $Phi^T y' + mu_b$, then re-tile],
+    [`block_bd_pca_8` (block bilateral 2D-PCA)],
+    [$U_b, V_b$ are separable column + row eigenbases at the $8 times 8$ patch level, \ fit on $N_p = 8000$ pooled patches \ ($500$ images $times 4 times 4 = 16$ blocks per image), \ via SVDs on $N_p b approx 64000$ samples per axis],
+    [$U_b, V_b$ are each $b times b = 8 times 8$, full rank, \ shared across all $4 times 4$ blocks. \ Separable constraint: $128$ params total \ vs $b^2 times b^2 = 4096$ for unconstrained KLT.],
+    [per block: $Y_b = U_b^T (P - bar(P)) V_b$ \ (shape $8 times 8$ per block)],
+    [top-$k$ pooled across all blocks, keep $k = floor(rho dot 1024)$ largest entries of the $4 times 4 times 8 times 8$ tensor],
+    [per block: $U_b Y_b' V_b^T + bar(P)$, then re-tile],
 
     [`dct` (global)],
     [closed-form (DCT-II): \ $Phi[k, n] = alpha_k cos(pi (n + 1\/2) k \/ N)$ \ $alpha_0 = sqrt(1/N)$, $alpha_(k >= 1) = sqrt(2/N)$ \ $N = 32$, no fit, no mean],
@@ -163,12 +163,11 @@ QuickDraw — natural patches are nearly AR(1)–Gaussian.
       [★ `tebd`         ], [16.64], [19.40], [21.79], [24.01],
 
       table.cell(colspan: 5, fill: luma(235))[*Classical, top-$k$ rule*],
-      [`pca`          ], [*17.78*], [*20.69*], [*23.12*], [*25.30*],
+      [`bd_pca`       ], [*18.63*], [*21.99*], [*24.87*], [*27.57*],
       [`dct`          ], [16.13], [18.44], [20.33], [22.03],
       [`fft`          ], [15.26], [17.32], [19.01], [20.56],
 
       table.cell(colspan: 5, fill: luma(235))[*Classical, rank rule (control)*],
-      [`pca_rank`         ], [*15.56*], [*17.57*], [*19.38*], [*20.99*],
       [`dct_rank`         ], [13.84], [15.24], [16.49], [17.63],
     ),
 
@@ -189,13 +188,12 @@ QuickDraw — natural patches are nearly AR(1)–Gaussian.
       [★ `blocked`      ], [18.12], [22.41], [26.20], [30.06],
 
       table.cell(colspan: 5, fill: rgb("#dde8f7"))[*Classical, top-$k$ rule*],
-      [`block_dct_8`  ], [*17.20*], [*20.70*], [*23.72*], [*26.63*],
-      [`block_pca_8`  ], [16.95], [20.46], [23.34], [25.95],
-      [`block_fft_8`  ], [15.97], [18.74], [21.09], [23.34],
+      [`block_dct_8`     ], [*17.20*], [*20.70*], [*23.72*], [*26.63*],
+      [`block_bd_pca_8`  ], [17.00], [20.50], [23.41], [26.05],
+      [`block_fft_8`     ], [15.97], [18.74], [21.09], [23.34],
 
       table.cell(colspan: 5, fill: rgb("#dde8f7"))[*Classical, rank rule (control)*],
-      [`block_pca_8_rank` ], [*13.60*], [*14.95*], [*16.12*], [*17.16*],
-      [`block_dct_8_rank` ], [13.50], [14.81], [15.78], [16.97],
+      [`block_dct_8_rank`], [13.50], [14.81], [15.78], [16.97],
     ),
   )),
   caption: [Side-by-side: unblocked / full-image methods (left, gray
@@ -364,9 +362,10 @@ comparison. All separable except `entangled_qft`.
             block-wrapped bases (blue headers) push energy into a
             small number of low-coefficient cells per block — visible
             as the bright clusters in `rich`/`real_rich`/`blocked`
-            and the band structure in `block_dct_8`/`block_pca_8`.
-            The `pca` panel's vertical purple band reflects
-            rank-deficiency ($N - 1 = 499 < d = 1024$).]
+            and the band structure in `block_dct_8`/`block_bd_pca_8`.
+            The `bd_pca` panel shows energy concentrated in the
+            top-left corner (low-frequency / high-eigenvalue) along
+            both axes — the separable-KLT analog of the DCT spectrum.]
 )
 
 #figure(

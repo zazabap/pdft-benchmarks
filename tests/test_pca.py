@@ -201,16 +201,43 @@ def test_global_pca_rank_deficient_full_keep_is_rank_k_projection():
 
 
 def test_global_pca_rank_deficient_compress_at_high_kr():
-    """When `keep` would exceed available rank `k`, all k coefs are kept; no error."""
+    """When the d-relative budget would saturate the rank-deficient basis,
+    truncation falls back to k_eff-relative so the rule still selects a
+    meaningful subset of coefficients (instead of degenerating into a no-op
+    that returns all available coefs unchanged at every keep_ratio)."""
     from pdft_benchmarks.pca import fit_global_pca, pca_compress
 
     rng = np.random.default_rng(14)
     train = rng.uniform(0.0, 1.0, size=(4, 16, 16)).astype(np.float64)
     basis = fit_global_pca(train)
+    k_eff = basis.eigenbasis.shape[0]
+    assert k_eff < basis.d  # rank-deficient regime
     test = rng.uniform(0.0, 1.0, size=(16, 16)).astype(np.float64)
     coefs = pca_compress(basis, test, keep_ratio=0.5)
     nonzero = int(np.sum(coefs != 0))
-    assert nonzero == basis.eigenbasis.shape[0]
+    # k_eff-relative budget at keep_ratio=0.5: floor(k_eff*0.5).
+    expected_keep = max(1, int(np.floor(k_eff * 0.5)))
+    assert nonzero == expected_keep
+    assert nonzero < k_eff  # actually truncating, not a no-op
+
+
+def test_global_pca_rank_deficient_low_kr_uses_d_relative():
+    """At low keep_ratio where the d-relative budget is below k_eff, the
+    standard d-relative budget applies (matches DCT/FFT semantics)."""
+    from pdft_benchmarks.pca import fit_global_pca, pca_compress
+
+    rng = np.random.default_rng(15)
+    # d = 1024 (32x32), n_train = 500 → k_eff = 499 < d. ρ=0.05 → 51 < 499.
+    train = rng.uniform(0.0, 1.0, size=(500, 32, 32)).astype(np.float64)
+    basis = fit_global_pca(train)
+    k_eff = basis.eigenbasis.shape[0]
+    test = rng.uniform(0.0, 1.0, size=(32, 32)).astype(np.float64)
+    coefs = pca_compress(basis, test, keep_ratio=0.05)
+    nonzero = int(np.sum(coefs != 0))
+    # d-relative budget at keep_ratio=0.05: floor(1024*0.05)=51 < k_eff=499.
+    expected_keep = max(1, int(np.floor(basis.d * 0.05)))
+    assert expected_keep < k_eff
+    assert nonzero == expected_keep
 
 
 def test_fingerprint_deterministic():
@@ -310,3 +337,104 @@ def test_block_pca_top_eigenvector_is_dc_for_smooth_images():
     dc = np.ones(64) / np.sqrt(64)
     inner = abs(float(basis.eigenbasis[0] @ dc))
     assert inner > 0.95, f"top eigenvector ⟨·, DC⟩ = {inner:.3f}; expected > 0.95"
+
+
+def test_bd_pca_round_trip_full_keep_is_identity():
+    """At keep_ratio=1.0, BD-PCA forward+truncate+inverse reproduces the input."""
+    from pdft_benchmarks.pca import fit_bd_pca, bd_pca_compress, bd_pca_recover
+
+    rng = np.random.default_rng(30)
+    train = rng.uniform(0.0, 1.0, size=(20, 16, 16)).astype(np.float64)
+    basis = fit_bd_pca(train)
+    test = rng.uniform(0.0, 1.0, size=(16, 16)).astype(np.float64)
+    coefs = bd_pca_compress(basis, test, keep_ratio=1.0)
+    recovered = bd_pca_recover(basis, coefs)
+    np.testing.assert_allclose(recovered, test, atol=1e-10)
+
+
+def test_bd_pca_orthonormal_bases():
+    """Both U and V are orthonormal."""
+    from pdft_benchmarks.pca import fit_bd_pca
+
+    rng = np.random.default_rng(31)
+    train = rng.uniform(0.0, 1.0, size=(20, 16, 16)).astype(np.float64)
+    basis = fit_bd_pca(train)
+    np.testing.assert_allclose(basis.U.T @ basis.U, np.eye(16), atol=1e-10)
+    np.testing.assert_allclose(basis.V.T @ basis.V, np.eye(16), atol=1e-10)
+
+
+def test_bd_pca_keep_ratio_truncates():
+    """At keep_ratio=0.05 with H*W=256, exactly 12 entries are kept."""
+    from pdft_benchmarks.pca import fit_bd_pca, bd_pca_compress
+
+    rng = np.random.default_rng(32)
+    train = rng.uniform(0.0, 1.0, size=(20, 16, 16)).astype(np.float64)
+    basis = fit_bd_pca(train)
+    test = rng.uniform(0.0, 1.0, size=(16, 16)).astype(np.float64)
+    coefs = bd_pca_compress(basis, test, keep_ratio=0.05)
+    nonzero = int(np.sum(coefs != 0))
+    assert nonzero == 12  # floor(256 * 0.05)
+
+
+def test_bd_pca_shape_mismatch_raises():
+    """BD-PCA fit on 16x16 raises if applied to 32x32."""
+    from pdft_benchmarks.pca import fit_bd_pca, bd_pca_compress
+
+    rng = np.random.default_rng(33)
+    train = rng.uniform(0.0, 1.0, size=(20, 16, 16)).astype(np.float64)
+    basis = fit_bd_pca(train)
+    bad = rng.uniform(0.0, 1.0, size=(32, 32)).astype(np.float64)
+    import pytest
+    with pytest.raises(ValueError, match="BD-PCA was fit on shape"):
+        bd_pca_compress(basis, bad, keep_ratio=0.5)
+
+
+def test_block_bd_pca_round_trip_full_keep_is_identity():
+    """At keep_ratio=1.0, block BD-PCA forward+inverse reproduces the input."""
+    from pdft_benchmarks.pca import fit_block_bd_pca, bd_pca_compress, bd_pca_recover
+
+    rng = np.random.default_rng(40)
+    train = rng.uniform(0.0, 1.0, size=(20, 32, 32)).astype(np.float64)
+    basis = fit_block_bd_pca(train, block=8)
+    test = rng.uniform(0.0, 1.0, size=(32, 32)).astype(np.float64)
+    coefs = bd_pca_compress(basis, test, keep_ratio=1.0)
+    recovered = bd_pca_recover(basis, coefs)
+    np.testing.assert_allclose(recovered, test, atol=1e-10)
+
+
+def test_block_bd_pca_basis_block_field():
+    """Block fit sets `block` to the patch size; global fit leaves it None."""
+    from pdft_benchmarks.pca import fit_block_bd_pca, fit_bd_pca
+
+    rng = np.random.default_rng(41)
+    train = rng.uniform(0.0, 1.0, size=(20, 32, 32)).astype(np.float64)
+    block_basis = fit_block_bd_pca(train, block=8)
+    global_basis = fit_bd_pca(train)
+    assert block_basis.block == 8
+    assert block_basis.U.shape == (8, 8)
+    assert block_basis.V.shape == (8, 8)
+    assert global_basis.block is None
+    assert global_basis.U.shape == (32, 32)
+
+
+def test_block_bd_pca_orthonormal_bases():
+    from pdft_benchmarks.pca import fit_block_bd_pca
+
+    rng = np.random.default_rng(42)
+    train = rng.uniform(0.0, 1.0, size=(20, 32, 32)).astype(np.float64)
+    basis = fit_block_bd_pca(train, block=8)
+    np.testing.assert_allclose(basis.U.T @ basis.U, np.eye(8), atol=1e-10)
+    np.testing.assert_allclose(basis.V.T @ basis.V, np.eye(8), atol=1e-10)
+
+
+def test_block_bd_pca_keep_ratio_truncates():
+    """At keep_ratio=0.05 with H*W=1024, exactly 51 entries are kept globally."""
+    from pdft_benchmarks.pca import fit_block_bd_pca, bd_pca_compress
+
+    rng = np.random.default_rng(43)
+    train = rng.uniform(0.0, 1.0, size=(20, 32, 32)).astype(np.float64)
+    basis = fit_block_bd_pca(train, block=8)
+    test = rng.uniform(0.0, 1.0, size=(32, 32)).astype(np.float64)
+    coefs = bd_pca_compress(basis, test, keep_ratio=0.05)
+    nonzero = int(np.sum(coefs != 0))
+    assert nonzero == 51  # floor(1024 * 0.05)

@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Render a single PNG: rows = methods, cols = (freq spectrum, reconstruction).
 
-Used by results/quickdraw_pca_vs_block_dct/writeup.typ to embed a side-by-side
-visualisation of each transform's behaviour on one representative
-QuickDraw test image at one keep ratio.
+Used by results/<dataset>_pca_vs_block_dct/writeup.typ (QuickDraw or
+DIV2K-8q, selected via --dataset) to embed a side-by-side visualisation
+of each transform's behaviour on representative test images at multiple
+keep ratios.
 
-Loads trained bases from results/quickdraw_pca_vs_block_dct/by_basis/{name}/trained_{name}.json,
+Loads trained bases from results/<dataset>_pca_vs_block_dct/by_basis/{name}/trained_{name}.json,
 fits classical PCA baselines on the same train split, then applies the
 shared analysis helpers to compute frequency magnitudes and clipped
 recoveries for each method.
@@ -79,9 +80,31 @@ def main():
     ap.add_argument("--n-train", type=int, default=500)
     ap.add_argument("--n-test", type=int, default=50)
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--out", default="results/quickdraw_pca_vs_block_dct/figures/freq_recon_grid.png")
+    ap.add_argument("--out", default=None,
+                    help="Output PNG path. None → auto-derived from --dataset.")
     ap.add_argument("--gpu", type=int, default=0)
+    ap.add_argument("--dataset", choices=["quickdraw", "div2k_8q"],
+                    default="quickdraw",
+                    help="Which dataset+experiment-tree to render against.")
     args = ap.parse_args()
+
+    DATASET_CONFIG = {
+        "quickdraw": {
+            "by_basis": "results/quickdraw_pca_vs_block_dct/by_basis",
+            "out_default": "results/quickdraw_pca_vs_block_dct/figures/freq_recon_grid.png",
+            "img_size": 32,
+            "title_label": "QuickDraw",
+        },
+        "div2k_8q": {
+            "by_basis": "results/div2k_8q_pca_vs_block_dct/by_basis",
+            "out_default": "results/div2k_8q_pca_vs_block_dct/figures/freq_recon_grid.png",
+            "img_size": 256,
+            "title_label": "DIV2K-8q",
+        },
+    }
+    cfg = DATASET_CONFIG[args.dataset]
+    if args.out is None:
+        args.out = cfg["out_default"]
 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
     os.environ.setdefault("JAX_ENABLE_X64", "1")
@@ -93,39 +116,56 @@ def main():
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from pdft_benchmarks.datasets import load_quickdraw
     from pdft_benchmarks.baselines import BASELINE_FACTORIES
     from pdft_benchmarks.analysis import (
         _forward_magnitude, _baseline_freq_magnitude, _peak_normalized_log,
     )
 
-    train, test = load_quickdraw(args.n_train, args.n_test, seed=args.seed, img_size=32)
+    if args.dataset == "quickdraw":
+        from pdft_benchmarks.datasets import load_quickdraw
+        train, test = load_quickdraw(args.n_train, args.n_test, seed=args.seed, img_size=cfg["img_size"])
+    elif args.dataset == "div2k_8q":
+        from pdft_benchmarks.datasets import load_div2k
+        train, test = load_div2k(args.n_train, args.n_test, seed=args.seed, size=cfg["img_size"])
+    else:
+        raise ValueError(f"unknown dataset: {args.dataset}")
     images = [np.asarray(test[i], dtype=np.float64) for i in image_indices]
     print(f"[viz] {len(images)} images at indices {image_indices}, ρ={keep_ratios}")
 
     # ---- Load trained bases ----
-    trained_names = ["qft", "entangled_qft", "tebd", "blocked", "rich", "real_rich"]
+    # Discover from disk: any <by_basis>/<name>/trained_<name>.json present.
+    # This handles both datasets and any future basis names without
+    # hardcoding (e.g. blocked vs blocked_8, with/without mera).
+    by_basis_root = Path(cfg["by_basis"])
     trained: dict = {}
-    for name in trained_names:
-        path = Path(f"results/quickdraw_pca_vs_block_dct/by_basis/{name}/trained_{name}.json")
-        if not path.exists():
-            print(f"[viz] skip {name} (no {path})")
-            continue
-        try:
-            trained[name] = load_trained_basis(path)
-            print(f"[viz] loaded {name}")
-        except Exception as e:
-            print(f"[viz] failed to load {name}: {e}")
+    if by_basis_root.is_dir():
+        for cell in sorted(by_basis_root.iterdir()):
+            if not cell.is_dir():
+                continue
+            name = cell.name
+            path = cell / f"trained_{name}.json"
+            if not path.exists():
+                print(f"[viz] skip {name} (no {path.name})")
+                continue
+            try:
+                trained[name] = load_trained_basis(path)
+                print(f"[viz] loaded {name}")
+            except Exception as e:
+                print(f"[viz] failed to load {name}: {e}")
+    else:
+        print(f"[viz] WARN: {by_basis_root} not a directory; no trained bases loaded")
 
     # ---- Build classical baselines (fit on same train split) ----
-    classical_names = ["fft", "dct", "block_fft_8", "block_dct_8", "pca", "block_pca_8"]
+    classical_names = ["fft", "dct", "block_fft_8", "block_dct_8", "bd_pca", "block_bd_pca_8"]
     classical: dict = {}
     classical_state: dict = {}
     for name in classical_names:
         try:
             fn = BASELINE_FACTORIES[name](list(train))
             classical[name] = fn
-            classical_state[name] = getattr(fn, "_pca_basis", None)
+            # PCA baselines stash the fitted basis on the closure for the
+            # frequency-magnitude renderer; bd_pca uses _bd_pca_basis instead.
+            classical_state[name] = getattr(fn, "_pca_basis", None) or getattr(fn, "_bd_pca_basis", None)
             print(f"[viz] built classical {name}")
         except Exception as e:
             print(f"[viz] failed to build classical {name}: {e}")
@@ -161,11 +201,20 @@ def main():
             rec[(i_idx, kr)] = per_method
 
     # ---- Plot — one separate PNG per test image ----
-    block_methods  = ["rich", "real_rich", "blocked", "block_dct_8", "block_pca_8", "block_fft_8"]
-    global_methods = ["qft", "entangled_qft", "tebd", "pca", "dct", "fft"]
+    # Method ordering: block-wrapped on the left, global on the right.
+    # Use a preferred-order list that includes both legacy (blocked/rich/...) and
+    # new (*_8) trained names; whichever exists in `rec` gets included.
+    block_methods_pref = [
+        # trained block-wrapped (legacy default-split + new fixed-8 variants)
+        "rich", "real_rich", "blocked",
+        "rich_8", "real_rich_8", "blocked_8",
+        # classical 8x8-block baselines
+        "block_dct_8", "block_bd_pca_8", "block_fft_8",
+    ]
+    global_methods_pref = ["qft", "entangled_qft", "tebd", "mera", "bd_pca", "dct", "fft"]
     sample_key = (image_indices[0], keep_ratios[0])
-    block_methods  = [m for m in block_methods  if m in rec[sample_key]]
-    global_methods = [m for m in global_methods if m in rec[sample_key]]
+    block_methods  = [m for m in block_methods_pref  if m in rec[sample_key]]
+    global_methods = [m for m in global_methods_pref if m in rec[sample_key]]
     methods = block_methods + global_methods
     n_methods = len(methods)
     n_cols = 1 + n_methods
@@ -188,7 +237,7 @@ def main():
             gridspec_kw={"wspace": 0.04, "hspace": 0.04},
         )
         fig.suptitle(
-            f"QuickDraw test image #{i_idx} — reconstruction across "
+            f"{cfg['title_label']} test image #{i_idx} — reconstruction across "
             f"keep ratios (rows) × bases (cols)  |  "
             f"cols 1–{len(block_methods)}: 8×8 block-wrapped  |  "
             f"cols {len(block_methods)+1}–{n_methods}: unblocked / global",
@@ -254,7 +303,7 @@ def main():
                          "width_ratios": [1] * n_cols + [0.12]},
         )
         fig_f.suptitle(
-            f"QuickDraw test image #{i_idx} — log|F| (peak-normalised) per basis  |  "
+            f"{cfg['title_label']} test image #{i_idx} — log|F| (peak-normalised) per basis  |  "
             f"same column order as the recon grid above",
             fontsize=9.5, y=0.995,
         )
