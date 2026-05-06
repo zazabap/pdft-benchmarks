@@ -27,9 +27,27 @@ def main():
     ap.add_argument("--n-test", type=int, default=50)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--top-k", type=int, default=16)
-    ap.add_argument("--out", default="results/quickdraw_pca_vs_block_dct/figures/pca_basis.png")
+    ap.add_argument("--out", default=None,
+                    help="Output PNG path. None → auto-derived from --dataset.")
     ap.add_argument("--gpu", type=int, default=0)
+    ap.add_argument("--dataset", choices=["quickdraw", "div2k_8q"],
+                    default="quickdraw",
+                    help="Which dataset to fit PCA against.")
     args = ap.parse_args()
+
+    DATASET_CONFIG = {
+        "quickdraw": {
+            "out_default": "results/quickdraw_pca_vs_block_dct/figures/pca_basis.png",
+            "img_size": 32,
+        },
+        "div2k_8q": {
+            "out_default": "results/div2k_8q_pca_vs_block_dct/figures/pca_basis.png",
+            "img_size": 256,
+        },
+    }
+    cfg = DATASET_CONFIG[args.dataset]
+    if args.out is None:
+        args.out = cfg["out_default"]
 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
     os.environ.setdefault("JAX_ENABLE_X64", "1")
@@ -39,13 +57,21 @@ def main():
     import matplotlib.pyplot as plt
     from scipy.fft import idct
 
-    from pdft_benchmarks.datasets import load_quickdraw
     from pdft_benchmarks.pca import fit_block_pca, fit_global_pca
 
-    train, _ = load_quickdraw(args.n_train, args.n_test, seed=args.seed, img_size=32)
+    img_size = cfg["img_size"]
+    if args.dataset == "quickdraw":
+        from pdft_benchmarks.datasets import load_quickdraw
+        train, _ = load_quickdraw(args.n_train, args.n_test, seed=args.seed, img_size=img_size)
+    elif args.dataset == "div2k_8q":
+        from pdft_benchmarks.datasets import load_div2k
+        train, _ = load_div2k(args.n_train, args.n_test, seed=args.seed, size=img_size)
+    else:
+        raise ValueError(f"unknown dataset: {args.dataset}")
+
     print(f"[viz] fitting block PCA on {args.n_train} images (8×8 patches)...")
     block_basis = fit_block_pca(list(train), block=8)
-    print(f"[viz] fitting global PCA on {args.n_train} images (32×32)...")
+    print(f"[viz] fitting global PCA on {args.n_train} images ({img_size}×{img_size})...")
     global_basis = fit_global_pca(list(train))
 
     # ---- Build DCT basis tiles (8×8) for reference ----
@@ -71,16 +97,18 @@ def main():
     # Each is a 4×4 sub-grid.
     outer = fig.add_gridspec(1, 3, wspace=0.18, left=0.02, right=0.99, top=0.92, bottom=0.04)
 
+    n_patches = args.n_train * (img_size // 8) ** 2
+    n_pixels = img_size * img_size
     titles = [
         f"block_PCA — top-{K} eigen-patches (8×8)\n"
-        "rows of Φ_b ∈ R^{64×64}, fit on 8000 patches",
+        f"rows of Φ_b ∈ R^{{64×64}}, fit on {n_patches} patches",
         f"block_DCT (closed-form) — first {K} basis patches (8×8)\n"
         "Φ[k,·] = cos(π(n+½)k/8) — for reference",
-        f"global PCA — top-{K} eigen-images (32×32)\n"
-        "rows of Φ ∈ R^{1024×1024}, fit on 500 images",
+        f"global PCA — top-{K} eigen-images ({img_size}×{img_size})\n"
+        f"rows of Φ ∈ R^{{{n_pixels}×{n_pixels}}}, fit on {args.n_train} images",
     ]
     panels = [block_basis.eigenbasis[:K], dct_patches[:K], global_basis.eigenbasis[:K]]
-    sides   = [8, 8, 32]
+    sides   = [8, 8, img_size]
 
     for col, (title, basis_rows, side) in enumerate(zip(titles, panels, sides)):
         sub = outer[0, col].subgridspec(rows_per_grid, cols_per_grid,

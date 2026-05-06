@@ -143,6 +143,21 @@ def _baseline_freq_magnitude(
         full[: coefs.size] = np.abs(coefs)
         side = int(np.sqrt(d))
         return full.reshape(side, side)
+    if baseline_name in ("bd_pca", "block_bd_pca_8"):
+        if baseline_state is None:
+            raise ValueError(f"baseline_state required for {baseline_name}")
+        if baseline_state.block is None:
+            # Global BD-PCA: forward the full image as a matrix.
+            Xc = np.asarray(image, dtype=np.float64) - baseline_state.mean
+            Y = baseline_state.U.T @ Xc @ baseline_state.V  # (H, W)
+            return np.abs(Y)
+        # Block BD-PCA: per-block coefficients reassembled into (H, W).
+        from .pca import _tile_blocks
+        b = baseline_state.block
+        h, w = image.shape
+        Pc = _tile_blocks(np.asarray(image, dtype=np.float64), b) - baseline_state.mean
+        Y = np.einsum("ij,abjk,kl->abil", baseline_state.U.T, Pc, baseline_state.V)
+        return np.abs(Y).swapaxes(1, 2).reshape(h, w)
     raise ValueError(f"unknown baseline {baseline_name!r}")
 
 

@@ -8,10 +8,13 @@ classical baselines.
 
 1. **QuickDraw** (m=n=5, 32×32) — implemented. Results, figures,
    table, and writeup live in `results/quickdraw_pca_vs_block_dct/`.
-2. **DIV2K-8q** (m=n=8, 256×256) — placeholder. The paper needs a
-   DIV2K-8q analog of the QuickDraw experiment, including MERA on the
-   unblocked variant. See `results/div2k_8q_pca_vs_block_dct/README.md`
-   and the follow-on spec.
+2. **DIV2K-8q** (m=n=8, 256×256) — implemented. Results, figures,
+   table, and writeup live in `results/div2k_8q_pca_vs_block_dct/`.
+   Includes MERA on the unblocked variant (m+n=16 = 2⁴, unlike
+   QuickDraw m+n=10 where MERA is silently skipped). Trained block
+   bases use the `_8` factory variants (`blocked_8`, `rich_8`,
+   `real_rich_8`) which pin block size to 8×8 patches at any m,
+   matching classical block_dct_8 / block_fft_8 exactly.
 
 ## Layout
 
@@ -29,20 +32,43 @@ tests/               Unit + integration tests.
 ## Running
 
 ```bash
-# Train and evaluate the QuickDraw experiment
+# === QuickDraw ===
 python experiments/quickdraw_pca_vs_block_dct.py --gpu 0 \
     --out results/quickdraw_pca_vs_block_dct
-
-# Re-render the paper figures from existing trained bases
 python tools/render_freq_recon_grid.py
 python tools/render_pca_basis_visualization.py
 python tools/render_ar1_examples.py
-
-# Re-compile the writeup
 typst compile results/quickdraw_pca_vs_block_dct/writeup.typ
-
-# Independent rerun for verification (~5 s/seed)
 python tools/independent_quickdraw_baselines.py --seed 42
+
+# === DIV2K-8q (split across two GPUs) ===
+# Terminal A — 4 unblocked bases on GPU 0
+python experiments/div2k_8q_pca_vs_block_dct.py \
+    --gpu 0 --bases qft,entangled_qft,tebd,mera \
+    --out results/div2k_8q_pca_vs_block_dct/_runs/unblocked
+# Terminal B — 3 block-wrapped (8×8) bases on GPU 1
+python experiments/div2k_8q_pca_vs_block_dct.py \
+    --gpu 1 --bases blocked_8,rich_8,real_rich_8 \
+    --out results/div2k_8q_pca_vs_block_dct/_runs/blocked
+
+# After both finish — cellify into by_basis/ tree
+python tools/cellify_run.py \
+    --in results/div2k_8q_pca_vs_block_dct/_runs/unblocked \
+    --out results/div2k_8q_pca_vs_block_dct/by_basis \
+    --bases qft,entangled_qft,tebd,mera
+python tools/cellify_run.py \
+    --in results/div2k_8q_pca_vs_block_dct/_runs/blocked \
+    --out results/div2k_8q_pca_vs_block_dct/by_basis \
+    --bases blocked_8,rich_8,real_rich_8
+
+# Verify, render, table, writeup
+python tools/independent_div2k_8q_baselines.py --gpu 0 --seed 42 --n-train 500
+python tools/render_freq_recon_grid.py --dataset div2k_8q --gpu 0 --image-indices 11,43
+python tools/render_pca_basis_visualization.py --dataset div2k_8q --gpu 0
+cp results/quickdraw_pca_vs_block_dct/figures/ar1_examples.png \
+   results/div2k_8q_pca_vs_block_dct/figures/
+python tools/render_div2k_paper_table.py
+typst compile results/div2k_8q_pca_vs_block_dct/writeup.typ
 ```
 
 ## Install
