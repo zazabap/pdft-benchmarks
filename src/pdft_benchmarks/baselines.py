@@ -178,7 +178,7 @@ def block_dct_compress(image: np.ndarray, keep_ratio: float, block: int = 8) -> 
 
 
 from .pca import (
-    fit_block_pca, fit_global_pca, fit_bd_pca,
+    fit_block_pca, fit_global_pca, fit_bd_pca, fit_block_bd_pca,
     pca_compress, pca_compress_rank, pca_recover,
     bd_pca_compress, bd_pca_recover,
 )
@@ -224,6 +224,14 @@ def _bd_pca_builder(train_imgs):
     return fn
 
 
+def _block_bd_pca_8_builder(train_imgs):
+    basis = fit_block_bd_pca(train_imgs, block=8)
+    def fn(image, keep_ratio):
+        return bd_pca_recover(basis, bd_pca_compress(basis, image, keep_ratio))
+    fn._bd_pca_basis = basis
+    return fn
+
+
 # ----------------------------------------------------------------------------
 # Public registry: name -> builder(train_imgs) -> stateless callable(image, keep_ratio).
 # Stateful baselines (PCA) fit on `train_imgs`; stateless baselines (FFT/DCT)
@@ -242,6 +250,11 @@ BASELINE_FACTORIES = {
     # H×H column-covariance and W×W row-covariance, both full-rank when
     # N·W (or N·H) >= H (or W).
     "bd_pca":           _bd_pca_builder,
+    # Block-mode bilateral 2D-PCA: separable column+row eigenbases fit per
+    # b×b patch (pooled across all training patches). The separable
+    # constraint regularizes the b²×b² unconstrained KLT — fewer
+    # parameters (2b² vs b⁴), better generalization on test data.
+    "block_bd_pca_8":   _block_bd_pca_8_builder,
     # Rank-truncation variants (textbook KLT-optimal rule for PCA;
     # zigzag scan order for DCT — fair comparator to eigenvalue-rank PCA).
     "dct_rank":         lambda train_imgs: global_dct_compress_zigzag,

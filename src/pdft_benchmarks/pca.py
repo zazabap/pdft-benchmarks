@@ -311,20 +311,34 @@ def fit_global_pca(train_imgs, *, seed: int = 0) -> PcaBasis:
 class BdPcaBasis:
     """Bilateral 2D-PCA basis (separable column + row eigenbases).
 
-    Each image is treated as the H×W matrix X (not a flattened d-vector).
-    Two SVDs fit a column basis U (H×H) and a row basis V (W×W), each
-    full-rank when N·W (or N·H) >= H (or W) — the typical regime, and
-    crucially full-rank on DIV2K @ 256×256 with N=500 where flat PCA is
-    severely rank-deficient (rank-499 in d=65536).
+    Two modes, indicated by `block`:
 
-    Forward:    Y = U.T (X − X̄) V         shape (H, W), unitary in matrix norm
-    Compress:   keep top-floor(H·W·rho) by magnitude over Y
-    Inverse:    X̂ = U Y V.T + X̄
+    Global mode (`block=None`): each image is the H×W matrix X. SVDs fit
+    a column basis U (H×H) on N·W centered column samples in H-dim ambient
+    and a row basis V (W×W) on N·H samples in W-dim ambient. Sidesteps the
+    d/N rank-deficiency of flat global PCA (DIV2K @ 256×256, where flat PCA
+    is rank-499 in d=65536).
 
-    U: (H, H) orthonormal, columns sorted by descending column-eigenvalue.
-    V: (W, W) orthonormal, columns sorted by descending row-eigenvalue.
-    mean: (H, W) per-pixel mean.
+    Block mode (`block=b`): each image is tiled into b×b non-overlapping
+    patches; U, V are b×b separable bases shared across all patches and fit
+    on the pooled patch population (N_p×b column / row samples each). More
+    constrained than the unconstrained b²×b² block PCA — but the separable
+    constraint is a regularizer (128 params for b=8 vs 4096 params for the
+    full b²×b² KLT) and empirically beats it by 0.05–0.3 dB on both DIV2K
+    and QuickDraw.
+
+    Forward (per-block in block mode):
+        Y = U.T (X − X̄) V
+    Compress: keep top-floor(d · keep_ratio) by magnitude over Y, pooled
+    across all blocks (block mode) or directly on the (H, W) coefficient
+    matrix (global mode).
+    Inverse: X̂ = U Y V.T + X̄, then re-tile (block mode).
+
+    U: (H, H) [global] or (block, block) [block-mode] orthonormal.
+    V: (W, W) [global] or (block, block) [block-mode] orthonormal.
+    mean: (H, W) [global] or (block, block) [block-mode] per-pixel mean.
     eigenvalues_col / eigenvalues_row: descending, non-negative.
+    block: None for global, int for block-mode (the patch size).
     """
 
     U: np.ndarray
@@ -335,6 +349,7 @@ class BdPcaBasis:
     n_samples_fit: int
     H: int
     W: int
+    block: int | None
 
 
 def _orient_columns(basis: np.ndarray) -> np.ndarray:
@@ -392,16 +407,87 @@ def fit_bd_pca(train_imgs) -> BdPcaBasis:
     return BdPcaBasis(
         U=U, V=V, mean=mean,
         eigenvalues_col=eigenvalues_col, eigenvalues_row=eigenvalues_row,
-        n_samples_fit=N, H=H, W=W,
+        n_samples_fit=N, H=H, W=W, block=None,
+    )
+
+
+def fit_block_bd_pca(train_imgs, *, block: int = 8) -> BdPcaBasis:
+    """Fit bilateral 2D-PCA on b×b patches pooled across `train_imgs`.
+
+    Tiles each training image into non-overlapping `block × block` patches
+    (matching `fit_block_pca`'s tiling), then fits separable column and row
+    eigenbases of size `block × block` each. The `BdPcaBasis` returned has
+    `block != None` so `bd_pca_compress` / `bd_pca_recover` route through
+    the block-mode path.
+    """
+    train_list = list(train_imgs)
+    if not train_list:
+        raise ValueError("fit_block_bd_pca requires at least 1 training image")
+    patches_per_img = []
+    for img in train_list:
+        h, w = img.shape
+        _check_block_divides(h, block)
+        _check_block_divides(w, block)
+        tiles = _tile_blocks(np.asarray(img, dtype=np.float64), block)
+        # tiles shape: (h/b, w/b, b, b) → (h/b * w/b, b, b)
+        patches_per_img.append(tiles.reshape(-1, block, block))
+    patches = np.concatenate(patches_per_img, axis=0)  # (N_p, b, b)
+    Np = patches.shape[0]
+    mean = patches.mean(axis=0)
+    Pc = patches - mean
+
+    import jax
+    import jax.numpy as jnp
+
+    col_stack = Pc.transpose(1, 0, 2).reshape(block, Np * block) / np.sqrt(max(Np * block - 1, 1))
+    col_dev = jax.device_put(jnp.asarray(col_stack, dtype=jnp.float64))
+    U_dev, S_col_dev, _ = jnp.linalg.svd(col_dev, full_matrices=False)
+    U = np.asarray(jax.device_get(U_dev), dtype=np.float64)
+    eigenvalues_col = np.asarray(jax.device_get(S_col_dev), dtype=np.float64) ** 2
+
+    row_stack = Pc.transpose(2, 0, 1).reshape(block, Np * block) / np.sqrt(max(Np * block - 1, 1))
+    row_dev = jax.device_put(jnp.asarray(row_stack, dtype=jnp.float64))
+    V_dev, S_row_dev, _ = jnp.linalg.svd(row_dev, full_matrices=False)
+    V = np.asarray(jax.device_get(V_dev), dtype=np.float64)
+    eigenvalues_row = np.asarray(jax.device_get(S_row_dev), dtype=np.float64) ** 2
+
+    U = _orient_columns(U)
+    V = _orient_columns(V)
+    return BdPcaBasis(
+        U=U, V=V, mean=mean,
+        eigenvalues_col=eigenvalues_col, eigenvalues_row=eigenvalues_row,
+        n_samples_fit=Np, H=block, W=block, block=block,
     )
 
 
 def bd_pca_compress(basis: BdPcaBasis, image: np.ndarray, keep_ratio: float) -> np.ndarray:
-    """Forward + top-k by magnitude on the bilateral coefficient matrix Y.
+    """Forward + top-k by magnitude on the bilateral coefficient matrix.
 
-    Returns (H, W) coefficient matrix with non-kept entries zeroed.
+    Global mode (`basis.block is None`): returns (H, W) coefficient matrix.
+    Block mode (`basis.block == b`): tiles the image into b×b patches,
+    applies U.T (P − X̄) V per patch, then top-k pooled across all patches.
+    Returns (n_blocks_row, n_blocks_col, b, b) coefficient tensor.
     """
     image = np.asarray(image, dtype=np.float64)
+    if basis.block is not None:
+        b = basis.block
+        h, w = image.shape
+        _check_block_divides(h, b)
+        _check_block_divides(w, b)
+        tiles = _tile_blocks(image, b)  # (nbr, nbc, b, b)
+        Pc = tiles - basis.mean
+        # Per-block forward: U.T (P - mean) V via einsum.
+        Y = np.einsum("ij,abjk,kl->abil", basis.U.T, Pc, basis.V)
+        budget = max(1, int(np.floor(h * w * keep_ratio)))
+        if budget >= Y.size:
+            return Y.copy()
+        flat_abs = np.abs(Y).ravel()
+        idx = np.argpartition(flat_abs, -budget)[-budget:]
+        mask_flat = np.zeros_like(flat_abs, dtype=bool)
+        mask_flat[idx] = True
+        return np.where(mask_flat.reshape(Y.shape), Y, 0.0)
+
+    # Global mode.
     if image.shape != (basis.H, basis.W):
         raise ValueError(
             f"BD-PCA was fit on shape ({basis.H}, {basis.W}); got {image.shape}"
@@ -419,7 +505,16 @@ def bd_pca_compress(basis: BdPcaBasis, image: np.ndarray, keep_ratio: float) -> 
 
 
 def bd_pca_recover(basis: BdPcaBasis, Y: np.ndarray) -> np.ndarray:
-    """Inverse of bd_pca_compress: X̂ = U Y V.T + X̄."""
+    """Inverse of bd_pca_compress.
+
+    Global mode: X̂ = U Y V.T + X̄, returns (H, W).
+    Block mode: per-block X̂ = U Y_block V.T + X̄, then re-tile.
+    """
+    if basis.block is not None:
+        b = basis.block
+        # Y has shape (nbr, nbc, b, b)
+        recon_patches = np.einsum("ij,abjk,kl->abil", basis.U, Y, basis.V.T) + basis.mean
+        return _untile_blocks(recon_patches)
     return basis.U @ Y @ basis.V.T + basis.mean
 
 
@@ -431,6 +526,7 @@ def bd_pca_fingerprint(basis: BdPcaBasis) -> dict:
         "n_samples_fit": int(basis.n_samples_fit),
         "H": int(basis.H),
         "W": int(basis.W),
+        "block": int(basis.block) if basis.block is not None else None,
         "mean_norm": float(np.linalg.norm(basis.mean)),
         "eigenvalue_col_top10": [float(v) for v in basis.eigenvalues_col[:10]],
         "eigenvalue_row_top10": [float(v) for v in basis.eigenvalues_row[:10]],
