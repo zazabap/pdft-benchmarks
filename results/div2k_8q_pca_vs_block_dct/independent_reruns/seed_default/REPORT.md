@@ -3,15 +3,19 @@
 - seed: 42
 - n_train: 500, n_test: 50
 - img_size: 256
-- baselines: ['block_dct_8', 'block_fft_8', 'block_pca_8', 'dct', 'fft', 'pca']
+- baselines: ['block_dct_8', 'block_dct_8_rank', 'block_fft_8', 'block_pca_8', 'block_pca_8_rank', 'dct', 'dct_rank', 'fft', 'pca', 'pca_rank']
 
 ## PSNR (mean over test set, keep ratios = 0.05/0.10/0.15/0.20)
 
 | baseline | 0.05 | 0.10 | 0.15 | 0.20 |
 |---|---|---|---|---|
 | block_dct_8 | 26.11 | 29.41 | 31.86 | 34.01 |
+| block_dct_8_rank | 22.35 | 24.11 | 25.20 | 26.30 |
 | block_fft_8 | 24.47 | 27.10 | 29.06 | 30.79 |
 | block_pca_8 | 25.93 | 29.05 | 31.42 | 33.51 |
+| block_pca_8_rank | 22.38 | 24.17 | 25.35 | 26.40 |
 | dct | 25.36 | 27.61 | 29.33 | 30.85 |
+| dct_rank | 23.43 | 25.06 | 26.29 | 27.39 |
 | fft | 24.50 | 26.54 | 28.07 | 29.39 |
 | pca | 18.15 | 18.15 | 18.15 | 18.15 |
+| pca_rank | 18.15 | 18.15 | 18.15 | 18.15 |
