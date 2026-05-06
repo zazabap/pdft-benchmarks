@@ -19,7 +19,7 @@ asymmetry.
 | Block-DCT 8 | 26.11  | 29.41  | 31.86  | 34.01  |
 | Real Rich-8 | 25.98  | 29.18  | 31.58  | 33.68  |
 | Rich-8      | 25.97  | 29.16  | 31.55  | 33.65  |
-| Block-PCA 8 | 25.93  | 29.05  | 31.42  | 33.51  |
+| Block BD-PCA 8 | 26.13 | 29.30  | 31.68  | 33.77  |
 | DCT         | 25.36  | 27.61  | 29.33  | 30.85  |
 | Blocked-8   | 25.18  | 28.09  | 30.30  | 32.26  |
 | TEBD ≡ MERA | 25.09  | 27.56  | 29.52  | 31.28  |
@@ -30,8 +30,11 @@ asymmetry.
 | BD-PCA      | 25.44  | 27.74  | 29.51  | 31.07  |
 
 Notable findings:
-- **Block-DCT 8 leads at every keep ratio.** Real Rich-8 trails by
-  only 0.13–0.33 dB across the range.
+- **Block-DCT 8 leads at ρ ≥ 0.10** (29.41 / 31.86 / 34.01 dB at
+  ρ=0.10/0.15/0.20). At ρ=0.05, `block_bd_pca_8` actually edges
+  out `block_dct_8` by 0.02 dB (26.13 vs 26.11) — the trained
+  separable KLT reproduces what closed-form DCT does asymptotically.
+  Real Rich-8 trails Block-DCT 8 by 0.13–0.33 dB across the range.
 - **TEBD and MERA produce identical PSNR** at this geometry — flagged
   as a curious finding worth investigating.
 - **Bilateral 2D-PCA (`bd_pca`) is the strongest unblocked classical

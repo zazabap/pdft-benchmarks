@@ -103,12 +103,12 @@ clearly beating it. Distinct from the keep-ratio $rho$ above.
     [top-$k$ on $Y$: $Y_(i j) dot bb(1)[|Y_(i j)| >= tau_k]$, $k = floor(rho dot H W) = floor(rho dot d)$ \ (same rate as DCT)],
     [$U Y' V^T + bar(X)$],
 
-    [`block_pca_8`],
-    [$Phi = V_b^T$, where \ $Sigma_b = V_b Lambda_b V_b^T$, \ $Sigma_b = 1/(N_p-1) sum_(j=1)^(N_p) (p_j - mu_b)(p_j - mu_b)^T$ \ fit on $N_p approx 3.2 dot 10^6$ patches \ ($500$ train images $times 32 times 32$ blocks)],
-    [$Phi$ is $64 times 64$ per block, full rank \ ($Sigma_b$ is $d_b times d_b = 64 times 64$ \ regardless of $N_p$) \ shared across all $32 times 32$ blocks],
-    [per block: $Phi (p - mu_b)$],
-    [top-$k$ pooled across all blocks, keep $k = floor(rho dot 65536)$ largest \ (rank: per-block keep $i = 0, dots, k_b - 1$, $k_b = floor(rho dot 64)$)],
-    [per block: $Phi^T y' + mu_b$, then re-tile],
+    [`block_bd_pca_8` (block bilateral 2D-PCA)],
+    [$U_b, V_b$ are separable column + row eigenbases at the $8 times 8$ patch level, \ fit on $N_p approx 3.2 dot 10^6$ pooled patches \ ($500$ images $times 32 times 32 = 1024$ blocks per image), \ via SVDs of $b times (N_p b)$ stacked-columns and stacked-rows ($N_p b approx 26 dot 10^6$ samples per axis)],
+    [$U_b, V_b$ are each $b times b = 8 times 8$, full rank, \ shared across all $32 times 32$ blocks. \ Separable constraint: $128$ params total \ vs $b^2 times b^2 = 4096$ for unconstrained KLT.],
+    [per block: $Y_b = U_b^T (P - bar(P)) V_b$ \ (shape $8 times 8$ per block)],
+    [top-$k$ pooled across all blocks, keep $k = floor(rho dot 65536)$ largest entries of the $32 times 32 times 8 times 8$ tensor of $Y_b$ values],
+    [per block: $U_b Y_b' V_b^T + bar(P)$, then re-tile],
 
     [`dct` (global)],
     [closed-form (DCT-II): \ $Phi[k, n] = alpha_k cos(pi (n + 1\/2) k \/ N)$ \ $alpha_0 = sqrt(1/N)$, $alpha_(k >= 1) = sqrt(2/N)$ \ $N = 256$, no fit, no mean],
@@ -152,11 +152,12 @@ $ Phi_("block_pca_8") = "KLT"(Sigma_b) quad arrow.long quad
    Phi_("block_dct_8") = "KLT"(lim_(rho arrow.r 1) Sigma_("AR(1)")(rho)) $
 
 DCT $=$ what KLT becomes if the patch covariance is the analytic
-AR(1)–Gaussian limit. Empirically the two differ by only $0.18$ –
-$0.50$ dB on DIV2K-8q (Block-DCT 8 over Block-PCA 8 at
-$rho = 0.05, dots, 0.20$) — natural patches are nearly AR(1)–Gaussian
-in this dataset, much closer to the limit than QuickDraw line
-drawings.
+AR(1)–Gaussian limit. Empirically the two are within
+$plus.minus 0.24$ dB on DIV2K-8q (`block_bd_pca_8` actually edges
+out `block_dct_8` at $rho = 0.05$ by $0.02$ dB, while `block_dct_8`
+wins by $0.11$ – $0.24$ dB at $rho >= 0.10$) — natural patches are
+nearly AR(1)–Gaussian in this dataset, much closer to the limit
+than QuickDraw line drawings.
 
 
 = Results — PSNR (dB), seed=42
@@ -206,13 +207,12 @@ drawings.
       table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[33.68]],
 
       table.cell(colspan: 5, fill: rgb("#dde8f7"))[*Classical, top-$k$ rule*],
-      [`block_dct_8`  ], [*26.11*], [*29.41*], [*31.86*], [*34.01*],
-      [`block_pca_8`  ], [25.93], [29.05], [31.42], [33.51],
-      [`block_fft_8`  ], [24.47], [27.10], [29.06], [30.79],
+      [`block_dct_8`     ], [26.11], [*29.41*], [*31.86*], [*34.01*],
+      [`block_bd_pca_8`  ], [*26.13*], [29.30], [31.68], [33.77],
+      [`block_fft_8`     ], [24.47], [27.10], [29.06], [30.79],
 
       table.cell(colspan: 5, fill: rgb("#dde8f7"))[*Classical, rank rule (control)*],
       [`block_dct_8_rank`], [22.35], [24.11], [25.20], [26.30],
-      [`block_pca_8_rank`], [22.38], [24.17], [25.35], [26.40],
     ),
   )),
   caption: [Side-by-side: unblocked / full-image methods (left, gray
@@ -233,11 +233,14 @@ drawings.
 
 The key facts the table encodes:
 
-- *Block-DCT 8 leads at every keep ratio* (26.11 / 29.41 / 31.86 /
-  34.01 dB at $rho = 0.05 / 0.10 / 0.15 / 0.20$). Block-DCT remains
-  the strongest single basis on natural images at $8 times 8$
-  blocks — consistent with JPEG-era engineering folklore and with
-  the AR(1)–Gaussian limit (§2).
+- *Block-DCT 8 leads at $rho >= 0.10$* (29.41 / 31.86 / 34.01 dB at
+  $rho = 0.10 / 0.15 / 0.20$); at $rho = 0.05$, `block_bd_pca_8`
+  edges it out by $0.02$ dB ($26.13$ vs $26.11$) — a near-tie that
+  is itself consistent with the AR(1)–Gaussian limit (§2): the
+  trained-from-data separable KLT reproduces what the closed-form
+  DCT does asymptotically. Block-DCT remains the strongest single
+  basis on natural images at $8 times 8$ blocks at higher keep
+  ratios — consistent with JPEG-era engineering folklore.
 
 - *Real Rich-8 is the best trained block basis*, but trails
   Block-DCT-8 by $0.13$ – $0.33$ dB. Rich-8 (complex, twice the
@@ -257,9 +260,13 @@ The key facts the table encodes:
   Flat global PCA on the same data hits a *rank-$499$ ceiling* at
   $approx 18.15$ dB because its ambient dim $d = 65536 >> N = 500$;
   BD-PCA sidesteps this geometry entirely by exploiting per-axis
-  separability. Block-PCA-8 reaches even higher PSNRs than `bd_pca`
-  at large $rho$ via per-patch fitting on $approx 3.2$ M $8 times
-  8$ patches.
+  separability. `block_bd_pca_8` (the same separable construction
+  applied per $8 times 8$ patch instead of per full image) reaches
+  even higher PSNRs at large $rho$ via per-patch fitting on $approx
+  3.2$ M $8 times 8$ patches, and beats unconstrained `block_pca_8`
+  by $0.20$ – $0.26$ dB at every $rho$ — the separable constraint
+  ($128$ params vs $4096$ for the full $b^2 times b^2$ KLT) is a
+  regularizer that improves generalization on test data.
 
 - *Top-$k$ pooling beats per-block rank rule on block transforms.*
   `block_dct_8` (top-$k$, magnitude-pooled across all 1024 blocks)
@@ -269,9 +276,8 @@ The key facts the table encodes:
   3.7–7.7 dB gap. The reason: smooth blocks need few coefficients,
   textured blocks need many. Top-$k$ pooling can spend the global
   budget on the high-detail blocks; the rank rule forces a uniform
-  per-block budget regardless of content. Same effect for `block_pca_8`
-  vs `block_pca_8_rank` ($25.93$/$29.05$/$31.42$/$33.51$ vs $22.38$/$24.17$/$25.35$/$26.40$).
-  The headline tables use the top-$k$ rule for all methods.
+  per-block budget regardless of content. The headline tables use
+  the top-$k$ rule for all methods.
 
 - *TEBD and MERA produce identical PSNR* at this geometry to the
   second decimal across all four keep ratios. Curious finding worth
@@ -307,9 +313,10 @@ The key facts the table encodes:
             bases push energy into a small number of low-coefficient
             cells per block — visible as the bright clusters in
             `rich_8` / `real_rich_8` / `blocked_8` and the band
-            structure in `block_dct_8` / `block_pca_8`. The `pca`
-            panel's vertical purple band reflects rank-deficiency
-            ($N - 1 = 499 << d = 65536$).]
+            structure in `block_dct_8` / `block_bd_pca_8`. The
+            `bd_pca` panel concentrates energy in the top-left
+            (low-frequency / high-eigenvalue) region along both
+            axes — the separable-KLT analog of the DCT spectrum.]
 )
 
 #figure(
