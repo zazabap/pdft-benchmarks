@@ -156,14 +156,16 @@ def main():
         print(f"[viz] WARN: {by_basis_root} not a directory; no trained bases loaded")
 
     # ---- Build classical baselines (fit on same train split) ----
-    classical_names = ["fft", "dct", "block_fft_8", "block_dct_8", "pca", "block_pca_8"]
+    classical_names = ["fft", "dct", "block_fft_8", "block_dct_8", "bd_pca", "block_pca_8"]
     classical: dict = {}
     classical_state: dict = {}
     for name in classical_names:
         try:
             fn = BASELINE_FACTORIES[name](list(train))
             classical[name] = fn
-            classical_state[name] = getattr(fn, "_pca_basis", None)
+            # PCA baselines stash the fitted basis on the closure for the
+            # frequency-magnitude renderer; bd_pca uses _bd_pca_basis instead.
+            classical_state[name] = getattr(fn, "_pca_basis", None) or getattr(fn, "_bd_pca_basis", None)
             print(f"[viz] built classical {name}")
         except Exception as e:
             print(f"[viz] failed to build classical {name}: {e}")
@@ -209,7 +211,7 @@ def main():
         # classical 8x8-block baselines
         "block_dct_8", "block_pca_8", "block_fft_8",
     ]
-    global_methods_pref = ["qft", "entangled_qft", "tebd", "mera", "pca", "dct", "fft"]
+    global_methods_pref = ["qft", "entangled_qft", "tebd", "mera", "bd_pca", "dct", "fft"]
     sample_key = (image_indices[0], keep_ratios[0])
     block_methods  = [m for m in block_methods_pref  if m in rec[sample_key]]
     global_methods = [m for m in global_methods_pref if m in rec[sample_key]]
