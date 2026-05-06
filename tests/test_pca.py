@@ -337,3 +337,53 @@ def test_block_pca_top_eigenvector_is_dc_for_smooth_images():
     dc = np.ones(64) / np.sqrt(64)
     inner = abs(float(basis.eigenbasis[0] @ dc))
     assert inner > 0.95, f"top eigenvector ⟨·, DC⟩ = {inner:.3f}; expected > 0.95"
+
+
+def test_bd_pca_round_trip_full_keep_is_identity():
+    """At keep_ratio=1.0, BD-PCA forward+truncate+inverse reproduces the input."""
+    from pdft_benchmarks.pca import fit_bd_pca, bd_pca_compress, bd_pca_recover
+
+    rng = np.random.default_rng(30)
+    train = rng.uniform(0.0, 1.0, size=(20, 16, 16)).astype(np.float64)
+    basis = fit_bd_pca(train)
+    test = rng.uniform(0.0, 1.0, size=(16, 16)).astype(np.float64)
+    coefs = bd_pca_compress(basis, test, keep_ratio=1.0)
+    recovered = bd_pca_recover(basis, coefs)
+    np.testing.assert_allclose(recovered, test, atol=1e-10)
+
+
+def test_bd_pca_orthonormal_bases():
+    """Both U and V are orthonormal."""
+    from pdft_benchmarks.pca import fit_bd_pca
+
+    rng = np.random.default_rng(31)
+    train = rng.uniform(0.0, 1.0, size=(20, 16, 16)).astype(np.float64)
+    basis = fit_bd_pca(train)
+    np.testing.assert_allclose(basis.U.T @ basis.U, np.eye(16), atol=1e-10)
+    np.testing.assert_allclose(basis.V.T @ basis.V, np.eye(16), atol=1e-10)
+
+
+def test_bd_pca_keep_ratio_truncates():
+    """At keep_ratio=0.05 with H*W=256, exactly 12 entries are kept."""
+    from pdft_benchmarks.pca import fit_bd_pca, bd_pca_compress
+
+    rng = np.random.default_rng(32)
+    train = rng.uniform(0.0, 1.0, size=(20, 16, 16)).astype(np.float64)
+    basis = fit_bd_pca(train)
+    test = rng.uniform(0.0, 1.0, size=(16, 16)).astype(np.float64)
+    coefs = bd_pca_compress(basis, test, keep_ratio=0.05)
+    nonzero = int(np.sum(coefs != 0))
+    assert nonzero == 12  # floor(256 * 0.05)
+
+
+def test_bd_pca_shape_mismatch_raises():
+    """BD-PCA fit on 16x16 raises if applied to 32x32."""
+    from pdft_benchmarks.pca import fit_bd_pca, bd_pca_compress
+
+    rng = np.random.default_rng(33)
+    train = rng.uniform(0.0, 1.0, size=(20, 16, 16)).astype(np.float64)
+    basis = fit_bd_pca(train)
+    bad = rng.uniform(0.0, 1.0, size=(32, 32)).astype(np.float64)
+    import pytest
+    with pytest.raises(ValueError, match="BD-PCA was fit on shape"):
+        bd_pca_compress(basis, bad, keep_ratio=0.5)

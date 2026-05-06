@@ -307,6 +307,140 @@ def fit_global_pca(train_imgs, *, seed: int = 0) -> PcaBasis:
     )
 
 
+@dataclass(frozen=True)
+class BdPcaBasis:
+    """Bilateral 2D-PCA basis (separable column + row eigenbases).
+
+    Each image is treated as the H×W matrix X (not a flattened d-vector).
+    Two SVDs fit a column basis U (H×H) and a row basis V (W×W), each
+    full-rank when N·W (or N·H) >= H (or W) — the typical regime, and
+    crucially full-rank on DIV2K @ 256×256 with N=500 where flat PCA is
+    severely rank-deficient (rank-499 in d=65536).
+
+    Forward:    Y = U.T (X − X̄) V         shape (H, W), unitary in matrix norm
+    Compress:   keep top-floor(H·W·rho) by magnitude over Y
+    Inverse:    X̂ = U Y V.T + X̄
+
+    U: (H, H) orthonormal, columns sorted by descending column-eigenvalue.
+    V: (W, W) orthonormal, columns sorted by descending row-eigenvalue.
+    mean: (H, W) per-pixel mean.
+    eigenvalues_col / eigenvalues_row: descending, non-negative.
+    """
+
+    U: np.ndarray
+    V: np.ndarray
+    mean: np.ndarray
+    eigenvalues_col: np.ndarray
+    eigenvalues_row: np.ndarray
+    n_samples_fit: int
+    H: int
+    W: int
+
+
+def _orient_columns(basis: np.ndarray) -> np.ndarray:
+    """Flip each column's sign so its largest-magnitude entry is positive."""
+    out = basis.copy()
+    for i in range(out.shape[1]):
+        argmax = int(np.argmax(np.abs(out[:, i])))
+        if out[argmax, i] < 0:
+            out[:, i] = -out[:, i]
+    return out
+
+
+def fit_bd_pca(train_imgs) -> BdPcaBasis:
+    """Fit bilateral 2D-PCA on (N, H, W) training images.
+
+    Computes column eigenbasis from H × (N·W) stacked-columns matrix and
+    row eigenbasis from W × (N·H) stacked-rows matrix. Both SVDs run on the
+    JAX default device (GPU when available). Returns orthonormal U (H×H)
+    and V (W×W).
+    """
+    train_list = list(train_imgs)
+    if not train_list:
+        raise ValueError("fit_bd_pca requires at least 1 training image")
+    shapes = {tuple(np.asarray(img).shape) for img in train_list}
+    if len(shapes) != 1:
+        raise ValueError(
+            f"fit_bd_pca requires all training images to have identical shape; got {shapes}"
+        )
+    H, W = shapes.pop()
+    X = np.stack([np.asarray(img, dtype=np.float64) for img in train_list], axis=0)
+    N = X.shape[0]
+    mean = X.mean(axis=0)
+    Xc = X - mean
+
+    import jax
+    import jax.numpy as jnp
+
+    # Column basis U from H × (N*W) stacked columns. Normalising by
+    # sqrt(N*W - 1) gives squared singular values equal to the eigenvalues
+    # of the column scatter (1/(N*W-1)) sum_i (X_i - X̄)(X_i - X̄)^T.
+    col_stack = Xc.transpose(1, 0, 2).reshape(H, N * W) / np.sqrt(max(N * W - 1, 1))
+    col_dev = jax.device_put(jnp.asarray(col_stack, dtype=jnp.float64))
+    U_dev, S_col_dev, _ = jnp.linalg.svd(col_dev, full_matrices=False)
+    U = np.asarray(jax.device_get(U_dev), dtype=np.float64)  # (H, H)
+    eigenvalues_col = np.asarray(jax.device_get(S_col_dev), dtype=np.float64) ** 2
+
+    row_stack = Xc.transpose(2, 0, 1).reshape(W, N * H) / np.sqrt(max(N * H - 1, 1))
+    row_dev = jax.device_put(jnp.asarray(row_stack, dtype=jnp.float64))
+    V_dev, S_row_dev, _ = jnp.linalg.svd(row_dev, full_matrices=False)
+    V = np.asarray(jax.device_get(V_dev), dtype=np.float64)  # (W, W)
+    eigenvalues_row = np.asarray(jax.device_get(S_row_dev), dtype=np.float64) ** 2
+
+    U = _orient_columns(U)
+    V = _orient_columns(V)
+    return BdPcaBasis(
+        U=U, V=V, mean=mean,
+        eigenvalues_col=eigenvalues_col, eigenvalues_row=eigenvalues_row,
+        n_samples_fit=N, H=H, W=W,
+    )
+
+
+def bd_pca_compress(basis: BdPcaBasis, image: np.ndarray, keep_ratio: float) -> np.ndarray:
+    """Forward + top-k by magnitude on the bilateral coefficient matrix Y.
+
+    Returns (H, W) coefficient matrix with non-kept entries zeroed.
+    """
+    image = np.asarray(image, dtype=np.float64)
+    if image.shape != (basis.H, basis.W):
+        raise ValueError(
+            f"BD-PCA was fit on shape ({basis.H}, {basis.W}); got {image.shape}"
+        )
+    Xc = image - basis.mean
+    Y = basis.U.T @ Xc @ basis.V
+    budget = max(1, int(np.floor(basis.H * basis.W * keep_ratio)))
+    if budget >= Y.size:
+        return Y.copy()
+    flat = np.abs(Y).ravel()
+    idx = np.argpartition(flat, -budget)[-budget:]
+    mask_flat = np.zeros_like(flat, dtype=bool)
+    mask_flat[idx] = True
+    return np.where(mask_flat.reshape(Y.shape), Y, 0.0)
+
+
+def bd_pca_recover(basis: BdPcaBasis, Y: np.ndarray) -> np.ndarray:
+    """Inverse of bd_pca_compress: X̂ = U Y V.T + X̄."""
+    return basis.U @ Y @ basis.V.T + basis.mean
+
+
+def bd_pca_fingerprint(basis: BdPcaBasis) -> dict:
+    """Compact, JSON-serializable summary of a fitted BdPcaBasis."""
+    eigenvalues_col_rounded = np.round(basis.eigenvalues_col, 12)
+    eigenvalues_row_rounded = np.round(basis.eigenvalues_row, 12)
+    return {
+        "n_samples_fit": int(basis.n_samples_fit),
+        "H": int(basis.H),
+        "W": int(basis.W),
+        "mean_norm": float(np.linalg.norm(basis.mean)),
+        "eigenvalue_col_top10": [float(v) for v in basis.eigenvalues_col[:10]],
+        "eigenvalue_row_top10": [float(v) for v in basis.eigenvalues_row[:10]],
+        "eigenvalue_col_sum": float(basis.eigenvalues_col.sum()),
+        "eigenvalue_row_sum": float(basis.eigenvalues_row.sum()),
+        "spectrum_col_sha256": hashlib.sha256(eigenvalues_col_rounded.tobytes()).hexdigest(),
+        "spectrum_row_sha256": hashlib.sha256(eigenvalues_row_rounded.tobytes()).hexdigest(),
+    }
+
+
 def fingerprint(basis: PcaBasis) -> dict:
     """Compact, JSON-serializable summary of a fitted PcaBasis.
 

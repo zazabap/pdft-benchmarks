@@ -143,6 +143,12 @@ def _baseline_freq_magnitude(
         full[: coefs.size] = np.abs(coefs)
         side = int(np.sqrt(d))
         return full.reshape(side, side)
+    if baseline_name == "bd_pca":
+        if baseline_state is None:
+            raise ValueError("baseline_state required for bd_pca")
+        Xc = np.asarray(image, dtype=np.float64) - baseline_state.mean
+        Y = baseline_state.U.T @ Xc @ baseline_state.V  # (H, W)
+        return np.abs(Y)
     raise ValueError(f"unknown baseline {baseline_name!r}")
 
 
