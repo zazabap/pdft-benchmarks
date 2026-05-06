@@ -201,16 +201,43 @@ def test_global_pca_rank_deficient_full_keep_is_rank_k_projection():
 
 
 def test_global_pca_rank_deficient_compress_at_high_kr():
-    """When `keep` would exceed available rank `k`, all k coefs are kept; no error."""
+    """When the d-relative budget would saturate the rank-deficient basis,
+    truncation falls back to k_eff-relative so the rule still selects a
+    meaningful subset of coefficients (instead of degenerating into a no-op
+    that returns all available coefs unchanged at every keep_ratio)."""
     from pdft_benchmarks.pca import fit_global_pca, pca_compress
 
     rng = np.random.default_rng(14)
     train = rng.uniform(0.0, 1.0, size=(4, 16, 16)).astype(np.float64)
     basis = fit_global_pca(train)
+    k_eff = basis.eigenbasis.shape[0]
+    assert k_eff < basis.d  # rank-deficient regime
     test = rng.uniform(0.0, 1.0, size=(16, 16)).astype(np.float64)
     coefs = pca_compress(basis, test, keep_ratio=0.5)
     nonzero = int(np.sum(coefs != 0))
-    assert nonzero == basis.eigenbasis.shape[0]
+    # k_eff-relative budget at keep_ratio=0.5: floor(k_eff*0.5).
+    expected_keep = max(1, int(np.floor(k_eff * 0.5)))
+    assert nonzero == expected_keep
+    assert nonzero < k_eff  # actually truncating, not a no-op
+
+
+def test_global_pca_rank_deficient_low_kr_uses_d_relative():
+    """At low keep_ratio where the d-relative budget is below k_eff, the
+    standard d-relative budget applies (matches DCT/FFT semantics)."""
+    from pdft_benchmarks.pca import fit_global_pca, pca_compress
+
+    rng = np.random.default_rng(15)
+    # d = 1024 (32x32), n_train = 500 → k_eff = 499 < d. ρ=0.05 → 51 < 499.
+    train = rng.uniform(0.0, 1.0, size=(500, 32, 32)).astype(np.float64)
+    basis = fit_global_pca(train)
+    k_eff = basis.eigenbasis.shape[0]
+    test = rng.uniform(0.0, 1.0, size=(32, 32)).astype(np.float64)
+    coefs = pca_compress(basis, test, keep_ratio=0.05)
+    nonzero = int(np.sum(coefs != 0))
+    # d-relative budget at keep_ratio=0.05: floor(1024*0.05)=51 < k_eff=499.
+    expected_keep = max(1, int(np.floor(basis.d * 0.05)))
+    assert expected_keep < k_eff
+    assert nonzero == expected_keep
 
 
 def test_fingerprint_deterministic():

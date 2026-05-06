@@ -138,6 +138,23 @@ def fit_block_pca(train_imgs, *, block: int = 8, seed: int = 0) -> PcaBasis:
     )
 
 
+def _global_pca_keep_count(d_nominal: int, k_eff: int, keep_ratio: float) -> int:
+    """Number of coefficients to keep for global-PCA truncation.
+
+    Uses d_nominal-relative budget by default (matches DCT/FFT semantics).
+    For rank-deficient fits where the d-relative budget exceeds k_eff (the
+    DIV2K regime: d=65536, k_eff=499), the nominal budget would always
+    saturate the available basis and turn truncation into a no-op. In that
+    regime the budget falls back to k_eff-relative so top-k truncation
+    still selects a meaningful subset of coefficients and the
+    rate-distortion curve discriminates with keep_ratio.
+    """
+    budget = max(1, int(np.floor(d_nominal * keep_ratio)))
+    if budget <= k_eff:
+        return budget
+    return max(1, int(np.floor(k_eff * keep_ratio)))
+
+
 def pca_compress(basis: PcaBasis, image: np.ndarray, keep_ratio: float) -> np.ndarray:
     """Forward + top-k by magnitude. Output has the same shape as the forward transform.
 
@@ -169,8 +186,8 @@ def pca_compress(basis: PcaBasis, image: np.ndarray, keep_ratio: float) -> np.nd
             f"global PCA was fit on shape ({side}, {side}); got {image.shape}"
         )
     flat = image.ravel() - basis.mean
-    coefs = flat @ basis.eigenbasis.T  # (k,)
-    keep = max(1, int(np.floor(basis.d * keep_ratio)))
+    coefs = flat @ basis.eigenbasis.T  # (k_eff,)
+    keep = _global_pca_keep_count(basis.d, coefs.size, keep_ratio)
     if keep >= coefs.size:
         return coefs.copy()
     flat_abs = np.abs(coefs)
@@ -185,8 +202,10 @@ def pca_compress_rank(basis: PcaBasis, image: np.ndarray, keep_ratio: float) -> 
 
     For block PCA: keep the first floor(b*b * keep_ratio) eigenvector
     positions per block (uniform budget per block, not pooled across blocks).
-    For global PCA: keep the first floor(d * keep_ratio) eigenvector positions
-    (capped at k_effective for rank-deficient fits).
+    For global PCA: keep the first floor(d * keep_ratio) eigenvector positions,
+    falling back to floor(k_eff * keep_ratio) for rank-deficient fits where
+    the d-relative budget would saturate the available basis (see
+    `_global_pca_keep_count`).
 
     Under this rule, KLT is the MSE-optimal linear transform for any signal
     whose covariance matches the fit — Block-PCA should beat Block-DCT on
@@ -220,8 +239,7 @@ def pca_compress_rank(basis: PcaBasis, image: np.ndarray, keep_ratio: float) -> 
     flat = image.ravel() - basis.mean
     coefs = flat @ basis.eigenbasis.T  # (k_eff,)
     k_eff = coefs.size
-    keep = max(1, int(np.floor(basis.d * keep_ratio)))
-    keep = min(keep, k_eff)
+    keep = _global_pca_keep_count(basis.d, k_eff, keep_ratio)
     if keep >= k_eff:
         return coefs.copy()
     out = np.zeros_like(coefs)
