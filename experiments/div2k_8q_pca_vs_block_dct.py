@@ -44,7 +44,7 @@ ALL_BASES = ("qft", "entangled_qft", "tebd", "mera",
              "blocked_8", "rich_8", "real_rich_8")
 BASELINES = ("fft", "dct", "block_fft_8", "block_dct_8", "pca", "block_pca_8",
              "dct_rank", "block_dct_8_rank", "pca_rank", "block_pca_8_rank",
-             "bd_pca")
+             "bd_pca", "block_bd_pca_8")
 
 
 def main() -> int:

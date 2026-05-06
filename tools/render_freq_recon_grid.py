@@ -156,7 +156,7 @@ def main():
         print(f"[viz] WARN: {by_basis_root} not a directory; no trained bases loaded")
 
     # ---- Build classical baselines (fit on same train split) ----
-    classical_names = ["fft", "dct", "block_fft_8", "block_dct_8", "bd_pca", "block_pca_8"]
+    classical_names = ["fft", "dct", "block_fft_8", "block_dct_8", "bd_pca", "block_bd_pca_8"]
     classical: dict = {}
     classical_state: dict = {}
     for name in classical_names:
@@ -209,7 +209,7 @@ def main():
         "rich", "real_rich", "blocked",
         "rich_8", "real_rich_8", "blocked_8",
         # classical 8x8-block baselines
-        "block_dct_8", "block_pca_8", "block_fft_8",
+        "block_dct_8", "block_bd_pca_8", "block_fft_8",
     ]
     global_methods_pref = ["qft", "entangled_qft", "tebd", "mera", "bd_pca", "dct", "fft"]
     sample_key = (image_indices[0], keep_ratios[0])
