@@ -85,12 +85,12 @@ from the keep-ratio $rho$ above.
       [*forward $y =$*], [*compression $y' =$*], [*inverse $x =$*],
     ),
 
-    [`pca` (global)],
-    [$Phi = V^T$, where \ $Sigma = V Lambda V^T$, \ $Sigma = 1/(N-1) sum_(i=1)^N (x_i - mu)(x_i - mu)^T$ \ fit on $N = 500$ images, $d = 1024$],
-    [$Phi$ is $d times d = 1024 times 1024$ \ (size depends on $d$, not on $N$ — \ $Sigma$ is a sum of $N$ outer \ products of dim $d times d$) \ rank$(Sigma) <= N - 1 = 499$ (deficient)],
-    [$Phi (x - mu)$],
-    [top-$k$: $y_i dot bb(1)[|y_i| >= tau_k]$, $k = floor(rho dot d)$, $rho in {.05,.10,.15,.20}$ \ (rank: keep $i = 0, dots, k-1$)],
-    [$Phi^T y' + mu$],
+    [`bd_pca` (bilateral 2D-PCA)],
+    [$U, V$ from SVDs of column- and row-stacked centered images: \ $Sigma_"col" = 1/(N W - 1) sum_i (X_i - bar(X))(X_i - bar(X))^T$ ($H times H$) \ $Sigma_"row" = 1/(N H - 1) sum_i (X_i - bar(X))^T (X_i - bar(X))$ ($W times W$) \ fit on $N=500$ images at $H=W=32$ \ ($N H = N W = 16000$ samples per axis)],
+    [$U$ is $H times H = 32 times 32$, full rank \ $V$ is $W times W = 32 times 32$, full rank \ (each axis has $16000 >> 32$ samples)],
+    [$Y = U^T (X - bar(X)) V$, shape $H times W$],
+    [top-$k$ on $Y$: $Y_(i j) dot bb(1)[|Y_(i j)| >= tau_k]$, $k = floor(rho dot H W) = floor(rho dot d)$ \ (same rate as DCT)],
+    [$U Y' V^T + bar(X)$],
 
     [`block_pca_8`],
     [$Phi = V_b^T$, where \ $Sigma_b = V_b Lambda_b V_b^T$, \ $Sigma_b = 1/(N_p-1) sum_(j=1)^(N_p) (p_j - mu_b)(p_j - mu_b)^T$ \ fit on $N_p = 8000$ patches],
@@ -163,12 +163,11 @@ QuickDraw — natural patches are nearly AR(1)–Gaussian.
       [★ `tebd`         ], [16.64], [19.40], [21.79], [24.01],
 
       table.cell(colspan: 5, fill: luma(235))[*Classical, top-$k$ rule*],
-      [`pca`          ], [*17.78*], [*20.69*], [*23.12*], [*25.30*],
+      [`bd_pca`       ], [*18.63*], [*21.99*], [*24.87*], [*27.57*],
       [`dct`          ], [16.13], [18.44], [20.33], [22.03],
       [`fft`          ], [15.26], [17.32], [19.01], [20.56],
 
       table.cell(colspan: 5, fill: luma(235))[*Classical, rank rule (control)*],
-      [`pca_rank`         ], [*15.56*], [*17.57*], [*19.38*], [*20.99*],
       [`dct_rank`         ], [13.84], [15.24], [16.49], [17.63],
     ),
 
@@ -365,8 +364,9 @@ comparison. All separable except `entangled_qft`.
             small number of low-coefficient cells per block — visible
             as the bright clusters in `rich`/`real_rich`/`blocked`
             and the band structure in `block_dct_8`/`block_pca_8`.
-            The `pca` panel's vertical purple band reflects
-            rank-deficiency ($N - 1 = 499 < d = 1024$).]
+            The `bd_pca` panel shows energy concentrated in the
+            top-left corner (low-frequency / high-eigenvalue) along
+            both axes — the separable-KLT analog of the DCT spectrum.]
 )
 
 #figure(

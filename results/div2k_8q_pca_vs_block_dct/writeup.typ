@@ -24,12 +24,13 @@ limit* under which the KLT of a stationary Gaussian AR(1) source
 converges to the DCT. *(ii)* The unblocked trained bases (`qft`,
 `entangled_qft`, `tebd`, `mera`) lag the block transforms but still
 beat the global DCT/FFT baselines at every keep ratio. *(iii)*
-*Global PCA tops out at $approx 17.6$ dB at $rho = 0.20$* and is
-$13$ dB behind Block-DCT-8 — a real geometry constraint at
-$N_"train" = 500$, where the data covariance has rank at most $499$
-on a $d = 65536$-dim image (the rank-$499$ projection error itself
-is $approx 18.15$ dB). Block-PCA-8 dodges this by fitting a per-block
-KLT on $approx 3.2$ M extracted patches.
+*Bilateral 2D-PCA (`bd_pca`) is the strongest unblocked classical
+baseline*, beating the global DCT by $0.08$ – $0.22$ dB at every
+keep ratio. Treating each image as the $H times W$ matrix instead
+of a flat $d$-vector lets the column- and row-eigenbases be fit on
+$N H = N W = 128000$ samples each in a $256$-dim ambient — both
+full-rank, sidestepping the $d/N$ rank-deficiency that pins flat
+PCA at $approx 17.6$ dB on this geometry.
 *(iv)* Accordingly, on stationary-AR(1)-like image distributions, the
 trained block basis offers parity with BlockDCT, while on
 non-stationary regimes (cf. companion QuickDraw $32 times 32$
@@ -95,12 +96,12 @@ clearly beating it. Distinct from the keep-ratio $rho$ above.
       [*forward $y =$*], [*compression $y' =$*], [*inverse $x =$*],
     ),
 
-    [`pca` (global)],
-    [$Phi = V^T$, where \ $Sigma = V Lambda V^T$, \ $Sigma = 1/(N-1) sum_(i=1)^N (x_i - mu)(x_i - mu)^T$ \ fit on $N = 500$ images, $d = 65536$],
-    [$Phi$ is $d times d = 65536 times 65536$ \ (size depends on $d$, not on $N$ — \ $Sigma$ is a sum of $N$ outer \ products of dim $d times d$) \ rank$(Sigma) <= N - 1 = 499$ (severely deficient)],
-    [$Phi (x - mu)$],
-    [top-$k$: $y_i dot bb(1)[|y_i| >= tau_k]$, $k = floor(rho dot d)$, $rho in {.05,.10,.15,.20}$ \ (rank: keep $i = 0, dots, k-1$)],
-    [$Phi^T y' + mu$],
+    [`bd_pca` (bilateral 2D-PCA)],
+    [$U, V$ from SVDs of column- and row-stacked centered images: \ $Sigma_"col" = 1/(N W - 1) sum_i (X_i - bar(X))(X_i - bar(X))^T$ ($H times H$) \ $Sigma_"row" = 1/(N H - 1) sum_i (X_i - bar(X))^T (X_i - bar(X))$ ($W times W$) \ fit on $N=500$ images at $H = W = 256$ \ (so $N H = N W = 128000$ samples per axis)],
+    [$U$ is $H times H = 256 times 256$, full rank \ $V$ is $W times W = 256 times 256$, full rank \ (each axis has $128000 >> 256$ samples — \ no $d/N$ rank-deficiency)],
+    [$Y = U^T (X - bar(X)) V$, shape $H times W$],
+    [top-$k$ on $Y$: $Y_(i j) dot bb(1)[|Y_(i j)| >= tau_k]$, $k = floor(rho dot H W) = floor(rho dot d)$ \ (same rate as DCT)],
+    [$U Y' V^T + bar(X)$],
 
     [`block_pca_8`],
     [$Phi = V_b^T$, where \ $Sigma_b = V_b Lambda_b V_b^T$, \ $Sigma_b = 1/(N_p-1) sum_(j=1)^(N_p) (p_j - mu_b)(p_j - mu_b)^T$ \ fit on $N_p approx 3.2 dot 10^6$ patches \ ($500$ train images $times 32 times 32$ blocks)],
@@ -180,12 +181,11 @@ drawings.
       [★ `mera`         ], [*25.09*], [*27.56*], [*29.52*], [*31.28*],
 
       table.cell(colspan: 5, fill: luma(235))[*Classical, top-$k$ rule*],
-      [`pca`          ], [16.77], [17.18], [17.42], [17.58],
-      [`dct`          ], [*25.36*], [*27.61*], [*29.33*], [*30.85*],
+      [`bd_pca`       ], [*25.44*], [*27.74*], [*29.51*], [*31.07*],
+      [`dct`          ], [25.36], [27.61], [29.33], [30.85],
       [`fft`          ], [24.50], [26.54], [28.07], [29.39],
 
       table.cell(colspan: 5, fill: luma(235))[*Classical, rank rule (control)*],
-      [`pca_rank`     ], [16.36], [16.81], [17.05], [17.22],
       [`dct_rank`     ], [23.43], [25.06], [26.29], [27.39],
     ),
 
@@ -245,26 +245,21 @@ The key facts the table encodes:
   decimal — the orthogonal restriction $O((4))$ inside each block is
   not costing accuracy at this geometry.
 
-- *Global PCA tops out at $approx 17.6$ dB even at $rho = 0.20$* —
-  $13$ dB below Block-DCT-8 at the same ratio. The underlying
-  obstruction is rank deficiency: at $N_"train" = 500$ the data
-  covariance has rank $<= 499$ on a $d = 65536$-dim image, so the
-  fitted basis spans a rank-$499$ subspace and *that* projection
-  error is the floor (the "rank-$499$ ceiling" at $approx 18.15$
-  dB). The truncation rule keeps top-$k$ by magnitude *within* the
-  $499$-coefficient signal projected onto this basis, with budget
-  $k = floor("min"(d, k_"eff") dot rho)$ — i.e., $rho$-fraction of
-  the available basis when the nominal $rho dot d$ would saturate
-  it (without this rate-fair fix the rule degenerates into a no-op,
-  silently keeping all $499$ coefs at every $rho >= 0.0076$).
-  `pca_rank` (KLT rank rule on the same $499$-dim signal) lands
-  $approx 0.4$ dB below `pca` (top-$k$): consistent with QuickDraw,
-  where top-$k$-by-magnitude beats per-image rank truncation despite
-  KLT's expectation-optimality, because real images deviate from the
-  fit covariance and per-image magnitude pooling adapts. Block-PCA-8
-  dodges the rank ceiling entirely by fitting a $64 times 64$ KLT
-  per $8 times 8$ block on $approx 3.2$ M extracted patches — its
-  covariance is full-rank at $d_b = 64$.
+- *Bilateral 2D-PCA (`bd_pca`) edges out global DCT at every $rho$*
+  ($25.44 / 27.74 / 29.51 / 31.07$ vs $25.36 / 27.61 / 29.33 / 30.85$).
+  By treating each image as the $256 times 256$ matrix instead of a
+  flat $65536$-vector, BD-PCA fits a column eigenbasis (size $H times
+  H = 256 times 256$) on $N W = 128000$ centered column samples and
+  a row eigenbasis (size $W times W$) on $N H = 128000$ row samples
+  — both full-rank, since $N W >> H$ and $N H >> W$. The forward
+  transform is $Y = U^T (X - bar(X)) V$ and top-$k$ truncation runs
+  on the $H W$-element matrix $Y$ at the same nominal rate as DCT.
+  Flat global PCA on the same data hits a *rank-$499$ ceiling* at
+  $approx 18.15$ dB because its ambient dim $d = 65536 >> N = 500$;
+  BD-PCA sidesteps this geometry entirely by exploiting per-axis
+  separability. Block-PCA-8 reaches even higher PSNRs than `bd_pca`
+  at large $rho$ via per-patch fitting on $approx 3.2$ M $8 times
+  8$ patches.
 
 - *Top-$k$ pooling beats per-block rank rule on block transforms.*
   `block_dct_8` (top-$k$, magnitude-pooled across all 1024 blocks)
@@ -323,15 +318,12 @@ The key facts the table encodes:
             four keep ratios $rho in {0.05, 0.10, 0.15, 0.20}$ (rows).
             Same column order as the freq-space figure above. PSNR
             (dB) annotated per cell. Textured imagery stresses every
-            method at low $rho$: at $rho = 0.05$, `block_dct_8`
-            leads, `real_rich_8` essentially ties, and `pca` lags
-            $approx 9$ dB behind — the global PCA basis can only
-            represent signal in its rank-$499$ subspace, and the
-            top-$k$-of-$"min"(d, k_"eff") dot rho$ rule selects only
-            $24$ of those $499$ modes at $rho = 0.05$. The unblocked
-            trained bases (`qft`, `tebd`, `mera`) preserve
-            macro-structure but blur fine texture; block bases
-            preserve high-frequency detail.]
+            method at low $rho$: at $rho = 0.05$, `block_dct_8` leads
+            in the block group and `bd_pca` leads in the unblocked
+            group, with `real_rich_8` essentially tied with
+            `block_dct_8`. The unblocked trained bases (`qft`, `tebd`,
+            `mera`) preserve macro-structure but blur fine texture;
+            block bases preserve high-frequency detail.]
 )
 
 #pagebreak(weak: true)
@@ -356,10 +348,10 @@ The key facts the table encodes:
             transform: at $rho = 0.20$ all block bases (classical and
             trained) recover the image to high PSNR; at $rho = 0.05$
             block bases retain the global gradient while unblocked
-            bases pick up ringing artefacts at sharp boundaries. `pca`
-            is again well below the block transforms — even on smooth
-            content the rank-$499$ basis cannot match a $65536$-dim
-            block-DCT decomposition.]
+            bases pick up ringing artefacts at sharp boundaries.
+            `bd_pca` tracks the DCT closely on this smooth image,
+            consistent with its modest +0.1–0.2 dB advantage at every
+            keep ratio.]
 )
 
 = Matching summary — bench name $arrow$ paper figure
