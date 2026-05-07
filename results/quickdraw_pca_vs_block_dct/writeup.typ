@@ -60,7 +60,7 @@ the QuickDraw vs DIV2K asymmetry the results table shows. Distinct
 from the keep-ratio $rho$ above.
 
 #figure(
-  image("figures/ar1_examples.png", width: 100%),
+  image("figures/ar1_examples.svg", width: 100%),
   caption: [*Top row*: three synthetic AR(1)–Gaussian fields at
             $rho = 0, 0.5, 0.95$ (sanity-checking $hat(rho)$); DIV2K
             #0250 centre crop; QuickDraw drawing #0. *Bottom row*:
@@ -355,7 +355,7 @@ comparison. All separable except `entangled_qft`.
 == Image #0 — cat sketch
 
 #figure(
-  image("figures/freq_recon_grid_img0_freq.png", width: 100%),
+  image("figures/freq_recon_grid_img0_freq.svg", width: 100%),
   caption: [Frequency-space spectra (peak-normalised log|F|, viridis,
             shared color scale) for image #0 under each basis. Same
             column order as the recon grid below. Note the trained
@@ -369,7 +369,7 @@ comparison. All separable except `entangled_qft`.
 )
 
 #figure(
-  image("figures/freq_recon_grid_img0.png", width: 100%),
+  image("figures/freq_recon_grid_img0.svg", width: 100%),
   caption: [QuickDraw test image #0 reconstructed at four keep ratios
             $rho in {0.05, 0.10, 0.15, 0.20}$ (rows). Same column
             order as the freq-space figure above. PSNR (dB) annotated
@@ -383,7 +383,7 @@ comparison. All separable except `entangled_qft`.
 == Image #2 — fish silhouette
 
 #figure(
-  image("figures/freq_recon_grid_img2.png", width: 100%),
+  image("figures/freq_recon_grid_img2.svg", width: 100%),
   caption: [QuickDraw test image #2 reconstructed at the same four
             keep ratios. Same column layout as image #1. This image is
             among the strongest cases for trained tensor-network
