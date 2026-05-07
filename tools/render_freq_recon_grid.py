@@ -236,13 +236,7 @@ def main():
             n_rows, n_cols, figsize=(fig_w, fig_h),
             gridspec_kw={"wspace": 0.04, "hspace": 0.04},
         )
-        fig.suptitle(
-            f"{cfg['title_label']} test image #{i_idx} — reconstruction across "
-            f"keep ratios (rows) × bases (cols)  |  "
-            f"cols 1–{len(block_methods)}: 8×8 block-wrapped  |  "
-            f"cols {len(block_methods)+1}–{n_methods}: unblocked / global",
-            fontsize=9.5, y=0.995,
-        )
+        # Figure-level title intentionally omitted — captions live in the paper.
 
         for c, h in enumerate(headers):
             if 1 <= c <= len(block_methods):
@@ -304,11 +298,7 @@ def main():
             gridspec_kw={"wspace": 0.04,
                          "width_ratios": [1] * n_cols + [0.12]},
         )
-        fig_f.suptitle(
-            f"{cfg['title_label']} test image #{i_idx} — log|F| (peak-normalised) per basis  |  "
-            f"same column order as the recon grid above",
-            fontsize=9.5, y=0.995,
-        )
+        # Figure-level title intentionally omitted — captions live in the paper.
         for c, h in enumerate(headers):
             if 1 <= c <= len(block_methods):
                 color = "#0a3d8c"
