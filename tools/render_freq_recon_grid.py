@@ -282,7 +282,9 @@ def main():
         out_path = out_base.with_name(f"{out_base.stem}_img{i_idx}{out_base.suffix}")
         out_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(out_path, dpi=140, bbox_inches="tight")
-        print(f"[viz] wrote {out_path}")
+        out_pdf = out_path.with_suffix(".pdf")
+        fig.savefig(out_pdf, bbox_inches="tight")
+        print(f"[viz] wrote {out_path} + {out_pdf}")
         plt.close(fig)
 
         # ---- Companion freq-space figure for the same image ----
@@ -341,7 +343,9 @@ def main():
             f"{out_base.stem}_img{i_idx}_freq{out_base.suffix}"
         )
         fig_f.savefig(out_freq, dpi=140, bbox_inches="tight")
-        print(f"[viz] wrote {out_freq}")
+        out_freq_pdf = out_freq.with_suffix(".pdf")
+        fig_f.savefig(out_freq_pdf, bbox_inches="tight")
+        print(f"[viz] wrote {out_freq} + {out_freq_pdf}")
         plt.close(fig_f)
 
 

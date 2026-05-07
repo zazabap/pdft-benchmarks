@@ -138,7 +138,9 @@ def main() -> None:
     out = Path("results/quickdraw_pca_vs_block_dct/figures/ar1_examples.png")
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=180, bbox_inches="tight")
-    print(f"[viz] wrote {out}")
+    out_pdf = out.with_suffix(".pdf")
+    fig.savefig(out_pdf, bbox_inches="tight")
+    print(f"[viz] wrote {out} + {out_pdf}")
 
 
 if __name__ == "__main__":

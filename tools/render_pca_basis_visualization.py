@@ -132,7 +132,9 @@ def main():
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=140, bbox_inches="tight")
-    print(f"[viz] wrote {out}")
+    out_pdf = out.with_suffix(".pdf")
+    fig.savefig(out_pdf, bbox_inches="tight")
+    print(f"[viz] wrote {out} + {out_pdf}")
 
 
 if __name__ == "__main__":
