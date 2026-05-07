@@ -305,14 +305,20 @@ The key facts the table encodes:
 #figure(
   image("figures/loss_curves.svg", width: 100%),
   caption: [Per-step training loss (faint) and per-epoch validation loss
-            (markers) for each trained basis on DIV2K-8q. Left panel:
-            unblocked / full-image bases. Right panel: $8 times 8$
-            block-wrapped bases. Y-axis log-scale; identical scale across
-            panels. Variable training lengths reflect early stopping at
-            the validation-loss plateau. `tebd` and `mera` are visually
-            indistinguishable here (the same curve to ≥3 decimals across
-            all training steps), consistent with their identical PSNR
-            in the results table.]
+            (markers) for each trained basis on DIV2K-8q. Y-axis is
+            *normalised* by each basis's own initial step-loss
+            ($L\/L_0$, log scale) so every curve starts at $1.0$ and
+            cross-basis comparison is on convergence speed and floor
+            rather than raw scale (which depends on $d$ and dataset
+            statistics). Left panel: unblocked / full-image bases.
+            Right panel: $8 times 8$ block-wrapped bases. Each basis
+            uses a unique colour + line-style pair from a
+            colourblind-safe palette so curves remain distinguishable
+            in greyscale or projector view. Variable training lengths
+            reflect early-stopping at the validation-loss plateau.
+            `tebd` and `mera` overlay exactly — the same training
+            trajectory to ≥3 decimals — consistent with their
+            identical PSNR in the results table.]
 )
 
 #pagebreak()

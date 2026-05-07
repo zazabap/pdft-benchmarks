@@ -33,19 +33,36 @@ UNBLOCKED_PREF = ["qft", "entangled_qft", "tebd", "mera"]
 BLOCK_PREF     = ["blocked", "rich", "real_rich",
                   "blocked_8", "rich_8", "real_rich_8"]
 
-# Distinct hues per basis. Block-wrapped use blue tones (consistent with the
-# freq_recon_grid header colour); unblocked use gray-warm tones.
+# Distinct hues per basis (qualitative palette — colourblind-safe Wong /
+# Tol "vibrant"-like). Each basis gets a unique colour so curves on the
+# same panel are easy to tell apart on small print.
 COLOR = {
-    "qft":           "#444444",
-    "entangled_qft": "#777777",
-    "tebd":          "#aa6600",
-    "mera":          "#cc3300",
-    "blocked":       "#08306b",
-    "rich":          "#2171b5",
-    "real_rich":     "#6baed6",
-    "blocked_8":     "#08306b",
-    "rich_8":        "#2171b5",
-    "real_rich_8":   "#6baed6",
+    "qft":           "#0072B2",  # blue
+    "entangled_qft": "#E69F00",  # orange
+    "tebd":          "#009E73",  # green
+    "mera":          "#CC79A7",  # pink
+    "blocked":       "#D55E00",  # vermilion
+    "rich":          "#56B4E9",  # sky blue
+    "real_rich":     "#000000",  # black
+    "blocked_8":     "#D55E00",
+    "rich_8":        "#56B4E9",
+    "real_rich_8":   "#000000",
+}
+
+# Line style per basis — gives curves a second visual axis so even when
+# colours look similar after grayscale conversion / poor projection, the
+# curves remain individually identifiable.
+LINESTYLE = {
+    "qft":           "-",
+    "entangled_qft": "--",
+    "tebd":          "-.",
+    "mera":          ":",
+    "blocked":       "-",
+    "rich":          "--",
+    "real_rich":     "-.",
+    "blocked_8":     "-",
+    "rich_8":        "--",
+    "real_rich_8":   "-.",
 }
 
 
@@ -60,36 +77,51 @@ def load_loss(by_basis_root: Path, name: str) -> tuple[np.ndarray, np.ndarray] |
 
 
 def plot_panel(ax, by_basis_root: Path, names: list[str], title: str):
+    """Plot per-basis training-loss curves on `ax`.
+
+    Y-axis: loss normalised by each basis's *own* initial step-loss, so all
+    curves start at 1.0 — what we see is fractional reduction over training.
+    A per-basis L0 means cross-basis comparison is on convergence *speed*
+    and *floor*, not on raw scale (which depends on dataset and dim).
+    """
     plotted_any = False
     for name in names:
         loaded = load_loss(by_basis_root, name)
         if loaded is None:
             continue
         step_losses, val_losses = loaded
-        x = np.arange(1, len(step_losses) + 1)
-        ax.plot(x, step_losses, color=COLOR.get(name, "#888888"),
-                linewidth=1.0, alpha=0.55, zorder=1)
-        # validation: per-epoch — overlay at evenly-spaced step indices
-        if len(val_losses) > 0:
-            n_epochs = len(val_losses)
-            steps_per_epoch = max(1, len(step_losses) // n_epochs)
+        L0 = float(step_losses[0])
+        if L0 <= 0:
+            continue
+        step_norm = step_losses / L0
+        val_norm = val_losses / L0 if len(val_losses) > 0 else np.array([])
+        color = COLOR.get(name, "#888888")
+        ls = LINESTYLE.get(name, "-")
+        x = np.arange(1, len(step_norm) + 1)
+        # Faint training-step trace.
+        ax.plot(x, step_norm, color=color, linewidth=0.7, alpha=0.35,
+                zorder=1, linestyle=ls)
+        # Per-epoch validation: bold trace with markers, used for the legend.
+        if len(val_norm) > 0:
+            n_epochs = len(val_norm)
+            steps_per_epoch = max(1, len(step_norm) // n_epochs)
             x_val = np.arange(1, n_epochs + 1) * steps_per_epoch
-            ax.plot(x_val, val_losses, color=COLOR.get(name, "#888888"),
-                    linewidth=1.6, marker="o", markersize=2.5,
+            ax.plot(x_val, val_norm, color=color, linewidth=1.8,
+                    linestyle=ls, marker="o", markersize=3.0,
                     label=f"`{name}`", zorder=2)
         else:
-            ax.plot([], [], color=COLOR.get(name, "#888888"),
-                    label=f"`{name}`")
+            ax.plot([], [], color=color, linestyle=ls, label=f"`{name}`")
         plotted_any = True
     if plotted_any:
         ax.set_yscale("log")
         ax.set_xlabel("training step", fontsize=8)
-        ax.set_ylabel("loss (log scale)", fontsize=8)
+        ax.set_ylabel(r"loss / $L_0$  (log scale)", fontsize=8)
         ax.tick_params(labelsize=7)
         ax.set_title(title, fontsize=9)
         ax.grid(True, which="both", alpha=0.25, linewidth=0.4)
+        ax.axhline(1.0, color="#cccccc", linewidth=0.6, zorder=0)
         ax.legend(fontsize=7, loc="upper right", framealpha=0.85,
-                  handlelength=1.6)
+                  handlelength=2.4)
     else:
         ax.set_title(f"{title} — no curves found", fontsize=9, color="#888888")
         ax.set_xticks([]); ax.set_yticks([])
