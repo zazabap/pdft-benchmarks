@@ -113,13 +113,13 @@ def plot_panel(ax, by_basis_root: Path, names: list[str], title: str):
             ax.plot([], [], color=color, linestyle=ls, label=f"`{name}`")
         plotted_any = True
     if plotted_any:
-        ax.set_yscale("log")
         ax.set_xlabel("training step", fontsize=8)
-        ax.set_ylabel(r"loss / $L_0$  (log scale)", fontsize=8)
+        ax.set_ylabel(r"loss / $L_0$", fontsize=8)
         ax.tick_params(labelsize=7)
         ax.set_title(title, fontsize=9)
-        ax.grid(True, which="both", alpha=0.25, linewidth=0.4)
+        ax.grid(True, alpha=0.25, linewidth=0.4)
         ax.axhline(1.0, color="#cccccc", linewidth=0.6, zorder=0)
+        ax.set_ylim(bottom=0)
         ax.legend(fontsize=7, loc="upper right", framealpha=0.85,
                   handlelength=2.4)
     else:

@@ -20,8 +20,10 @@ image.
 """
 
 import argparse
+from dataclasses import replace
 
 from pdft_benchmarks.pipeline import run_experiment
+from pdft_benchmarks.presets import get_preset
 
 
 def main():
@@ -30,7 +32,16 @@ def main():
                         choices=["smoke", "moderate", "generalized"])
     parser.add_argument("--gpu", type=int, default=None)
     parser.add_argument("--out", default=None)
+    parser.add_argument("--no-early-stop", action="store_true",
+                        help="Disable early-stopping-on-validation-plateau.")
     args = parser.parse_args()
+
+    preset = args.preset
+    if args.no_early_stop:
+        base = get_preset("quickdraw", preset) if isinstance(preset, str) else preset
+        preset = replace(base, early_stopping_patience=10**9)
+        print(f"[quickdraw] no-early-stop: patience overridden to 1e9 "
+              f"(epochs={preset.epochs})")
 
     res = run_experiment(
         dataset="quickdraw",
@@ -38,7 +49,7 @@ def main():
         bases=["qft", "entangled_qft", "tebd", "mera",
                "blocked", "rich", "real_rich"],
         baselines=["fft", "dct", "block_fft_8", "block_dct_8"],
-        preset=args.preset,
+        preset=preset,
         output_dir=args.out,
         device=f"gpu:{args.gpu}" if args.gpu is not None else "auto",
     )
