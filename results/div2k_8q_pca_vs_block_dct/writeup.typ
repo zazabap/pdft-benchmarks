@@ -71,7 +71,7 @@ trained block basis lands at parity with BlockDCT-8 instead of
 clearly beating it. Distinct from the keep-ratio $rho$ above.
 
 #figure(
-  image("figures/ar1_examples.png", width: 100%),
+  image("figures/ar1_examples.svg", width: 100%),
   caption: [*Top row*: three synthetic AR(1)–Gaussian fields at
             $rho = 0, 0.5, 0.95$ (sanity-checking $hat(rho)$); DIV2K
             #0250 centre crop; QuickDraw drawing #0. *Bottom row*:
@@ -305,7 +305,7 @@ The key facts the table encodes:
 == Image \#11 — most textured (stdev $approx 0.29$)
 
 #figure(
-  image("figures/freq_recon_grid_img11_freq.png", width: 100%),
+  image("figures/freq_recon_grid_img11_freq.svg", width: 100%),
   caption: [Frequency-space spectra (peak-normalised log|F|, viridis,
             shared color scale) for image \#11 under each basis. Image
             \#11 is the most textured image in the DIV2K-8q test split
@@ -320,7 +320,7 @@ The key facts the table encodes:
 )
 
 #figure(
-  image("figures/freq_recon_grid_img11.png", width: 100%),
+  image("figures/freq_recon_grid_img11.svg", width: 100%),
   caption: [DIV2K-8q test image \#11 (most textured) reconstructed at
             four keep ratios $rho in {0.05, 0.10, 0.15, 0.20}$ (rows).
             Same column order as the freq-space figure above. PSNR
@@ -338,7 +338,7 @@ The key facts the table encodes:
 == Image \#43 — smoothest (stdev $approx 0.08$)
 
 #figure(
-  image("figures/freq_recon_grid_img43_freq.png", width: 100%),
+  image("figures/freq_recon_grid_img43_freq.svg", width: 100%),
   caption: [Frequency-space spectra for image \#43 (smoothest test
             image, stdev $approx 0.08$). Same column layout as the
             image-\#11 freq panel. Smooth content concentrates almost
@@ -348,7 +348,7 @@ The key facts the table encodes:
 )
 
 #figure(
-  image("figures/freq_recon_grid_img43.png", width: 100%),
+  image("figures/freq_recon_grid_img43.svg", width: 100%),
   caption: [DIV2K-8q test image \#43 (smoothest) reconstructed at the
             same four keep ratios. Same column layout as image \#11.
             Smooth imagery is the easiest case for any sparsifying

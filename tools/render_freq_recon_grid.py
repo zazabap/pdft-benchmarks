@@ -91,13 +91,13 @@ def main():
     DATASET_CONFIG = {
         "quickdraw": {
             "by_basis": "results/quickdraw_pca_vs_block_dct/by_basis",
-            "out_default": "results/quickdraw_pca_vs_block_dct/figures/freq_recon_grid.png",
+            "out_default": "results/quickdraw_pca_vs_block_dct/figures/freq_recon_grid.pdf",
             "img_size": 32,
             "title_label": "QuickDraw",
         },
         "div2k_8q": {
             "by_basis": "results/div2k_8q_pca_vs_block_dct/by_basis",
-            "out_default": "results/div2k_8q_pca_vs_block_dct/figures/freq_recon_grid.png",
+            "out_default": "results/div2k_8q_pca_vs_block_dct/figures/freq_recon_grid.pdf",
             "img_size": 256,
             "title_label": "DIV2K-8q",
         },
@@ -236,13 +236,7 @@ def main():
             n_rows, n_cols, figsize=(fig_w, fig_h),
             gridspec_kw={"wspace": 0.04, "hspace": 0.04},
         )
-        fig.suptitle(
-            f"{cfg['title_label']} test image #{i_idx} — reconstruction across "
-            f"keep ratios (rows) × bases (cols)  |  "
-            f"cols 1–{len(block_methods)}: 8×8 block-wrapped  |  "
-            f"cols {len(block_methods)+1}–{n_methods}: unblocked / global",
-            fontsize=9.5, y=0.995,
-        )
+        # Figure-level title intentionally omitted — captions live in the paper.
 
         for c, h in enumerate(headers):
             if 1 <= c <= len(block_methods):
@@ -281,8 +275,10 @@ def main():
         # Output: insert _img{N} suffix into stem
         out_path = out_base.with_name(f"{out_base.stem}_img{i_idx}{out_base.suffix}")
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(out_path, dpi=140, bbox_inches="tight")
-        print(f"[viz] wrote {out_path}")
+        fig.savefig(out_path, bbox_inches="tight")
+        out_svg = out_path.with_suffix(".svg")
+        fig.savefig(out_svg, bbox_inches="tight")
+        print(f"[viz] wrote {out_path} + {out_svg}")
         plt.close(fig)
 
         # ---- Companion freq-space figure for the same image ----
@@ -302,11 +298,7 @@ def main():
             gridspec_kw={"wspace": 0.04,
                          "width_ratios": [1] * n_cols + [0.12]},
         )
-        fig_f.suptitle(
-            f"{cfg['title_label']} test image #{i_idx} — log|F| (peak-normalised) per basis  |  "
-            f"same column order as the recon grid above",
-            fontsize=9.5, y=0.995,
-        )
+        # Figure-level title intentionally omitted — captions live in the paper.
         for c, h in enumerate(headers):
             if 1 <= c <= len(block_methods):
                 color = "#0a3d8c"
@@ -340,8 +332,10 @@ def main():
         out_freq = out_base.with_name(
             f"{out_base.stem}_img{i_idx}_freq{out_base.suffix}"
         )
-        fig_f.savefig(out_freq, dpi=140, bbox_inches="tight")
-        print(f"[viz] wrote {out_freq}")
+        fig_f.savefig(out_freq, bbox_inches="tight")
+        out_freq_svg = out_freq.with_suffix(".svg")
+        fig_f.savefig(out_freq_svg, bbox_inches="tight")
+        print(f"[viz] wrote {out_freq} + {out_freq_svg}")
         plt.close(fig_f)
 
 

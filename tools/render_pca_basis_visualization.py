@@ -7,7 +7,7 @@ rows as a grid of small images so you can see what the basis actually
 looks like — analogous to the classic "eigenfaces" plot.
 
 Outputs:
-  results/quickdraw_pca_vs_block_dct/figures/pca_basis.png — 3-panel figure showing
+  results/quickdraw_pca_vs_block_dct/figures/pca_basis.pdf — 3-panel figure showing
     (top)    block_PCA top-16 eigen-patches  (8×8 each)
     (middle) DCT       top-16 basis patches  (8×8 each)  for reference
     (bottom) global PCA top-16 eigen-images  (32×32 each)
@@ -37,11 +37,11 @@ def main():
 
     DATASET_CONFIG = {
         "quickdraw": {
-            "out_default": "results/quickdraw_pca_vs_block_dct/figures/pca_basis.png",
+            "out_default": "results/quickdraw_pca_vs_block_dct/figures/pca_basis.pdf",
             "img_size": 32,
         },
         "div2k_8q": {
-            "out_default": "results/div2k_8q_pca_vs_block_dct/figures/pca_basis.png",
+            "out_default": "results/div2k_8q_pca_vs_block_dct/figures/pca_basis.pdf",
             "img_size": 256,
         },
     }
@@ -97,20 +97,10 @@ def main():
     # Each is a 4×4 sub-grid.
     outer = fig.add_gridspec(1, 3, wspace=0.18, left=0.02, right=0.99, top=0.92, bottom=0.04)
 
-    n_patches = args.n_train * (img_size // 8) ** 2
-    n_pixels = img_size * img_size
-    titles = [
-        f"block_PCA — top-{K} eigen-patches (8×8)\n"
-        f"rows of Φ_b ∈ R^{{64×64}}, fit on {n_patches} patches",
-        f"block_DCT (closed-form) — first {K} basis patches (8×8)\n"
-        "Φ[k,·] = cos(π(n+½)k/8) — for reference",
-        f"global PCA — top-{K} eigen-images ({img_size}×{img_size})\n"
-        f"rows of Φ ∈ R^{{{n_pixels}×{n_pixels}}}, fit on {args.n_train} images",
-    ]
     panels = [block_basis.eigenbasis[:K], dct_patches[:K], global_basis.eigenbasis[:K]]
     sides   = [8, 8, img_size]
 
-    for col, (title, basis_rows, side) in enumerate(zip(titles, panels, sides)):
+    for col, (basis_rows, side) in enumerate(zip(panels, sides)):
         sub = outer[0, col].subgridspec(rows_per_grid, cols_per_grid,
                                          wspace=0.08, hspace=0.18)
         # Per-panel symmetric color range (eigenvectors can be ±)
@@ -122,17 +112,15 @@ def main():
                       interpolation="nearest", aspect="equal")
             ax.set_xticks([]); ax.set_yticks([])
             ax.set_title(f"{k}", fontsize=7, pad=1)
-        # Outer panel title
-        fig.text(
-            0.02 + (col + 0.5) / 3 * 0.97 - 0.16,
-            0.945, title, fontsize=9.5, ha="center", va="bottom",
-            multialignment="center",
-        )
+        # Panel-group titles (block_PCA / block_DCT / global_PCA) intentionally
+        # omitted — caption in the paper identifies the three sub-grids.
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=140, bbox_inches="tight")
-    print(f"[viz] wrote {out}")
+    fig.savefig(out, bbox_inches="tight")
+    out_svg = out.with_suffix(".svg")
+    fig.savefig(out_svg, bbox_inches="tight")
+    print(f"[viz] wrote {out} + {out_svg}")
 
 
 if __name__ == "__main__":
