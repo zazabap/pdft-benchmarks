@@ -353,7 +353,7 @@ comparison. All separable except `entangled_qft`.
 = Training loss curves
 
 #figure(
-  image("figures/loss_curves.svg", width: 100%),
+  image("figures/loss_curve_500.svg", width: 100%),
   caption: [Per-step training loss (faint) and per-epoch validation loss
             (markers) for each trained basis on QuickDraw. Y-axis is
             *normalised* by each basis's own initial step-loss
