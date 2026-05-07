@@ -201,10 +201,10 @@ than QuickDraw line drawings.
       [★ `blocked_8`   ], [25.18], [28.09], [30.30], [32.26],
       [★ `rich_8`      ], [25.97], [29.16], [31.55], [33.65],
       table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[★ `real_rich_8`]],
-      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[25.98]],
-      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[29.18]],
-      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[31.58]],
-      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[33.68]],
+      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[25.99]],
+      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[29.20]],
+      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[31.59]],
+      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[33.70]],
 
       table.cell(colspan: 5, fill: rgb("#dde8f7"))[*Classical, top-$k$ rule*],
       [`block_dct_8`     ], [26.11], [*29.41*], [*31.86*], [*34.01*],
@@ -300,6 +300,29 @@ The key facts the table encodes:
 
 #pagebreak()
 
+= Training loss curves
+
+#figure(
+  image("figures/loss_curve_500.svg", width: 100%),
+  caption: [Per-step training loss (faint) and per-epoch validation loss
+            (markers) for each trained basis on DIV2K-8q. Y-axis is
+            *normalised* by each basis's own initial step-loss
+            ($L\/L_0$, log scale) so every curve starts at $1.0$ and
+            cross-basis comparison is on convergence speed and floor
+            rather than raw scale (which depends on $d$ and dataset
+            statistics). Left panel: unblocked / full-image bases.
+            Right panel: $8 times 8$ block-wrapped bases. Each basis
+            uses a unique colour + line-style pair from a
+            colourblind-safe palette so curves remain distinguishable
+            in greyscale or projector view. Variable training lengths
+            reflect early-stopping at the validation-loss plateau.
+            `tebd` and `mera` overlay exactly — the same training
+            trajectory to ≥3 decimals — consistent with their
+            identical PSNR in the results table.]
+)
+
+#pagebreak()
+
 = Reconstructions — 2 representative images × keep ratios × bases
 
 == Image \#11 — most textured (stdev $approx 0.29$)
@@ -335,28 +358,25 @@ The key facts the table encodes:
 
 #pagebreak(weak: true)
 
-== Image \#43 — smoothest (stdev $approx 0.08$)
+== Image \#0390 — DIV2K-HR source file (stdev $approx 0.22$)
 
 #figure(
-  image("figures/freq_recon_grid_img43_freq.svg", width: 100%),
-  caption: [Frequency-space spectra for image \#43 (smoothest test
-            image, stdev $approx 0.08$). Same column layout as the
-            image-\#11 freq panel. Smooth content concentrates almost
-            all energy into the DC and low-frequency cells per block,
-            so even small keep ratios capture most of the image — the
-            block bases' freq panels are sparser than image \#11's.]
+  image("figures/freq_recon_grid_img390_freq.svg", width: 100%),
+  caption: [Frequency-space spectra for DIV2K-HR source image
+            \#0390 (centre-cropped + LANCZOS-resized to $256 times
+            256$, stdev $approx 0.22$). Same column layout as the
+            image-\#11 freq panel.]
 )
 
 #figure(
-  image("figures/freq_recon_grid_img43.svg", width: 100%),
-  caption: [DIV2K-8q test image \#43 (smoothest) reconstructed at the
-            same four keep ratios. Same column layout as image \#11.
-            Smooth imagery is the easiest case for any sparsifying
-            transform: at $rho = 0.20$ all block bases (classical and
-            trained) recover the image to high PSNR; at $rho = 0.05$
+  image("figures/freq_recon_grid_img390.svg", width: 100%),
+  caption: [DIV2K-HR source image \#0390 reconstructed at the same
+            four keep ratios. Same column layout as image \#11.
+            At $rho = 0.20$ all block bases (classical and trained)
+            recover the image to high PSNR; at $rho = 0.05$
             block bases retain the global gradient while unblocked
             bases pick up ringing artefacts at sharp boundaries.
-            `bd_pca` tracks the DCT closely on this smooth image,
+            `bd_pca` tracks the DCT closely on this image,
             consistent with its modest +0.1–0.2 dB advantage at every
             keep ratio.]
 )

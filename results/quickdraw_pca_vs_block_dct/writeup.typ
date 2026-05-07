@@ -350,6 +350,26 @@ comparison. All separable except `entangled_qft`.
 
 #pagebreak()
 
+= Training loss curves
+
+#figure(
+  image("figures/loss_curve_500.svg", width: 100%),
+  caption: [Per-step training loss (faint) and per-epoch validation loss
+            (markers) for each trained basis on QuickDraw. Y-axis is
+            *normalised* by each basis's own initial step-loss
+            ($L\/L_0$, log scale) so every curve starts at $1.0$ and
+            cross-basis comparison is on convergence speed and floor
+            rather than raw scale. Left panel: unblocked / full-image
+            bases. Right panel: $8 times 8$ block-wrapped bases. Each
+            basis uses a unique colour + line-style pair from a
+            colourblind-safe palette. Variable training lengths
+            reflect early-stopping at the validation-loss plateau.
+            `mera` is omitted because $m + n = 10$ is not a power of
+            $2$ and the MERA hierarchy is structurally inapplicable.]
+)
+
+#pagebreak()
+
 = Reconstructions — 2 representative images × keep ratios × bases
 
 == Image #0 — cat sketch

@@ -61,6 +61,11 @@ def main() -> int:
                         help="Output directory (None → timestamped default).")
     parser.add_argument("--bases", default=",".join(ALL_BASES),
                         help=f"Comma-separated subset of {ALL_BASES}.")
+    parser.add_argument("--no-early-stop", action="store_true",
+                        help="Disable early-stopping-on-validation-plateau. "
+                             "Train for the preset's full epoch budget. Useful "
+                             "for fair cross-basis comparison of training "
+                             "trajectories on the same x-axis.")
     args = parser.parse_args()
 
     # CRITICAL: set CUDA_VISIBLE_DEVICES BEFORE importing pdft_benchmarks.
@@ -75,14 +80,26 @@ def main() -> int:
         return 2
 
     # Imports below trigger JAX device discovery; must come AFTER the env var.
+    from dataclasses import replace
     from pdft_benchmarks.pipeline import run_experiment
+    from pdft_benchmarks.presets import get_preset
+
+    preset = args.preset
+    if args.no_early_stop:
+        # Resolve the preset early so we can override patience to a value
+        # large enough that it never triggers within the epoch budget. The
+        # preset namespace is "div2k_8q" for this experiment (m=n=8).
+        base = get_preset("div2k_8q", preset) if isinstance(preset, str) else preset
+        preset = replace(base, early_stopping_patience=10**9)
+        print(f"[div2k-8q] no-early-stop: patience overridden to 1e9 "
+              f"(epochs={preset.epochs})")
 
     res = run_experiment(
         dataset="div2k",
         m=8, n=8,
         bases=bases,
         baselines=list(BASELINES),
-        preset=args.preset,
+        preset=preset,
         output_dir=args.out,
         # When CUDA_VISIBLE_DEVICES already isolated GPU N, the JAX-visible
         # device is index 0 inside this process. Pass "auto" so JAX picks it.
