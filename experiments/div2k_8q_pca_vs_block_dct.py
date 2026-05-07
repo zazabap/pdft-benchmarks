@@ -66,6 +66,11 @@ def main() -> int:
                              "Train for the preset's full epoch budget. Useful "
                              "for fair cross-basis comparison of training "
                              "trajectories on the same x-axis.")
+    parser.add_argument("--epochs", type=int, default=None,
+                        help="Override preset.epochs. With batch_size=50 and "
+                             "n_train=500 (val_split=0.15 → 425 train), each "
+                             "epoch is 9 optimizer steps; epochs=223 ≈ 2000 "
+                             "steps total.")
     args = parser.parse_args()
 
     # CRITICAL: set CUDA_VISIBLE_DEVICES BEFORE importing pdft_benchmarks.
@@ -85,14 +90,17 @@ def main() -> int:
     from pdft_benchmarks.presets import get_preset
 
     preset = args.preset
-    if args.no_early_stop:
-        # Resolve the preset early so we can override patience to a value
-        # large enough that it never triggers within the epoch budget. The
-        # preset namespace is "div2k_8q" for this experiment (m=n=8).
+    if args.no_early_stop or args.epochs is not None:
+        # Resolve the preset early so we can apply overrides.
         base = get_preset("div2k_8q", preset) if isinstance(preset, str) else preset
-        preset = replace(base, early_stopping_patience=10**9)
-        print(f"[div2k-8q] no-early-stop: patience overridden to 1e9 "
-              f"(epochs={preset.epochs})")
+        kwargs = {}
+        if args.no_early_stop:
+            kwargs["early_stopping_patience"] = 10**9
+        if args.epochs is not None:
+            kwargs["epochs"] = args.epochs
+        preset = replace(base, **kwargs)
+        print(f"[div2k-8q] preset overrides: epochs={preset.epochs}, "
+              f"patience={preset.early_stopping_patience}")
 
     res = run_experiment(
         dataset="div2k",

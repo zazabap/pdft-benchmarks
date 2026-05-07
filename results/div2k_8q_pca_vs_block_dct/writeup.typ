@@ -176,10 +176,10 @@ than QuickDraw line drawings.
       table.header([*unblocked (full $256 times 256$)*], $rho = 0.05$, $rho = 0.10$, $rho = 0.15$, $rho = 0.20$),
 
       table.cell(colspan: 5, fill: luma(235))[*Trained PDFT bases (ours)*],
-      [★ `qft`          ], [24.91], [27.30], [29.20], [30.91],
-      [★ `entangled_qft`], [25.07], [27.53], [29.48], [31.23],
-      [★ `tebd`         ], [*25.09*], [*27.56*], [*29.52*], [*31.28*],
-      [★ `mera`         ], [*25.09*], [*27.56*], [*29.52*], [*31.28*],
+      [★ `qft`          ], [*25.09*], [*27.57*], [*29.53*], [*31.29*],
+      [★ `entangled_qft`], [*25.09*], [*27.57*], [*29.53*], [*31.29*],
+      [★ `tebd`         ], [*25.09*], [*27.57*], [*29.53*], [*31.29*],
+      [★ `mera`         ], [*25.09*], [*27.57*], [*29.53*], [*31.29*],
 
       table.cell(colspan: 5, fill: luma(235))[*Classical, top-$k$ rule*],
       [`bd_pca`       ], [*25.44*], [*27.74*], [*29.51*], [*31.07*],
@@ -199,12 +199,12 @@ than QuickDraw line drawings.
 
       table.cell(colspan: 5, fill: rgb("#dde8f7"))[*Trained PDFT bases (ours)*],
       [★ `blocked_8`   ], [25.18], [28.09], [30.30], [32.26],
-      [★ `rich_8`      ], [25.97], [29.16], [31.55], [33.65],
+      [★ `rich_8`      ], [25.97], [29.19], [31.59], [33.71],
       table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[★ `real_rich_8`]],
-      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[25.99]],
-      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[29.20]],
+      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[25.96]],
+      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[29.18]],
       table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[31.59]],
-      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[33.70]],
+      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[33.71]],
 
       table.cell(colspan: 5, fill: rgb("#dde8f7"))[*Classical, top-$k$ rule*],
       [`block_dct_8`     ], [26.11], [*29.41*], [*31.86*], [*34.01*],
@@ -279,13 +279,17 @@ The key facts the table encodes:
   per-block budget regardless of content. The headline tables use
   the top-$k$ rule for all methods.
 
-- *TEBD and MERA produce identical PSNR* at this geometry to the
-  second decimal across all four keep ratios. Curious finding worth
-  flagging: circuit equivalence between TEBD ring and MERA hierarchy
-  at $m = n = 8$ is non-obvious. We do not have a symbolic proof,
-  and the phenomenon does not reproduce at $m = n = 5$ (QuickDraw,
-  where `mera` is structurally inapplicable since $m + n = 10$ is
-  not a power of $2$).
+- *All four unblocked architectures converge to the same numerical
+  optimum* at $approx 2000$ training steps: `qft`, `entangled_qft`,
+  `tebd`, and `mera` all reach $25.09 / 27.57 / 29.53 / 31.29$ dB
+  to the second decimal across all four keep ratios. At $approx 500$
+  steps `qft` and `entangled_qft` lagged slightly; both close the
+  gap by step 2000. The architectural distinctions between the
+  four parametric families collapse at convergence on this dataset
+  — block-localised structure, not unblocked circuit topology, is
+  what drives PSNR here. (The same convergence happens on QuickDraw
+  among the three unblocked bases that train there, see the
+  companion writeup.)
 
 - *MERA actually runs at this geometry.* $m + n = 16 = 2^4$ admits
   the MERA hierarchy. Contrast QuickDraw ($m + n = 10$) where the
@@ -303,7 +307,7 @@ The key facts the table encodes:
 = Training loss curves
 
 #figure(
-  image("figures/loss_curve_500.svg", width: 100%),
+  image("figures/loss_curve_2000.svg", width: 100%),
   caption: [Per-step training loss (faint) and per-epoch validation loss
             (markers) for each trained basis on DIV2K-8q. Y-axis is
             *normalised* by each basis's own initial step-loss
@@ -316,8 +320,10 @@ The key facts the table encodes:
             colourblind-safe palette so curves remain distinguishable
             in greyscale or projector view. Variable training lengths
             reflect early-stopping at the validation-loss plateau.
-            `tebd` and `mera` overlay exactly — the same training
-            trajectory to ≥3 decimals — consistent with their
+            All four unblocked architectures (`qft`, `entangled_qft`,
+            `tebd`, `mera`) converge to within $approx 0.01$ of
+            $L\/L_0 approx 0.55$ at step 2000 — they reach the same
+            numerical optimum on this dataset, consistent with their
             identical PSNR in the results table.]
 )
 
