@@ -119,7 +119,7 @@ def plot_panel(ax, by_basis_root: Path, names: list[str], title: str):
         ax.set_title(title, fontsize=9)
         ax.grid(True, alpha=0.25, linewidth=0.4)
         ax.axhline(1.0, color="#cccccc", linewidth=0.6, zorder=0)
-        ax.set_ylim(bottom=0)
+        ax.set_ylim(0.4, 1.0)
         ax.legend(fontsize=7, loc="upper right", framealpha=0.85,
                   handlelength=2.4)
     else:
