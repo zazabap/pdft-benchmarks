@@ -147,6 +147,10 @@ def main():
                "unblocked (full-image transform)")
     plot_panel(axes[1], by_basis_root, BLOCK_PREF,
                "block-wrapped (8×8 inner transform)")
+    # Right panel inherits the y-axis from sharey=True; clear its ylabel so
+    # only the left panel labels the shared axis (avoids overlap with the
+    # right panel's left edge under tight inter-panel spacing).
+    axes[1].set_ylabel("")
     fig.subplots_adjust(left=0.07, right=0.99, top=0.92, bottom=0.13,
                         wspace=0.05)
 
