@@ -335,28 +335,25 @@ The key facts the table encodes:
 
 #pagebreak(weak: true)
 
-== Image \#43 — smoothest (stdev $approx 0.08$)
+== Image \#0390 — DIV2K-HR source file (stdev $approx 0.22$)
 
 #figure(
-  image("figures/freq_recon_grid_img43_freq.svg", width: 100%),
-  caption: [Frequency-space spectra for image \#43 (smoothest test
-            image, stdev $approx 0.08$). Same column layout as the
-            image-\#11 freq panel. Smooth content concentrates almost
-            all energy into the DC and low-frequency cells per block,
-            so even small keep ratios capture most of the image — the
-            block bases' freq panels are sparser than image \#11's.]
+  image("figures/freq_recon_grid_img390_freq.svg", width: 100%),
+  caption: [Frequency-space spectra for DIV2K-HR source image
+            \#0390 (centre-cropped + LANCZOS-resized to $256 times
+            256$, stdev $approx 0.22$). Same column layout as the
+            image-\#11 freq panel.]
 )
 
 #figure(
-  image("figures/freq_recon_grid_img43.svg", width: 100%),
-  caption: [DIV2K-8q test image \#43 (smoothest) reconstructed at the
-            same four keep ratios. Same column layout as image \#11.
-            Smooth imagery is the easiest case for any sparsifying
-            transform: at $rho = 0.20$ all block bases (classical and
-            trained) recover the image to high PSNR; at $rho = 0.05$
+  image("figures/freq_recon_grid_img390.svg", width: 100%),
+  caption: [DIV2K-HR source image \#0390 reconstructed at the same
+            four keep ratios. Same column layout as image \#11.
+            At $rho = 0.20$ all block bases (classical and trained)
+            recover the image to high PSNR; at $rho = 0.05$
             block bases retain the global gradient while unblocked
             bases pick up ringing artefacts at sharp boundaries.
-            `bd_pca` tracks the DCT closely on this smooth image,
+            `bd_pca` tracks the DCT closely on this image,
             consistent with its modest +0.1–0.2 dB advantage at every
             keep ratio.]
 )

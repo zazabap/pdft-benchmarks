@@ -64,8 +64,9 @@ Notable findings:
   the classical baselines via `tools/independent_div2k_8q_baselines.py`.
   Numbers match `_baselines.json` to 6 decimal places.
 - `figures/` — `ar1_examples.pdf` (copied from QuickDraw),
-  `freq_recon_grid_img{11,43}{,_freq}.pdf` (test images 11=textured,
-  43=smooth), `pca_basis.pdf`. Vector PDF outputs for paper inclusion.
+  `freq_recon_grid_img{11,390}{,_freq}.pdf` (test image 11 + DIV2K-HR
+  source file 0390.png), `pca_basis.pdf`. Vector PDF outputs for
+  paper inclusion.
 - `tables/published_8q_div2k.tex` — paper LaTeX table.
 - `writeup.typ` + `writeup.pdf` — paper writeup section.
 
@@ -95,7 +96,7 @@ rm -rf results/div2k_8q_pca_vs_block_dct/_runs/
 # Verify, render, table, writeup
 python tools/independent_div2k_8q_baselines.py --gpu 0 --seed 42 --n-train 500
 python tools/render_freq_recon_grid.py --dataset div2k_8q --gpu 0 \
-    --image-indices 11,43
+    --image-indices 11 --div2k-source-indices 390
 python tools/render_pca_basis_visualization.py --dataset div2k_8q --gpu 0
 cp results/quickdraw_pca_vs_block_dct/figures/ar1_examples.pdf figures/
 python tools/render_div2k_paper_table.py

@@ -23,6 +23,30 @@ from pathlib import Path
 import numpy as np
 
 
+def _load_div2k_source_image(idx: int, *, size: int = 256) -> np.ndarray:
+    """Load a specific DIV2K-HR source PNG by ID with the same preprocessing
+    as `pdft_benchmarks.datasets.load_div2k` (centre-crop to square, LANCZOS
+    resize to size×size, grayscale, float64 in [0,1]).
+
+    Lets the renderer include a specific source-file image (e.g. 0390.png)
+    independent of the test-split shuffle from load_div2k.
+    """
+    from PIL import Image
+
+    data_root = Path("/home/claude-user/ParametricDFT-Benchmarks.jl/data/DIV2K_train_HR")
+    p = data_root / f"{idx:04d}.png"
+    if not p.exists():
+        raise FileNotFoundError(f"DIV2K source image not found: {p}")
+    img = Image.open(p).convert("L")
+    w, h = img.size
+    side = min(w, h)
+    left = (w - side) // 2
+    top = (h - side) // 2
+    img = img.crop((left, top, left + side, top + side))
+    img = img.resize((size, size), Image.Resampling.LANCZOS)
+    return np.asarray(img, dtype=np.float64) / 255.0
+
+
 def load_trained_basis(json_path: Path):
     """Reconstruct a pdft basis from a `trained_*.json` file.
 
@@ -75,8 +99,14 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--keep-ratios", type=str, default="0.05,0.10,0.15,0.20",
                     help="Comma-separated keep ratios.")
-    ap.add_argument("--image-indices", type=str, default="2,3",
-                    help="Comma-separated test-image indices.")
+    ap.add_argument("--image-indices", type=str, default="",
+                    help="Comma-separated test-split image indices (use empty string to skip).")
+    ap.add_argument("--div2k-source-indices", type=str, default="",
+                    help="Comma-separated DIV2K-HR source-file IDs "
+                         "(e.g. '390' loads 0390.png). Loaded alongside "
+                         "any --image-indices via the same centre-crop + "
+                         "LANCZOS-resize preprocessing as load_div2k. "
+                         "Only valid for --dataset=div2k_8q.")
     ap.add_argument("--n-train", type=int, default=500)
     ap.add_argument("--n-test", type=int, default=50)
     ap.add_argument("--seed", type=int, default=42)
@@ -109,7 +139,10 @@ def main():
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
     os.environ.setdefault("JAX_ENABLE_X64", "1")
 
-    image_indices = [int(x) for x in args.image_indices.split(",")]
+    image_indices = [int(x) for x in args.image_indices.split(",") if x.strip()]
+    div2k_source_indices = [int(x) for x in args.div2k_source_indices.split(",") if x.strip()]
+    if div2k_source_indices and args.dataset != "div2k_8q":
+        raise ValueError("--div2k-source-indices is only valid for --dataset=div2k_8q")
     keep_ratios = [float(x) for x in args.keep_ratios.split(",")]
 
     import matplotlib
@@ -129,8 +162,18 @@ def main():
         train, test = load_div2k(args.n_train, args.n_test, seed=args.seed, size=cfg["img_size"])
     else:
         raise ValueError(f"unknown dataset: {args.dataset}")
-    images = [np.asarray(test[i], dtype=np.float64) for i in image_indices]
-    print(f"[viz] {len(images)} images at indices {image_indices}, ρ={keep_ratios}")
+
+    images: list = []
+    image_labels: list[int] = []
+    for i in image_indices:
+        images.append(np.asarray(test[i], dtype=np.float64))
+        image_labels.append(i)
+    for src_id in div2k_source_indices:
+        images.append(_load_div2k_source_image(src_id, size=cfg["img_size"]))
+        image_labels.append(src_id)
+    if not images:
+        raise ValueError("no images selected; pass --image-indices and/or --div2k-source-indices")
+    print(f"[viz] {len(images)} images, labels={image_labels}, ρ={keep_ratios}")
 
     # ---- Load trained bases ----
     # Discover from disk: any <by_basis>/<name>/trained_<name>.json present.
@@ -181,7 +224,7 @@ def main():
         return np.clip(np.real(pio.recover(basis, compressed)), 0.0, 1.0)
 
     rec: dict = {}
-    for i_idx, img in zip(image_indices, images):
+    for i_idx, img in zip(image_labels, images):
         for kr in keep_ratios:
             per_method: dict = {}
             for name, basis in trained.items():
@@ -212,7 +255,7 @@ def main():
         "block_dct_8", "block_bd_pca_8", "block_fft_8",
     ]
     global_methods_pref = ["qft", "entangled_qft", "tebd", "mera", "bd_pca", "dct", "fft"]
-    sample_key = (image_indices[0], keep_ratios[0])
+    sample_key = (image_labels[0], keep_ratios[0])
     block_methods  = [m for m in block_methods_pref  if m in rec[sample_key]]
     global_methods = [m for m in global_methods_pref if m in rec[sample_key]]
     methods = block_methods + global_methods
@@ -227,9 +270,9 @@ def main():
     headers = ["original"] + methods
 
     out_base = Path(args.out)
-    img_lookup = dict(zip(image_indices, images))
+    img_lookup = dict(zip(image_labels, images))
 
-    for i_idx in image_indices:
+    for i_idx in image_labels:
         img = img_lookup[i_idx]
 
         fig, axes = plt.subplots(
