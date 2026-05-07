@@ -7,7 +7,7 @@ rows as a grid of small images so you can see what the basis actually
 looks like — analogous to the classic "eigenfaces" plot.
 
 Outputs:
-  results/quickdraw_pca_vs_block_dct/figures/pca_basis.png — 3-panel figure showing
+  results/quickdraw_pca_vs_block_dct/figures/pca_basis.pdf — 3-panel figure showing
     (top)    block_PCA top-16 eigen-patches  (8×8 each)
     (middle) DCT       top-16 basis patches  (8×8 each)  for reference
     (bottom) global PCA top-16 eigen-images  (32×32 each)
@@ -37,11 +37,11 @@ def main():
 
     DATASET_CONFIG = {
         "quickdraw": {
-            "out_default": "results/quickdraw_pca_vs_block_dct/figures/pca_basis.png",
+            "out_default": "results/quickdraw_pca_vs_block_dct/figures/pca_basis.pdf",
             "img_size": 32,
         },
         "div2k_8q": {
-            "out_default": "results/div2k_8q_pca_vs_block_dct/figures/pca_basis.png",
+            "out_default": "results/div2k_8q_pca_vs_block_dct/figures/pca_basis.pdf",
             "img_size": 256,
         },
     }
@@ -117,10 +117,10 @@ def main():
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=140, bbox_inches="tight")
-    out_pdf = out.with_suffix(".pdf")
-    fig.savefig(out_pdf, bbox_inches="tight")
-    print(f"[viz] wrote {out} + {out_pdf}")
+    fig.savefig(out, bbox_inches="tight")
+    out_svg = out.with_suffix(".svg")
+    fig.savefig(out_svg, bbox_inches="tight")
+    print(f"[viz] wrote {out} + {out_svg}")
 
 
 if __name__ == "__main__":

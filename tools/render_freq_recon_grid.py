@@ -91,13 +91,13 @@ def main():
     DATASET_CONFIG = {
         "quickdraw": {
             "by_basis": "results/quickdraw_pca_vs_block_dct/by_basis",
-            "out_default": "results/quickdraw_pca_vs_block_dct/figures/freq_recon_grid.png",
+            "out_default": "results/quickdraw_pca_vs_block_dct/figures/freq_recon_grid.pdf",
             "img_size": 32,
             "title_label": "QuickDraw",
         },
         "div2k_8q": {
             "by_basis": "results/div2k_8q_pca_vs_block_dct/by_basis",
-            "out_default": "results/div2k_8q_pca_vs_block_dct/figures/freq_recon_grid.png",
+            "out_default": "results/div2k_8q_pca_vs_block_dct/figures/freq_recon_grid.pdf",
             "img_size": 256,
             "title_label": "DIV2K-8q",
         },
@@ -275,10 +275,10 @@ def main():
         # Output: insert _img{N} suffix into stem
         out_path = out_base.with_name(f"{out_base.stem}_img{i_idx}{out_base.suffix}")
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(out_path, dpi=140, bbox_inches="tight")
-        out_pdf = out_path.with_suffix(".pdf")
-        fig.savefig(out_pdf, bbox_inches="tight")
-        print(f"[viz] wrote {out_path} + {out_pdf}")
+        fig.savefig(out_path, bbox_inches="tight")
+        out_svg = out_path.with_suffix(".svg")
+        fig.savefig(out_svg, bbox_inches="tight")
+        print(f"[viz] wrote {out_path} + {out_svg}")
         plt.close(fig)
 
         # ---- Companion freq-space figure for the same image ----
@@ -332,10 +332,10 @@ def main():
         out_freq = out_base.with_name(
             f"{out_base.stem}_img{i_idx}_freq{out_base.suffix}"
         )
-        fig_f.savefig(out_freq, dpi=140, bbox_inches="tight")
-        out_freq_pdf = out_freq.with_suffix(".pdf")
-        fig_f.savefig(out_freq_pdf, bbox_inches="tight")
-        print(f"[viz] wrote {out_freq} + {out_freq_pdf}")
+        fig_f.savefig(out_freq, bbox_inches="tight")
+        out_freq_svg = out_freq.with_suffix(".svg")
+        fig_f.savefig(out_freq_svg, bbox_inches="tight")
+        print(f"[viz] wrote {out_freq} + {out_freq_svg}")
         plt.close(fig_f)
 
 

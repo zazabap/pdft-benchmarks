@@ -2,7 +2,7 @@
 """Generate a tiny 3-panel illustration of 2D AR(1) random fields at
 different correlation strengths, for the §2 AR(1) explanation block.
 
-Output: results/quickdraw_pca_vs_block_dct/figures/ar1_examples.png — three 64×64 patches sampled
+Output: results/quickdraw_pca_vs_block_dct/figures/ar1_examples.pdf — three 64×64 patches sampled
 from a separable AR(1)-Gaussian process at ρ = 0.0, 0.5, 0.95.
 """
 from __future__ import annotations
@@ -135,12 +135,12 @@ def main() -> None:
             ax.set_xticks([]); ax.set_yticks([])
 
     fig.subplots_adjust(left=0.005, right=0.995, top=0.93, bottom=0.005)
-    out = Path("results/quickdraw_pca_vs_block_dct/figures/ar1_examples.png")
+    out = Path("results/quickdraw_pca_vs_block_dct/figures/ar1_examples.pdf")
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=180, bbox_inches="tight")
-    out_pdf = out.with_suffix(".pdf")
-    fig.savefig(out_pdf, bbox_inches="tight")
-    print(f"[viz] wrote {out} + {out_pdf}")
+    fig.savefig(out, bbox_inches="tight")
+    out_svg = out.with_suffix(".svg")
+    fig.savefig(out_svg, bbox_inches="tight")
+    print(f"[viz] wrote {out} + {out_svg}")
 
 
 if __name__ == "__main__":
