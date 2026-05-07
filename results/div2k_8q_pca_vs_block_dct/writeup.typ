@@ -300,6 +300,23 @@ The key facts the table encodes:
 
 #pagebreak()
 
+= Training loss curves
+
+#figure(
+  image("figures/loss_curves.svg", width: 100%),
+  caption: [Per-step training loss (faint) and per-epoch validation loss
+            (markers) for each trained basis on DIV2K-8q. Left panel:
+            unblocked / full-image bases. Right panel: $8 times 8$
+            block-wrapped bases. Y-axis log-scale; identical scale across
+            panels. Variable training lengths reflect early stopping at
+            the validation-loss plateau. `tebd` and `mera` are visually
+            indistinguishable here (the same curve to ≥3 decimals across
+            all training steps), consistent with their identical PSNR
+            in the results table.]
+)
+
+#pagebreak()
+
 = Reconstructions — 2 representative images × keep ratios × bases
 
 == Image \#11 — most textured (stdev $approx 0.29$)
