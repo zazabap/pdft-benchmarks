@@ -158,9 +158,9 @@ QuickDraw — natural patches are nearly AR(1)–Gaussian.
       table.header([*unblocked (full $32 times 32$)*], $rho = 0.05$, $rho = 0.10$, $rho = 0.15$, $rho = 0.20$),
 
       table.cell(colspan: 5, fill: luma(235))[*Trained PDFT bases (ours)*],
-      [★ `qft`          ], [*16.72*], [*19.58*], [*22.06*], [*24.35*],
-      [★ `entangled_qft`], [16.72], [19.58], [22.05], [24.35],
-      [★ `tebd`         ], [16.64], [19.40], [21.79], [24.01],
+      [★ `qft`          ], [*16.72*], [*19.58*], [*22.05*], [*24.35*],
+      [★ `entangled_qft`], [*16.72*], [*19.58*], [*22.05*], [*24.35*],
+      [★ `tebd`         ], [*16.72*], [*19.58*], [*22.06*], [*24.36*],
 
       table.cell(colspan: 5, fill: luma(235))[*Classical, top-$k$ rule*],
       [`bd_pca`       ], [*18.63*], [*21.99*], [*24.87*], [*27.57*],
@@ -179,13 +179,13 @@ QuickDraw — natural patches are nearly AR(1)–Gaussian.
       table.header([*8×8 block-wrapped*], $rho = 0.05$, $rho = 0.10$, $rho = 0.15$, $rho = 0.20$),
 
       table.cell(colspan: 5, fill: rgb("#dde8f7"))[*Trained PDFT bases (ours)*],
-      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[★ `rich`]],
-      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[18.82]],
-      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[23.71]],
-      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[28.15]],
-      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[32.60]],
-      [★ `real_rich`    ], [18.79], [23.68], [28.05], [32.37],
-      [★ `blocked`      ], [18.12], [22.41], [26.20], [30.06],
+      [★ `rich`         ], [18.79], [23.78], [28.27], [*32.69*],
+      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[★ `real_rich`]],
+      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[18.80]],
+      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[23.80]],
+      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[28.30]],
+      table.cell(fill: rgb("#ffe5e5"))[#text(fill: red, weight: "bold")[32.67]],
+      [★ `blocked`      ], [18.12], [22.40], [26.20], [30.05],
 
       table.cell(colspan: 5, fill: rgb("#dde8f7"))[*Classical, top-$k$ rule*],
       [`block_dct_8`     ], [*17.20*], [*20.70*], [*23.72*], [*26.63*],
@@ -202,9 +202,13 @@ QuickDraw — natural patches are nearly AR(1)–Gaussian.
             bases, classical top-$k$ baselines, and the rank-rule
             control. ★ = trained PDFT basis (this work); unmarked rows
             = classical baselines. *Bold* = best-in-group at each
-            keep ratio. The overall headline winner is `rich` ★
-            (block-wrapped, all four ratios). `mera` omitted
-            (incompatible at $m + n = 10$).]
+            keep ratio. `real_rich` ★ wins at three of the four
+            ratios (red highlight) using *half* the parameters of
+            `rich`; `rich` edges it out at $rho = 0.20$ by $0.02$ dB.
+            The two block-wrapped trained bases are essentially tied
+            within single-seed noise; the headline emphasises
+            `real_rich` for the parameter-count advantage. `mera`
+            omitted (incompatible at $m + n = 10$).]
 )
 
 == Tensor networks of the trained bases at $m = n = 5$
@@ -338,10 +342,10 @@ comparison. All separable except `entangled_qft`.
     table.header([*basis*], [*topology*], [*row–col coupling*], [*params/dim*], [*PSNR at $rho = 0.20$*]),
     [`qft`],           [all-to-all per dim],   [none], [55],  [24.35],
     [`entangled_qft`], [all-to-all + 5 cross], [yes ($E_k$)], [60], [24.35],
-    [`tebd`],          [NN ring per dim],      [none], [25],  [24.01],
-    [`blocked`],       [outer-$I$ + inner QFT-3],     [none], [15], [30.06],
-    [`rich`],          [outer-$I$ + inner $U^((4))$], [none], [54], [32.60],
-    [`real_rich`],     [outer-$I$ + inner $O^((4))$], [none], [21], [32.37],
+    [`tebd`],          [NN ring per dim],      [none], [25],  [24.36],
+    [`blocked`],       [outer-$I$ + inner QFT-3],     [none], [15], [30.05],
+    [`rich`],          [outer-$I$ + inner $U^((4))$], [none], [54], [32.69],
+    [`real_rich`],     [outer-$I$ + inner $O^((4))$], [none], [21], [32.67],
   ),
   caption: [All bases at QuickDraw geometry $m = n = 5$. Param counts
             are per dim (multiply by 2 for full transform unless
@@ -353,19 +357,35 @@ comparison. All separable except `entangled_qft`.
 = Training loss curves
 
 #figure(
-  image("figures/loss_curve_500.svg", width: 100%),
+  image("figures/loss_curve_1000.svg", width: 100%),
   caption: [Per-step training loss (faint) and per-epoch validation loss
-            (markers) for each trained basis on QuickDraw. Y-axis is
-            *normalised* by each basis's own initial step-loss
-            ($L\/L_0$, log scale) so every curve starts at $1.0$ and
-            cross-basis comparison is on convergence speed and floor
-            rather than raw scale. Left panel: unblocked / full-image
-            bases. Right panel: $8 times 8$ block-wrapped bases. Each
-            basis uses a unique colour + line-style pair from a
-            colourblind-safe palette. Variable training lengths
-            reflect early-stopping at the validation-loss plateau.
-            `mera` is omitted because $m + n = 10$ is not a power of
-            $2$ and the MERA hierarchy is structurally inapplicable.]
+            (markers) for each trained basis on QuickDraw at the
+            headline 1008-step training budget. Y-axis is *normalised*
+            by each basis's own initial step-loss ($L\/L_0$);
+            cross-basis comparison is on convergence speed and floor.
+            Left: unblocked / full-image bases. Right: $8 times 8$
+            block-wrapped bases. Each basis uses a unique colour +
+            line-style pair from a colourblind-safe palette. `mera`
+            is omitted because $m + n = 10$ is not a power of $2$
+            and the MERA hierarchy is structurally inapplicable.]
+)
+
+#pagebreak(weak: true)
+
+== Appendix: 2000-step plateau check
+
+#figure(
+  image("figures/loss_curve_2000.svg", width: 100%),
+  caption: [Same plot as the headline figure but trained for $approx
+            2000$ steps (epochs $= 223$) instead of $approx 1000$
+            (epochs $= 112$). Verifies that QuickDraw losses have
+            plateaued by the headline budget — the windowed-mean
+            training loss between steps $1000$ and $2000$ moves by
+            $<= 0.01$ dB equivalent. Headline-table values shift by
+            $<= 0.05$ dB between the 1000-step and 2000-step runs
+            (`real_rich` for example: $32.67$ → $32.62$ at $rho=0.20$);
+            the shifts are below the single-seed noise floor on
+            $n_"test" = 50$.]
 )
 
 #pagebreak()

@@ -34,14 +34,21 @@ def main():
     parser.add_argument("--out", default=None)
     parser.add_argument("--no-early-stop", action="store_true",
                         help="Disable early-stopping-on-validation-plateau.")
+    parser.add_argument("--epochs", type=int, default=None,
+                        help="Override preset.epochs.")
     args = parser.parse_args()
 
     preset = args.preset
-    if args.no_early_stop:
+    if args.no_early_stop or args.epochs is not None:
         base = get_preset("quickdraw", preset) if isinstance(preset, str) else preset
-        preset = replace(base, early_stopping_patience=10**9)
-        print(f"[quickdraw] no-early-stop: patience overridden to 1e9 "
-              f"(epochs={preset.epochs})")
+        kwargs = {}
+        if args.no_early_stop:
+            kwargs["early_stopping_patience"] = 10**9
+        if args.epochs is not None:
+            kwargs["epochs"] = args.epochs
+        preset = replace(base, **kwargs)
+        print(f"[quickdraw] preset overrides: epochs={preset.epochs}, "
+              f"patience={preset.early_stopping_patience}")
 
     res = run_experiment(
         dataset="quickdraw",
