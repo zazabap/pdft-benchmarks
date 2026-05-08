@@ -309,18 +309,19 @@ The key facts the table encodes:
 
 #figure(
   image("figures/loss_curve_1000.svg", width: 100%),
-  caption: [Per-step training loss (faint) and per-epoch validation loss
-            (markers) for each trained basis on DIV2K-8q at the
-            headline 1008-step training budget. Y-axis is *normalised*
-            by each basis's own initial step-loss ($L\/L_0$);
-            cross-basis comparison is on convergence speed and floor.
-            Left: unblocked / full-image bases. Right: $8 times 8$
-            block-wrapped bases. Each basis gets a unique colour +
-            line-style pair from a colourblind-safe palette. The
-            training-loss windowed average is essentially flat past
-            step ~700 for every basis (gain past step 1000 is
-            $<= 0.01$ dB equivalent — see appendix plateau check),
-            justifying 1000 steps as the headline budget.]
+  caption: [Per-epoch validation loss for each trained basis on
+            DIV2K-8q at the headline 1008-step training budget.
+            Y-axis is *normalised* by each basis's own initial
+            step-loss ($L\/L_0$); cross-basis comparison is on
+            convergence speed and floor. Left: unblocked /
+            full-image bases. Right: $8 times 8$ block-wrapped
+            bases. Each basis is a (colour, marker, filled/hollow)
+            triple from a colourblind-safe palette — every
+            validation-checkpoint is observable as a discrete
+            marker, no per-step noise overlay. Loss is essentially
+            flat past step ~700 for every basis (the appendix
+            plateau check at 2000 steps moves headline values by
+            $<= 0.01$ dB).]
 )
 
 #pagebreak(weak: true)
