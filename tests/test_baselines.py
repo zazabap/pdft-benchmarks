@@ -124,18 +124,22 @@ def test_dct_module_imports():
 from pdft_benchmarks.baselines import BASELINE_FACTORIES  # noqa: E402
 
 
-def test_baseline_factories_are_builders(img_32):
-    """Every BASELINE_FACTORIES entry is callable(train_imgs) -> callable(image, kr) -> ndarray."""
+def test_baseline_factories_are_builders(img_256):
+    """Every BASELINE_FACTORIES entry is callable(train_imgs) -> callable(image, kr) -> ndarray.
+
+    Uses a 256×256 image so that all sweep block sizes (2,4,8,16,32,64,128) divide
+    the image dimension evenly.
+    """
     rng = np.random.default_rng(42)
     # Distinct images so PCA's covariance is non-degenerate.
-    train_imgs = rng.uniform(0.0, 1.0, size=(8, 32, 32)).astype(np.float64)
+    train_imgs = rng.uniform(0.0, 1.0, size=(8, 256, 256)).astype(np.float64)
     for name, builder in BASELINE_FACTORIES.items():
         assert callable(builder), f"{name} is not callable"
         fn = builder(train_imgs)
         assert callable(fn), f"{name}(train_imgs) did not return a callable"
-        recovered = fn(img_32, 0.5)
-        assert recovered.shape == img_32.shape, (
-            f"{name} recovered shape {recovered.shape} != {img_32.shape}"
+        recovered = fn(img_256, 0.5)
+        assert recovered.shape == img_256.shape, (
+            f"{name} recovered shape {recovered.shape} != {img_256.shape}"
         )
 
 
