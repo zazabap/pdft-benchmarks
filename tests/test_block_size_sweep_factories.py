@@ -66,22 +66,10 @@ def test_trained_quickdraw_factory_constructs(b, m):
 def test_trained_div2k_factory_constructs(family, b, m):
     """Each trained_b factory must construct on DIV2K geometry without error.
 
-    Excludes the two known-broken cases (rich_32, real_rich_32) — those are
-    covered by `test_trained_div2k_factory_xfail_at_b32` below.
+    The b=32 row was previously xfailed for `rich`/`real_rich` because the
+    pre-stepped-einsum pdft hit its 52-character label pool at inner_m=5;
+    the stepped-tensordot path (pdft #15) lifts that limit, so all 12
+    cells now construct cleanly.
     """
-    if family in ("rich", "real_rich") and b == 32:
-        pytest.skip("covered by xfail test below")
     basis = BASIS_FACTORIES[f"{family}_{b}"](m, m, seed=0)
     assert basis is not None
-
-
-@pytest.mark.xfail(
-    reason="RichBasis/RealRichBasis at inner_m=5 exceeds pdft's 52-character "
-           "einsum label pool; library-level limit, analogous to MERA's "
-           "incompatible_qubits constraint",
-    strict=True,
-    raises=ValueError,
-)
-@pytest.mark.parametrize("family", ["rich", "real_rich"])
-def test_trained_div2k_factory_xfail_at_b32(family):
-    BASIS_FACTORIES[f"{family}_32"](8, 8, seed=0)
