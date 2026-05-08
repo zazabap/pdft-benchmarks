@@ -184,26 +184,55 @@ from .pca import (
 )
 
 
-def _block_pca_8_builder(train_imgs):
-    basis = fit_block_pca(train_imgs, block=8)
-    def fn(image, keep_ratio):
-        return pca_recover(basis, pca_compress(basis, image, keep_ratio))
-    fn._pca_basis = basis
-    return fn
+def _block_pca_b_builder(block: int):
+    """Return a builder(train_imgs) -> compress_fn for block-PCA at the given block size."""
+    def builder(train_imgs):
+        basis = fit_block_pca(train_imgs, block=block)
+        def fn(image, keep_ratio):
+            return pca_recover(basis, pca_compress(basis, image, keep_ratio))
+        fn._pca_basis = basis
+        return fn
+    return builder
+
+
+def _block_pca_b_rank_builder(block: int):
+    """Builder factory for block-PCA with rank-rule truncation. Kept
+    parametrised by `block` for symmetry with `_block_pca_b_builder` and
+    `_block_bd_pca_b_builder`; the rank-rule sweep itself is out of scope
+    (spec §5.1) — only the b=8 back-compat alias is registered."""
+    def builder(train_imgs):
+        basis = fit_block_pca(train_imgs, block=block)
+        def fn(image, keep_ratio):
+            return pca_recover(basis, pca_compress_rank(basis, image, keep_ratio))
+        fn._pca_basis = basis
+        return fn
+    return builder
+
+
+def _block_bd_pca_b_builder(block: int):
+    """Builder factory for block-mode bilateral 2D-PCA: separable column +
+    row eigenbases fit per b×b patch (pooled across all training patches).
+    The separable constraint regularises the b²×b² unconstrained KLT —
+    fewer parameters (2b² vs b⁴), better generalisation on test data."""
+    def builder(train_imgs):
+        basis = fit_block_bd_pca(train_imgs, block=block)
+        def fn(image, keep_ratio):
+            return bd_pca_recover(basis, bd_pca_compress(basis, image, keep_ratio))
+        fn._bd_pca_basis = basis
+        return fn
+    return builder
+
+
+# Back-compat aliases — preserve the names already referenced in the registry.
+_block_pca_8_builder       = _block_pca_b_builder(8)
+_block_pca_8_rank_builder  = _block_pca_b_rank_builder(8)
+_block_bd_pca_8_builder    = _block_bd_pca_b_builder(8)
 
 
 def _global_pca_builder(train_imgs):
     basis = fit_global_pca(train_imgs)
     def fn(image, keep_ratio):
         return pca_recover(basis, pca_compress(basis, image, keep_ratio))
-    fn._pca_basis = basis
-    return fn
-
-
-def _block_pca_8_rank_builder(train_imgs):
-    basis = fit_block_pca(train_imgs, block=8)
-    def fn(image, keep_ratio):
-        return pca_recover(basis, pca_compress_rank(basis, image, keep_ratio))
     fn._pca_basis = basis
     return fn
 
@@ -224,14 +253,6 @@ def _bd_pca_builder(train_imgs):
     return fn
 
 
-def _block_bd_pca_8_builder(train_imgs):
-    basis = fit_block_bd_pca(train_imgs, block=8)
-    def fn(image, keep_ratio):
-        return bd_pca_recover(basis, bd_pca_compress(basis, image, keep_ratio))
-    fn._bd_pca_basis = basis
-    return fn
-
-
 # ----------------------------------------------------------------------------
 # Public registry: name -> builder(train_imgs) -> stateless callable(image, keep_ratio).
 # Stateful baselines (PCA) fit on `train_imgs`; stateless baselines (FFT/DCT)
@@ -241,22 +262,27 @@ def _block_bd_pca_8_builder(train_imgs):
 BASELINE_FACTORIES = {
     "fft":              lambda train_imgs: global_fft_compress,
     "dct":              lambda train_imgs: global_dct_compress,
-    "block_fft_8":      lambda train_imgs: lambda img, keep_ratio: block_fft_compress(img, keep_ratio, block=8),
-    "block_dct_8":      lambda train_imgs: lambda img, keep_ratio: block_dct_compress(img, keep_ratio, block=8),
     "pca":              _global_pca_builder,
-    "block_pca_8":      _block_pca_8_builder,
     # Bilateral 2D-PCA: separable column+row eigenbases on H×W matrix-form
     # images. Sidesteps the d/N rank-deficiency of flat PCA by fitting
     # H×H column-covariance and W×W row-covariance, both full-rank when
     # N·W (or N·H) >= H (or W).
     "bd_pca":           _bd_pca_builder,
-    # Block-mode bilateral 2D-PCA: separable column+row eigenbases fit per
-    # b×b patch (pooled across all training patches). The separable
-    # constraint regularizes the b²×b² unconstrained KLT — fewer
-    # parameters (2b² vs b⁴), better generalization on test data.
-    "block_bd_pca_8":   _block_bd_pca_8_builder,
-    # Rank-truncation variants (textbook KLT-optimal rule for PCA;
-    # zigzag scan order for DCT — fair comparator to eigenvalue-rank PCA).
+
+    # Block transforms, parametrised by block size b ∈ {2, 4, 8, 16, 32, 64, 128}.
+    # b=8 is the headline; b≠8 is the sweep extension (spec §4).
+    # Image-side global transforms cover b=N (32 for QuickDraw, 256 for DIV2K).
+    **{f"block_fft_{b}":     (lambda b=b: lambda train_imgs:
+                               (lambda img, keep_ratio: block_fft_compress(img, keep_ratio, block=b)))()
+       for b in (2, 4, 8, 16, 32, 64, 128)},
+    **{f"block_dct_{b}":     (lambda b=b: lambda train_imgs:
+                               (lambda img, keep_ratio: block_dct_compress(img, keep_ratio, block=b)))()
+       for b in (2, 4, 8, 16, 32, 64, 128)},
+    **{f"block_pca_{b}":     _block_pca_b_builder(b)     for b in (2, 4, 8, 16, 32, 64, 128)},
+    **{f"block_bd_pca_{b}":  _block_bd_pca_b_builder(b)  for b in (2, 4, 8, 16, 32, 64, 128)},
+
+    # Rank-truncation appendix variants (kept at b=8 only — they are not
+    # part of the headline sweep; see spec §5.1).
     "dct_rank":         lambda train_imgs: global_dct_compress_zigzag,
     "block_dct_8_rank": lambda train_imgs: lambda img, keep_ratio: block_dct_compress_zigzag(img, keep_ratio, block=8),
     "pca_rank":         _global_pca_rank_builder,

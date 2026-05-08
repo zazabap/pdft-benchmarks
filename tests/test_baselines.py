@@ -124,18 +124,22 @@ def test_dct_module_imports():
 from pdft_benchmarks.baselines import BASELINE_FACTORIES  # noqa: E402
 
 
-def test_baseline_factories_are_builders(img_32):
-    """Every BASELINE_FACTORIES entry is callable(train_imgs) -> callable(image, kr) -> ndarray."""
+def test_baseline_factories_are_builders(img_256):
+    """Every BASELINE_FACTORIES entry is callable(train_imgs) -> callable(image, kr) -> ndarray.
+
+    Uses a 256×256 image so that all sweep block sizes (2,4,8,16,32,64,128) divide
+    the image dimension evenly.
+    """
     rng = np.random.default_rng(42)
     # Distinct images so PCA's covariance is non-degenerate.
-    train_imgs = rng.uniform(0.0, 1.0, size=(8, 32, 32)).astype(np.float64)
+    train_imgs = rng.uniform(0.0, 1.0, size=(8, 256, 256)).astype(np.float64)
     for name, builder in BASELINE_FACTORIES.items():
         assert callable(builder), f"{name} is not callable"
         fn = builder(train_imgs)
         assert callable(fn), f"{name}(train_imgs) did not return a callable"
-        recovered = fn(img_32, 0.5)
-        assert recovered.shape == img_32.shape, (
-            f"{name} recovered shape {recovered.shape} != {img_32.shape}"
+        recovered = fn(img_256, 0.5)
+        assert recovered.shape == img_256.shape, (
+            f"{name} recovered shape {recovered.shape} != {img_256.shape}"
         )
 
 
@@ -226,3 +230,29 @@ def test_global_pca_builder_returns_working_callable():
     assert out.shape == test.shape
     assert hasattr(fn, "_pca_basis")
     assert fn._pca_basis.block is None
+
+
+@pytest.mark.parametrize("block", [4, 8, 16])
+def test_block_pca_builder_factory_parametrised(img_256, block):
+    """_block_pca_b_builder(block) should return a working builder for any b dividing N."""
+    from pdft_benchmarks.baselines import _block_pca_b_builder
+    rng = np.random.default_rng(2)
+    train_imgs = rng.uniform(0.0, 1.0, size=(20, 256, 256))
+    builder = _block_pca_b_builder(block)
+    fn = builder(train_imgs)
+    out = fn(img_256, keep_ratio=0.5)
+    assert out.shape == img_256.shape
+    assert out.dtype == np.float64
+
+
+@pytest.mark.parametrize("block", [4, 8, 16])
+def test_block_bd_pca_builder_factory_parametrised(img_256, block):
+    """_block_bd_pca_b_builder(block) should return a working builder for any b dividing N."""
+    from pdft_benchmarks.baselines import _block_bd_pca_b_builder
+    rng = np.random.default_rng(3)
+    train_imgs = rng.uniform(0.0, 1.0, size=(20, 256, 256))
+    builder = _block_bd_pca_b_builder(block)
+    fn = builder(train_imgs)
+    out = fn(img_256, keep_ratio=0.5)
+    assert out.shape == img_256.shape
+    assert out.dtype == np.float64
