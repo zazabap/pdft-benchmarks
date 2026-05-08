@@ -184,26 +184,47 @@ from .pca import (
 )
 
 
-def _block_pca_8_builder(train_imgs):
-    basis = fit_block_pca(train_imgs, block=8)
-    def fn(image, keep_ratio):
-        return pca_recover(basis, pca_compress(basis, image, keep_ratio))
-    fn._pca_basis = basis
-    return fn
+def _block_pca_b_builder(block: int):
+    """Return a builder(train_imgs) -> compress_fn for block-PCA at the given block size."""
+    def builder(train_imgs):
+        basis = fit_block_pca(train_imgs, block=block)
+        def fn(image, keep_ratio):
+            return pca_recover(basis, pca_compress(basis, image, keep_ratio))
+        fn._pca_basis = basis
+        return fn
+    return builder
+
+
+def _block_pca_b_rank_builder(block: int):
+    def builder(train_imgs):
+        basis = fit_block_pca(train_imgs, block=block)
+        def fn(image, keep_ratio):
+            return pca_recover(basis, pca_compress_rank(basis, image, keep_ratio))
+        fn._pca_basis = basis
+        return fn
+    return builder
+
+
+def _block_bd_pca_b_builder(block: int):
+    def builder(train_imgs):
+        basis = fit_block_bd_pca(train_imgs, block=block)
+        def fn(image, keep_ratio):
+            return bd_pca_recover(basis, bd_pca_compress(basis, image, keep_ratio))
+        fn._bd_pca_basis = basis
+        return fn
+    return builder
+
+
+# Back-compat aliases — preserve the names already referenced in the registry.
+_block_pca_8_builder       = _block_pca_b_builder(8)
+_block_pca_8_rank_builder  = _block_pca_b_rank_builder(8)
+_block_bd_pca_8_builder    = _block_bd_pca_b_builder(8)
 
 
 def _global_pca_builder(train_imgs):
     basis = fit_global_pca(train_imgs)
     def fn(image, keep_ratio):
         return pca_recover(basis, pca_compress(basis, image, keep_ratio))
-    fn._pca_basis = basis
-    return fn
-
-
-def _block_pca_8_rank_builder(train_imgs):
-    basis = fit_block_pca(train_imgs, block=8)
-    def fn(image, keep_ratio):
-        return pca_recover(basis, pca_compress_rank(basis, image, keep_ratio))
     fn._pca_basis = basis
     return fn
 
@@ -218,14 +239,6 @@ def _global_pca_rank_builder(train_imgs):
 
 def _bd_pca_builder(train_imgs):
     basis = fit_bd_pca(train_imgs)
-    def fn(image, keep_ratio):
-        return bd_pca_recover(basis, bd_pca_compress(basis, image, keep_ratio))
-    fn._bd_pca_basis = basis
-    return fn
-
-
-def _block_bd_pca_8_builder(train_imgs):
-    basis = fit_block_bd_pca(train_imgs, block=8)
     def fn(image, keep_ratio):
         return bd_pca_recover(basis, bd_pca_compress(basis, image, keep_ratio))
     fn._bd_pca_basis = basis

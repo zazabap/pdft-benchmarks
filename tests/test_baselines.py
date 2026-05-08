@@ -226,3 +226,30 @@ def test_global_pca_builder_returns_working_callable():
     assert out.shape == test.shape
     assert hasattr(fn, "_pca_basis")
     assert fn._pca_basis.block is None
+
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.parametrize("block", [4, 8, 16])
+def test_block_pca_builder_factory_parametrised(img_256, block):
+    """_block_pca_b_builder(block) should return a working builder for any b dividing N."""
+    from pdft_benchmarks.baselines import _block_pca_b_builder
+    rng = np.random.default_rng(2)
+    train_imgs = rng.uniform(0.0, 1.0, size=(20, 256, 256))
+    builder = _block_pca_b_builder(block)
+    fn = builder(train_imgs)
+    out = fn(img_256, keep_ratio=0.5)
+    assert out.shape == img_256.shape
+    assert out.dtype == np.float64
+
+
+@pytest.mark.parametrize("block", [4, 8, 16])
+def test_block_bd_pca_builder_factory_parametrised(img_256, block):
+    from pdft_benchmarks.baselines import _block_bd_pca_b_builder
+    rng = np.random.default_rng(3)
+    train_imgs = rng.uniform(0.0, 1.0, size=(20, 256, 256))
+    builder = _block_bd_pca_b_builder(block)
+    fn = builder(train_imgs)
+    out = fn(img_256, keep_ratio=0.5)
+    assert out.shape == img_256.shape
