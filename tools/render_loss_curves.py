@@ -38,36 +38,59 @@ UNBLOCKED_PREF = ["qft", "entangled_qft", "tebd", "mera"]
 BLOCK_PREF     = ["blocked", "rich", "real_rich",
                   "blocked_8", "rich_8", "real_rich_8"]
 
-# Distinct hues per basis (qualitative palette — colourblind-safe Wong /
-# Tol "vibrant"-like). Each basis gets a unique colour so curves on the
-# same panel are easy to tell apart on small print.
+# Within-group sequential palette: unblocked = blue family, block-wrapped
+# = red/orange family. Cohesive look for the paper. When two curves end
+# at near-identical values (qft ≡ entangled_qft, tebd ≡ mera, rich ≈
+# real_rich), the within-pair distinguisher is the marker, not the
+# colour — see MARKER below.
 COLOR = {
-    "qft":           "#0072B2",  # blue
-    "entangled_qft": "#E69F00",  # orange
-    "tebd":          "#009E73",  # green
-    "mera":          "#CC79A7",  # pink
-    "blocked":       "#D55E00",  # vermilion
-    "rich":          "#56B4E9",  # sky blue
-    "real_rich":     "#000000",  # black
-    "blocked_8":     "#D55E00",
-    "rich_8":        "#56B4E9",
+    # unblocked group — blue family
+    "qft":           "#08306b",  # navy
+    "entangled_qft": "#2171b5",  # mid-blue
+    "tebd":          "#0e6655",  # dark teal
+    "mera":          "#26c6da",  # cyan-teal
+    # block-wrapped group — red/orange family
+    "blocked":       "#a50f15",  # deep red
+    "rich":          "#cb6020",  # burnt orange
+    "real_rich":     "#000000",  # black (anchor)
+    "blocked_8":     "#a50f15",
+    "rich_8":        "#cb6020",
     "real_rich_8":   "#000000",
 }
 
-# Line style per basis — gives curves a second visual axis so even when
-# colours look similar after grayscale conversion / poor projection, the
-# curves remain individually identifiable.
-LINESTYLE = {
-    "qft":           "-",
-    "entangled_qft": "--",
-    "tebd":          "-.",
-    "mera":          ":",
-    "blocked":       "-",
-    "rich":          "--",
-    "real_rich":     "-.",
-    "blocked_8":     "-",
-    "rich_8":        "--",
-    "real_rich_8":   "-.",
+# Per-basis marker shape. Each basis has a unique geometric shape; with
+# phase-staggered marker positions across bases, two coincident curves
+# never put a marker at the same x and the shapes interleave cleanly
+# along the trajectory.
+MARKER = {
+    "qft":           "o",  # circle
+    "entangled_qft": "X",  # filled X
+    "tebd":          "^",  # up-triangle
+    "mera":          "P",  # filled plus
+    "blocked":       "s",  # square
+    "rich":          "h",  # hexagon
+    "real_rich":     "D",  # diamond
+    "blocked_8":     "s",
+    "rich_8":        "h",
+    "real_rich_8":   "D",
+}
+# Per-marker size override (matplotlib defaults render some shapes a
+# touch lighter than circles at the same nominal size; bump those).
+MARKER_SIZE = {
+    "X": 5.0,
+    "P": 5.0,
+}
+HOLLOW = {
+    "qft":           False,
+    "entangled_qft": False,
+    "tebd":          False,
+    "mera":          False,
+    "blocked":       False,
+    "rich":          False,
+    "real_rich":     False,
+    "blocked_8":     False,
+    "rich_8":        False,
+    "real_rich_8":   False,
 }
 
 
@@ -83,14 +106,21 @@ def load_loss(by_basis_root: Path, name: str) -> tuple[np.ndarray, np.ndarray] |
 
 def plot_panel(ax, by_basis_root: Path, names: list[str], title: str,
                ylim: tuple[float, float] = (0.4, 1.0)):
-    """Plot per-basis training-loss curves on `ax`.
+    """Plot per-basis training-loss curves on `ax` following standard
+    technical-figure conventions:
 
-    Y-axis: loss normalised by each basis's *own* initial step-loss, so all
-    curves start at 1.0 — what we see is fractional reduction over training.
-    A per-basis L0 means cross-basis comparison is on convergence *speed*
-    and *floor*, not on raw scale (which depends on dataset and dim).
+    - Y axis normalised by each basis's *own* initial step-loss so cross-
+      basis comparison is on convergence speed/floor, not raw scale.
+    - One line per basis (full validation trajectory), one marker style
+      per basis (subset of points; phase-staggered across bases so two
+      coincident curves never put markers at the same x).
+    - Legend ordered by final L/L₀ ascending — best (lowest) at the top
+      so the reader maps the legend to the curve order at the right edge.
+    - Subtle line alpha (0.85) so overlapping coincident curves blend
+      into a slightly darker stroke instead of fighting for ink.
     """
-    plotted_any = False
+    # Collect per-basis curves first so we can sort + stagger.
+    curves = []
     for name in names:
         loaded = load_loss(by_basis_root, name)
         if loaded is None:
@@ -99,33 +129,86 @@ def plot_panel(ax, by_basis_root: Path, names: list[str], title: str,
         L0 = float(step_losses[0])
         if L0 <= 0:
             continue
-        step_norm = step_losses / L0
-        val_norm = val_losses / L0 if len(val_losses) > 0 else np.array([])
+        if len(val_losses) == 0:
+            continue
+        val_norm = val_losses / L0
+        n_epochs = len(val_norm)
+        steps_per_epoch = max(1, len(step_losses) // n_epochs)
+        x_val = np.arange(1, n_epochs + 1) * steps_per_epoch
+        curves.append((name, x_val, val_norm))
+
+    if not curves:
+        ax.set_title(f"{title} — no curves found", fontsize=9, color="#888888")
+        ax.set_xticks([]); ax.set_yticks([])
+        return False
+
+    # Sort by final value ascending: lowest-loss curves listed first in
+    # the legend. The reader's eye lands on the bottom of the panel last,
+    # so the legend top = panel bottom = best.
+    curves.sort(key=lambda c: float(c[2][-1]))
+    n_bases = len(curves)
+    # Per-basis (period, offset) for marker placement, in epochs.
+    # Periods are relatively prime so the marker schedules don't
+    # synchronise even when two curves coincide; offsets push each
+    # basis's first marker to a different starting epoch. Result:
+    # gaps between adjacent markers are slightly different per
+    # basis, killing the alignment artefact that made the
+    # uniform-spacing version look overlap-y on coincident curves.
+    SCHEDULE = [(7, 2), (9, 4), (11, 6), (13, 8), (8, 3), (10, 5), (12, 7)]
+
+    for i, (name, x_val, val_norm) in enumerate(curves):
         color = COLOR.get(name, "#888888")
-        ls = LINESTYLE.get(name, "-")
-        x = np.arange(1, len(step_norm) + 1)
-        # Faint training-step trace.
-        ax.plot(x, step_norm, color=color, linewidth=0.7, alpha=0.35,
-                zorder=1, linestyle=ls)
-        # Per-epoch validation: bold trace with markers, used for the legend.
-        if len(val_norm) > 0:
-            n_epochs = len(val_norm)
-            steps_per_epoch = max(1, len(step_norm) // n_epochs)
-            x_val = np.arange(1, n_epochs + 1) * steps_per_epoch
-            ax.plot(x_val, val_norm, color=color, linewidth=1.8,
-                    linestyle=ls, marker="o", markersize=3.0,
-                    label=f"`{name}`", zorder=2)
-        else:
-            ax.plot([], [], color=color, linestyle=ls, label=f"`{name}`")
-        plotted_any = True
+        marker = MARKER.get(name, "o")
+        hollow = HOLLOW.get(name, False)
+        face = "white" if hollow else color
+        n_epochs = len(val_norm)
+
+        # Per-basis non-uniform marker schedule: epochs offset+0,
+        # offset+period, offset+2*period, ... Each basis uses a
+        # different (period, offset) so adjacent markers from different
+        # bases never share an x — even on coincident curves.
+        period, offset = SCHEDULE[i % len(SCHEDULE)]
+        idx = np.arange(offset, n_epochs, period)
+        # Cap at ~14 markers so dense panels don't get crowded.
+        if len(idx) > 14:
+            idx = idx[:14]
+        # Always include the final epoch as a marker (anchors the
+        # convergence floor at the right edge of the panel).
+        if len(idx) == 0 or idx[-1] != n_epochs - 1:
+            idx = np.concatenate([idx, [n_epochs - 1]])
+        x_marker = x_val[idx]
+        y_marker = val_norm[idx]
+
+        # Connecting line — slight transparency so overlapping equivalent
+        # curves blend, plus they don't visually compete for ink.
+        ax.plot(x_val, val_norm, color=color, linewidth=1.5,
+                linestyle="-", alpha=0.85, zorder=2)
+        # Markers at staggered slots.
+        msize = MARKER_SIZE.get(marker, 4.5)
+        ax.plot(x_marker, y_marker, color=color, linewidth=0,
+                marker=marker, markersize=msize,
+                markerfacecolor=face, markeredgecolor=color,
+                markeredgewidth=1.0,
+                label=f"`{name}`", zorder=3)
+    plotted_any = True
     if plotted_any:
         ax.set_xlabel("training step", fontsize=8)
         ax.set_ylabel(r"loss / $L_0$", fontsize=8)
         ax.tick_params(labelsize=7)
         ax.set_title(title, fontsize=9)
-        ax.grid(True, alpha=0.25, linewidth=0.4)
-        ax.axhline(1.0, color="#cccccc", linewidth=0.6, zorder=0)
+        # Full grid on both axes — major gridlines for primary readability
+        # and a fainter minor grid so individual checkpoint positions are
+        # easy to read off without the lines competing with the markers.
+        ax.minorticks_on()
+        ax.grid(True, which="major", alpha=0.30, linewidth=0.5,
+                color="#999999", zorder=0)
+        ax.grid(True, which="minor", alpha=0.15, linewidth=0.3,
+                color="#bbbbbb", zorder=0)
+        ax.axhline(1.0, color="#888888", linewidth=0.7, zorder=0)
         ax.set_ylim(*ylim)
+        # Trim the panel borders for a less boxy look.
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
         ax.legend(fontsize=7, loc="upper right", framealpha=0.85,
                   handlelength=2.4)
     else:

@@ -358,16 +358,18 @@ comparison. All separable except `entangled_qft`.
 
 #figure(
   image("figures/loss_curve_1000.svg", width: 100%),
-  caption: [Per-step training loss (faint) and per-epoch validation loss
-            (markers) for each trained basis on QuickDraw at the
-            headline 1008-step training budget. Y-axis is *normalised*
-            by each basis's own initial step-loss ($L\/L_0$);
-            cross-basis comparison is on convergence speed and floor.
-            Left: unblocked / full-image bases. Right: $8 times 8$
-            block-wrapped bases. Each basis uses a unique colour +
-            line-style pair from a colourblind-safe palette. `mera`
-            is omitted because $m + n = 10$ is not a power of $2$
-            and the MERA hierarchy is structurally inapplicable.]
+  caption: [Per-epoch validation loss for each trained basis on
+            QuickDraw at the headline 1008-step training budget.
+            Y-axis is *normalised* by each basis's own initial
+            step-loss ($L\/L_0$); cross-basis comparison is on
+            convergence speed and floor. Left: unblocked /
+            full-image bases. Right: $8 times 8$ block-wrapped
+            bases. Each basis is a (colour, marker, filled/hollow)
+            triple from a colourblind-safe palette so every
+            validation-checkpoint is observable as a discrete
+            marker, no per-step noise overlay. `mera` is omitted
+            because $m + n = 10$ is not a power of $2$ and the
+            MERA hierarchy is structurally inapplicable.]
 )
 
 #pagebreak(weak: true)
