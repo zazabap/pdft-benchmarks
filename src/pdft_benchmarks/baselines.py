@@ -196,6 +196,10 @@ def _block_pca_b_builder(block: int):
 
 
 def _block_pca_b_rank_builder(block: int):
+    """Builder factory for block-PCA with rank-rule truncation. Kept
+    parametrised by `block` for symmetry with `_block_pca_b_builder` and
+    `_block_bd_pca_b_builder`; the rank-rule sweep itself is out of scope
+    (spec §5.1) — only the b=8 back-compat alias is registered."""
     def builder(train_imgs):
         basis = fit_block_pca(train_imgs, block=block)
         def fn(image, keep_ratio):
@@ -206,6 +210,10 @@ def _block_pca_b_rank_builder(block: int):
 
 
 def _block_bd_pca_b_builder(block: int):
+    """Builder factory for block-mode bilateral 2D-PCA: separable column +
+    row eigenbases fit per b×b patch (pooled across all training patches).
+    The separable constraint regularises the b²×b² unconstrained KLT —
+    fewer parameters (2b² vs b⁴), better generalisation on test data."""
     def builder(train_imgs):
         basis = fit_block_bd_pca(train_imgs, block=block)
         def fn(image, keep_ratio):
