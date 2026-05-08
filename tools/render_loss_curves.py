@@ -21,10 +21,15 @@ DATASET_CONFIG = {
     "quickdraw": {
         "by_basis": "results/quickdraw_pca_vs_block_dct/by_basis",
         "out": "results/quickdraw_pca_vs_block_dct/figures/loss_curves.pdf",
+        # QuickDraw curves bottom out around L/L0 ≈ 0.27 (rich), much
+        # lower than DIV2K which floors near 0.40. Use a wider y-range
+        # so no curve gets clipped.
+        "ylim": (0.20, 1.05),
     },
     "div2k_8q": {
         "by_basis": "results/div2k_8q_pca_vs_block_dct/by_basis",
         "out": "results/div2k_8q_pca_vs_block_dct/figures/loss_curves.pdf",
+        "ylim": (0.35, 1.05),
     },
 }
 
@@ -76,7 +81,8 @@ def load_loss(by_basis_root: Path, name: str) -> tuple[np.ndarray, np.ndarray] |
     return step_losses, val_losses
 
 
-def plot_panel(ax, by_basis_root: Path, names: list[str], title: str):
+def plot_panel(ax, by_basis_root: Path, names: list[str], title: str,
+               ylim: tuple[float, float] = (0.4, 1.0)):
     """Plot per-basis training-loss curves on `ax`.
 
     Y-axis: loss normalised by each basis's *own* initial step-loss, so all
@@ -119,7 +125,7 @@ def plot_panel(ax, by_basis_root: Path, names: list[str], title: str):
         ax.set_title(title, fontsize=9)
         ax.grid(True, alpha=0.25, linewidth=0.4)
         ax.axhline(1.0, color="#cccccc", linewidth=0.6, zorder=0)
-        ax.set_ylim(0.4, 1.0)
+        ax.set_ylim(*ylim)
         ax.legend(fontsize=7, loc="upper right", framealpha=0.85,
                   handlelength=2.4)
     else:
@@ -143,10 +149,11 @@ def main():
     import matplotlib.pyplot as plt
 
     fig, axes = plt.subplots(1, 2, figsize=(8.0, 3.4), sharey=True)
+    ylim = cfg.get("ylim", (0.4, 1.0))
     plot_panel(axes[0], by_basis_root, UNBLOCKED_PREF,
-               "unblocked (full-image transform)")
+               "unblocked (full-image transform)", ylim=ylim)
     plot_panel(axes[1], by_basis_root, BLOCK_PREF,
-               "block-wrapped (8×8 inner transform)")
+               "block-wrapped (8×8 inner transform)", ylim=ylim)
     # Right panel inherits the y-axis from sharey=True; clear its ylabel so
     # only the left panel labels the shared axis (avoids overlap with the
     # right panel's left edge under tight inter-panel spacing).
