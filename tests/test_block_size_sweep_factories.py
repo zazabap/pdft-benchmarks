@@ -37,3 +37,51 @@ def test_block_dct_b_runs(b):
     out_fft = fn_fft(img, keep_ratio=0.3)
     assert out_dct.shape == img.shape
     assert out_fft.shape == img.shape
+
+
+from pdft_benchmarks.bases import BASIS_FACTORIES
+
+
+TRAINED_B_QUICKDRAW = (4, 8, 16)
+TRAINED_B_DIV2K     = (4, 8, 16, 32)
+
+
+@pytest.mark.parametrize("b", sorted(set(TRAINED_B_QUICKDRAW) | set(TRAINED_B_DIV2K)))
+@pytest.mark.parametrize("family", ["blocked", "rich", "real_rich"])
+def test_trained_b_factory_exists(family, b):
+    key = f"{family}_{b}"
+    assert key in BASIS_FACTORIES, f"missing trained-basis factory key: {key}"
+
+
+@pytest.mark.parametrize("b,m", [(4, 5), (8, 5), (16, 5)])      # QuickDraw geometry
+def test_trained_quickdraw_factory_constructs(b, m):
+    """Each trained_b factory must construct on QuickDraw geometry without error."""
+    for family in ("blocked", "rich", "real_rich"):
+        basis = BASIS_FACTORIES[f"{family}_{b}"](m, m, seed=0)
+        assert basis is not None
+
+
+@pytest.mark.parametrize("b,m", [(4, 8), (8, 8), (16, 8), (32, 8)])
+@pytest.mark.parametrize("family", ["blocked", "rich", "real_rich"])
+def test_trained_div2k_factory_constructs(family, b, m):
+    """Each trained_b factory must construct on DIV2K geometry without error.
+
+    Excludes the two known-broken cases (rich_32, real_rich_32) — those are
+    covered by `test_trained_div2k_factory_xfail_at_b32` below.
+    """
+    if family in ("rich", "real_rich") and b == 32:
+        pytest.skip("covered by xfail test below")
+    basis = BASIS_FACTORIES[f"{family}_{b}"](m, m, seed=0)
+    assert basis is not None
+
+
+@pytest.mark.xfail(
+    reason="RichBasis/RealRichBasis at inner_m=5 exceeds pdft's 52-character "
+           "einsum label pool; library-level limit, analogous to MERA's "
+           "incompatible_qubits constraint",
+    strict=True,
+    raises=ValueError,
+)
+@pytest.mark.parametrize("family", ["rich", "real_rich"])
+def test_trained_div2k_factory_xfail_at_b32(family):
+    BASIS_FACTORIES[f"{family}_32"](8, 8, seed=0)
