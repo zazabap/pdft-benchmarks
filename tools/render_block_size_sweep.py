@@ -65,10 +65,17 @@ DATASET_CONFIG = {
     },
 }
 
-# ρ values — used as both lookup keys and display labels
-RHO_VALS = [0.05, 0.10, 0.15, 0.20]
-# Corresponding JSON key strings (trailing zeros stripped by json.dumps)
-RHO_KEYS = ["0.05", "0.1", "0.15", "0.2"]
+# Single source of truth for retention values; the JSON metric files use
+# string keys with trailing zeros stripped (so 0.10 → "0.1", 0.20 → "0.2").
+RHO_VALS = (0.05, 0.10, 0.15, 0.20)
+
+
+def _rho_key(r: float) -> str:
+    """Match the JSON serialisation: trim trailing zeros from the float string."""
+    return f"{r:g}"
+
+
+RHO_KEYS = tuple(_rho_key(r) for r in RHO_VALS)
 
 # Sequential blue palette: light → dark for ρ=0.05 → ρ=0.20
 RHO_COLORS = {
@@ -153,11 +160,9 @@ def get_psnr_curve(
 def render_panel(
     ax: plt.Axes,
     psnr_data: dict[int, dict[str, float]],
-    family: str,
     panel_label: str,
     dataset_label: str,
     b_ref: int = 8,
-    shared: bool = True,
     ymax_clip: float | None = None,
 ) -> None:
     """Render one PSNR-vs-b panel onto `ax`.
@@ -254,7 +259,7 @@ def render_panel(
 
     # Vertical dashed reference at b=8 — no legend entry (position is
     # self-evident; adding it would clutter the ρ legend)
-    if b_ref in b_values or (min(b_values) <= b_ref <= max(b_values)):
+    if min(b_values) <= b_ref <= max(b_values):
         ax.axvline(b_ref, color="#888888", linewidth=0.9, linestyle="--",
                    zorder=2)
 
@@ -334,7 +339,6 @@ def build_figure(dataset: str, repo_root: Path) -> None:
         render_panel(
             ax=ax,
             psnr_data=psnr_data,
-            family=family,
             panel_label=label,
             dataset_label=dataset_label,
             ymax_clip=ymax,
@@ -358,7 +362,7 @@ def build_figure(dataset: str, repo_root: Path) -> None:
         )
 
     out_stem.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(str(out_stem) + ".pdf", dpi=150, bbox_inches="tight")
+    fig.savefig(str(out_stem) + ".pdf", bbox_inches="tight")
     fig.savefig(str(out_stem) + ".svg", bbox_inches="tight")
     plt.close(fig)
 
