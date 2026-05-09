@@ -45,11 +45,6 @@ DATASET_CONFIG = {
         "trained_b": [4, 8, 16],
         # Display name used in per-panel sub-label
         "dataset_label": "QuickDraw",
-        # Legend position for the first panel.  QuickDraw block_dct has a
-        # clipped ρ=0.20 b=2 point in the upper-left, so push the legend
-        # to the lower-left (curves are high there, but less crowded than
-        # upper-left where the clip indicator sits).
-        "legend_loc": "lower left",
     },
     "div2k_8q": {
         "by_basis": "results/block_size_sweep/div2k_8q/by_basis",
@@ -59,9 +54,6 @@ DATASET_CONFIG = {
         # Trained real_rich b grid
         "trained_b": [4, 8, 16, 32],
         "dataset_label": "DIV2K-8q",
-        # DIV2K block_dct: ρ=0.05 is lowest and rises steeply b=4→8, so
-        # upper-left has open space above the lower curves.
-        "legend_loc": "upper left",
     },
 }
 
@@ -301,7 +293,6 @@ def build_figure(dataset: str, repo_root: Path) -> None:
     trained_b = cfg["trained_b"]
     dataset_label = cfg["dataset_label"]
 
-    legend_loc = cfg.get("legend_loc", "upper left")
     baselines = load_baselines(by_basis)
 
     # Collect data for each panel
@@ -331,10 +322,9 @@ def build_figure(dataset: str, repo_root: Path) -> None:
 
     # --- Figure layout ---
     fig, axes = plt.subplots(1, 3, figsize=(12, 4.0), sharey=True)
-    fig.subplots_adjust(left=0.07, right=0.97, bottom=0.14, top=0.96,
+    fig.subplots_adjust(left=0.07, right=0.97, bottom=0.14, top=0.93,
                         wspace=0.10)
 
-    legend_ax = None  # we'll put the legend on the first panel
     for i, (ax, (family, label, psnr_data)) in enumerate(zip(axes, panel_data)):
         render_panel(
             ax=ax,
@@ -347,19 +337,19 @@ def build_figure(dataset: str, repo_root: Path) -> None:
         # Only leftmost panel gets y-label; the others share the axis
         if i > 0:
             ax.set_ylabel("")
-        if i == 0:
-            legend_ax = ax
 
-    # Place ρ legend on the first panel.
-    if legend_ax is not None:
-        handles, labels = legend_ax.get_legend_handles_labels()
-        legend_ax.legend(
-            handles, labels,
-            fontsize=8,
-            loc=legend_loc,
-            framealpha=0.8,
-            edgecolor="#cccccc",
-        )
+    # Single figure-level legend above the panel row. Avoids overlap with
+    # curves that the per-panel placement struggled with (block_dct and
+    # real_rich rising flanks at b=4-8 on both datasets).
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(
+        handles, labels,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 1.01),
+        ncol=len(labels),
+        frameon=False,
+        fontsize=9,
+    )
 
     out_stem.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(str(out_stem) + ".pdf", bbox_inches="tight")
