@@ -196,8 +196,10 @@ def _draw_frequency_spectra(
     """2D frequency spectra: peak-normalised log|F| per method, shared colorbar.
 
     Mirror of `analyze_frequency_space.jl` (A) panel: one column per method,
-    same colormap and colorrange across all methods. Rotation 90° matches
-    Julia's `rotr90` orientation convention.
+    same colormap and colorrange across all methods. matplotlib's imshow
+    has origin top-left (y-axis down), so the natural array orientation
+    already aligns horizontal/vertical spatial axes with k_x/k_y — no
+    rotation is needed (unlike Julia's heatmap which is y-up by default).
     """
     methods = list(method_magnitudes.keys())
     logmags, zmin, zmax = _peak_normalized_log(method_magnitudes)
@@ -215,8 +217,7 @@ def _draw_frequency_spectra(
 
     im = None
     for ax, name in zip(flat[1:], methods):
-        lm = np.rot90(logmags[name], k=1)  # match Julia's rotr90
-        im = ax.imshow(lm, cmap="inferno", vmin=zmin, vmax=zmax)
+        im = ax.imshow(logmags[name], cmap="inferno", vmin=zmin, vmax=zmax)
         ax.set_title(name, fontsize=9)
         ax.set_xticks([])
         ax.set_yticks([])
