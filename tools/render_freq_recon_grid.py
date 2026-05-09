@@ -310,9 +310,8 @@ def main():
         axes_f[0].set_xticks([]); axes_f[0].set_yticks([])
         last_im = None
         for c_idx, name in enumerate(methods, start=1):
-            spec = np.rot90(log_freq[name])
             last_im = axes_f[c_idx].imshow(
-                spec, cmap="viridis", vmin=zmin, vmax=zmax,
+                log_freq[name], cmap="viridis", vmin=zmin, vmax=zmax,
                 interpolation="nearest", aspect="equal",
             )
             axes_f[c_idx].set_xticks([]); axes_f[c_idx].set_yticks([])
