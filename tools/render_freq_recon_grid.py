@@ -15,9 +15,7 @@ recoveries for each method.
 from __future__ import annotations
 
 import argparse
-import json
 import os
-from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -47,52 +45,7 @@ def _load_div2k_source_image(idx: int, *, size: int = 256) -> np.ndarray:
     return np.asarray(img, dtype=np.float64) / 255.0
 
 
-def load_trained_basis(json_path: Path):
-    """Reconstruct a pdft basis from a `trained_*.json` file.
-
-    pdft.io.load_basis only supports QFTBasis (Phase 2 limitation), so we
-    rebuild the topology via BASIS_FACTORIES and inject loaded tensors
-    via dataclasses.replace. For BlockedBasis we replace the inner.
-    """
-    from dataclasses import replace
-    from pdft_benchmarks.bases import BASIS_FACTORIES
-
-    payload = json.loads(json_path.read_text())
-    btype = payload["type"]
-    m, n = int(payload["m"]), int(payload["n"])
-    raw = payload["tensors"]
-
-    type_to_factory_key = {
-        "QFTBasis":          "qft",
-        "EntangledQFTBasis": "entangled_qft",
-        "TEBDBasis":         "tebd",
-        "MERABasis":         "mera",
-    }
-    if btype == "BlockedBasis":
-        # blocked / rich / real_rich all serialise as "BlockedBasis"; disambiguate by filename
-        factory_key = json_path.stem.removeprefix("trained_")
-    else:
-        factory_key = type_to_factory_key[btype]
-
-    skel = BASIS_FACTORIES[factory_key](m, n, seed=0)
-
-    def _decode(skel_tensors):
-        out = []
-        for skel_t, raw_t in zip(skel_tensors, raw):
-            flat = np.asarray([complex(r, i) for r, i in raw_t], dtype=np.complex128)
-            out.append(flat.reshape(skel_t.shape, order="F"))
-        return out
-
-    if btype == "BlockedBasis":
-        inner = skel.inner
-        new_inner_tensors = _decode(inner.tensors)
-        # Bypass any custom __init__ — dataclass attrs are mutable here.
-        object.__setattr__(inner, "tensors", new_inner_tensors)
-        return skel
-
-    new_tensors = _decode(skel.tensors)
-    object.__setattr__(skel, "tensors", new_tensors)
-    return skel
+from pdft_benchmarks._loading import load_trained_basis  # noqa: F401  (re-export for callers)
 
 
 def main():
