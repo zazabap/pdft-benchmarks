@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Render multi-ρ block-size sweep figure (B1 framing).
 
-Three sub-panels in a row per dataset:
-  1. block_dct   — HEVC-style classical (unfitted reference)
-  2. block_bd_pca — dataset-fitted classical (paper headline classical)
-  3. real_rich   — headline trained basis
+Six sub-panels in a 2×3 grid per dataset:
+
+  Row 1 (classical):  block_fft, block_dct, block_bd_pca
+  Row 2 (trained):    blocked,   rich,      real_rich
 
 Each panel shows 4 PSNR-vs-b curves (one per ρ ∈ {0.05, 0.10, 0.15,
-0.20}) on a log-2 x-axis. Y-axis is shared across the three panels so
-absolute PSNR can be compared across families.
+0.20}) on a log-2 x-axis.  Y-axis is shared per row so absolute PSNR
+can be compared within a row.  Each curve's peak is marked with a
+diamond and labelled with its PSNR value (one decimal place).
 
 Usage:
     python tools/render_block_size_sweep.py --dataset {quickdraw,div2k_8q}
@@ -39,9 +40,9 @@ DATASET_CONFIG = {
     "quickdraw": {
         "by_basis": "results/block_size_sweep/quickdraw/by_basis",
         "out_stem": "results/block_size_sweep/quickdraw/figures/sweep_quickdraw",
-        # Classical b grid (block_dct, block_bd_pca)
+        # Classical b grid (block_fft, block_dct, block_bd_pca)
         "classical_b": [2, 4, 8, 16],
-        # Trained real_rich b grid
+        # Trained b grid (blocked, rich, real_rich)
         "trained_b": [4, 8, 16],
         # Display name used in per-panel sub-label
         "dataset_label": "QuickDraw",
@@ -51,7 +52,7 @@ DATASET_CONFIG = {
         "out_stem": "results/block_size_sweep/div2k_8q/figures/sweep_div2k_8q",
         # Stop at 128 (drop 256 = global)
         "classical_b": [4, 8, 16, 32, 64, 128],
-        # Trained real_rich b grid
+        # Trained b grid
         "trained_b": [4, 8, 16, 32],
         "dataset_label": "DIV2K-8q",
     },
@@ -83,14 +84,28 @@ RHO_LABELS = {
     "0.2":  r"$\rho = 0.20$",
 }
 
-# Three panels per figure: (basis_family, sub_label, uses_trained_data)
-# Plain text labels — matplotlib's default text renderer does not interpret
-# LaTeX \_ as subscript; use raw underscores instead.
+# 2×3 panel grid:
+#   Row 0 (classical): block_fft, block_dct, block_bd_pca
+#   Row 1 (trained):   blocked,   rich,      real_rich
+# Each tuple: (family, sub_label, is_trained)
 PANELS = [
+    # Row 0 — classical
+    ("block_fft",    "block_fft (classical)",    False),
     ("block_dct",    "block_dct (classical)",    False),
     ("block_bd_pca", "block_bd_pca (fitted)",    False),
-    ("real_rich",    "real_rich (trained)",       True),
+    # Row 1 — trained
+    ("blocked",      "blocked (trained)",         True),
+    ("rich",         "rich (trained)",             True),
+    ("real_rich",    "real_rich (trained)",        True),
 ]
+
+# Clipped-peak special cases: (dataset, family, rho_key, b)
+# For these points the clip-indicator triangle + exact-value text is already
+# shown, so we skip the normal peak-PSNR annotation to avoid double-labelling.
+CLIPPED_PEAK_SKIP = {
+    ("quickdraw", "block_dct", "0.2", 2),
+    ("quickdraw", "block_fft", "0.2", 2),
+}
 
 
 # ---------------------------------------------------------------------------
@@ -156,12 +171,17 @@ def render_panel(
     dataset_label: str,
     b_ref: int = 8,
     ymax_clip: float | None = None,
+    dataset: str = "",
+    family: str = "",
+    ymin: float | None = None,
+    ymax: float | None = None,
 ) -> None:
     """Render one PSNR-vs-b panel onto `ax`.
 
     psnr_data: {b: {rho_key: psnr}}
     ymax_clip: the shared y-axis ceiling (passed in so we can mark clipped
                points with an upward-arrow indicator for honesty).
+    dataset, family: used to identify special-case skip points.
     """
     b_values = sorted(psnr_data.keys())
     if not b_values:
@@ -208,7 +228,10 @@ def render_panel(
         # Peak marker — filled diamond overlaid at argmax of *actual* ys
         peak_idx = int(np.argmax(ys))
         x_peak = xs[peak_idx]
+        y_peak_actual = ys[peak_idx]
         y_peak_display = ys_display[peak_idx]
+        is_peak_clipped = clipped_mask[peak_idx]
+
         ax.plot(
             x_peak, y_peak_display,
             marker="D",
@@ -219,6 +242,43 @@ def render_panel(
             zorder=5,
             linestyle="none",
         )
+
+        # Peak-PSNR label — skip for clipped special-case peaks where the
+        # clip-indicator text already shows the true value.
+        skip_key = (dataset, family, rk, x_peak)
+        if skip_key not in CLIPPED_PEAK_SKIP:
+            at_right_edge = (x_peak == max(b_values))
+            if at_right_edge:
+                # Determine whether the peak is in the bottom 20% of the
+                # displayed y range. If so, go above the diamond (clear of
+                # the bottom-right sub-label box). Otherwise go left.
+                in_bottom = False
+                if ymin is not None and ymax is not None:
+                    threshold = ymin + 0.20 * (ymax - ymin)
+                    in_bottom = y_peak_display <= threshold
+                if in_bottom:
+                    txt_offset = (0, 7)
+                    txt_ha = "center"
+                    txt_va = "bottom"
+                else:
+                    txt_offset = (-12, 0)
+                    txt_ha = "right"
+                    txt_va = "center"
+            else:
+                txt_offset = (0, 5)
+                txt_ha = "center"
+                txt_va = "bottom"
+            ax.annotate(
+                f"{y_peak_actual:.1f}",
+                xy=(x_peak, y_peak_display),
+                xytext=txt_offset,
+                textcoords="offset points",
+                ha=txt_ha, va=txt_va,
+                fontsize=8,
+                color=color,
+                zorder=6,
+                annotation_clip=False,
+            )
 
         # Clip indicators — for any clamped point, draw a small upward
         # triangle at the clamped y-position and annotate with the true
@@ -268,13 +328,14 @@ def render_panel(
     # Per-panel sub-label (content, not title)
     # Use text in axes coordinates so it sits inside the panel
     ax.text(
-        0.97, 0.03,
+        0.94, 0.03,
         f"{panel_label}\n({dataset_label})",
         ha="right", va="bottom",
         transform=ax.transAxes,
-        fontsize=8.5,
+        fontsize=7.5,
         color="#333333",
-        bbox=dict(facecolor="white", edgecolor="none", alpha=0.7, pad=2),
+        clip_on=False,
+        bbox=dict(facecolor="white", edgecolor="none", alpha=0.75, pad=2),
     )
 
     ax.grid(axis="y", linewidth=0.4, color="#cccccc", zorder=1)
@@ -302,50 +363,67 @@ def build_figure(dataset: str, repo_root: Path) -> None:
         psnr_data = get_psnr_curve(baselines, by_basis, family, b_grid, is_trained)
         panel_data.append((family, label, psnr_data))
 
-    # Compute shared y-axis limits from all panels.
-    # Use the 95th-percentile ceiling so one outlier point (e.g. QuickDraw
-    # block_dct b=2 ρ=0.20 at 44.6 dB — near-lossless because b²=4 < m=5
-    # so all block coefficients are selected) does not compress the rest of
-    # the figure.  The line still enters the axis from below and the steep
-    # drop from that outlier to b=4 remains visible; only the y-axis scale
-    # is protected.
-    all_psnrs: list[float] = []
-    for _, _, pd in panel_data:
-        for b_dict in pd.values():
-            all_psnrs.extend(b_dict.values())
-    if all_psnrs:
-        arr = np.asarray(all_psnrs)
+    # Compute y-axis limits per row.
+    # Row 0 = classical panels (indices 0-2), Row 1 = trained panels (indices 3-5).
+    # Use the 95th-percentile ceiling per row so one outlier point (e.g. QuickDraw
+    # block_dct b=2 ρ=0.20 at 44.6 dB) does not compress the rest of the figure.
+    def row_ylimits(panel_indices: list[int]) -> tuple[float, float]:
+        row_psnrs: list[float] = []
+        for idx in panel_indices:
+            _, _, pd = panel_data[idx]
+            for b_dict in pd.values():
+                row_psnrs.extend(b_dict.values())
+        if not row_psnrs:
+            return 15.0, 40.0
+        arr = np.asarray(row_psnrs)
         ymin = float(arr.min()) - 1.5
         ymax = float(np.percentile(arr, 95)) + 2.0
-    else:
-        ymin, ymax = 15.0, 40.0
+        return ymin, ymax
 
-    # --- Figure layout ---
-    fig, axes = plt.subplots(1, 3, figsize=(12, 4.0), sharey=True)
-    fig.subplots_adjust(left=0.07, right=0.97, bottom=0.14, top=0.93,
-                        wspace=0.10)
+    classical_ymin, classical_ymax = row_ylimits([0, 1, 2])
+    trained_ymin, trained_ymax = row_ylimits([3, 4, 5])
 
-    for i, (ax, (family, label, psnr_data)) in enumerate(zip(axes, panel_data)):
+    # --- Figure layout: 2 rows × 3 cols ---
+    fig, axes = plt.subplots(
+        2, 3,
+        figsize=(13, 7.5),
+        sharey="row",
+    )
+    fig.subplots_adjust(left=0.07, right=0.97, bottom=0.09, top=0.91,
+                        wspace=0.14, hspace=0.42)
+
+    row_ymins = [classical_ymin, trained_ymin]
+    row_ymaxs = [classical_ymax, trained_ymax]
+
+    for panel_idx, (family, label, psnr_data) in enumerate(panel_data):
+        row = panel_idx // 3
+        col = panel_idx % 3
+        ax = axes[row][col]
+
         render_panel(
             ax=ax,
             psnr_data=psnr_data,
             panel_label=label,
             dataset_label=dataset_label,
-            ymax_clip=ymax,
+            ymax_clip=row_ymaxs[row],
+            dataset=dataset,
+            family=family,
+            ymin=row_ymins[row],
+            ymax=row_ymaxs[row],
         )
-        ax.set_ylim(ymin, ymax)
-        # Only leftmost panel gets y-label; the others share the axis
-        if i > 0:
+        ax.set_ylim(row_ymins[row], row_ymaxs[row])
+
+        # Only leftmost panel in each row gets y-label
+        if col > 0:
             ax.set_ylabel("")
 
-    # Single figure-level legend above the panel row. Avoids overlap with
-    # curves that the per-panel placement struggled with (block_dct and
-    # real_rich rising flanks at b=4-8 on both datasets).
-    handles, labels = axes[0].get_legend_handles_labels()
+    # Single figure-level legend above the grid, sourced from the first panel
+    # (all panels have identical ρ handles).
+    handles, labels = axes[0][0].get_legend_handles_labels()
     fig.legend(
         handles, labels,
         loc="upper center",
-        bbox_to_anchor=(0.5, 1.01),
+        bbox_to_anchor=(0.5, 1.00),
         ncol=len(labels),
         frameon=False,
         fontsize=9,
