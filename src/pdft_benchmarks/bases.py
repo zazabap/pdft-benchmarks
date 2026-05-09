@@ -70,6 +70,22 @@ BASIS_FACTORIES: dict[str, BasisFactory] = {
     "blocked_8":     lambda m, n, seed=0: _blocked(m, n, seed, pdft.QFTBasis,       inner_m=3, inner_n=3),
     "rich_8":        lambda m, n, seed=0: _blocked(m, n, seed, pdft.RichBasis,      inner_m=3, inner_n=3),
     "real_rich_8":   lambda m, n, seed=0: _blocked(m, n, seed, pdft.RealRichBasis,  inner_m=3, inner_n=3),
+    # Block topologies, fixed 4×4 block size (inner_m=inner_n=2). Sweep
+    # extension; spec §6.1.
+    "blocked_4":     lambda m, n, seed=0: _blocked(m, n, seed, pdft.QFTBasis,       inner_m=2, inner_n=2),
+    "rich_4":        lambda m, n, seed=0: _blocked(m, n, seed, pdft.RichBasis,      inner_m=2, inner_n=2),
+    "real_rich_4":   lambda m, n, seed=0: _blocked(m, n, seed, pdft.RealRichBasis,  inner_m=2, inner_n=2),
+    # Block topologies, fixed 16×16 block size (inner_m=inner_n=4).
+    "blocked_16":    lambda m, n, seed=0: _blocked(m, n, seed, pdft.QFTBasis,       inner_m=4, inner_n=4),
+    "rich_16":       lambda m, n, seed=0: _blocked(m, n, seed, pdft.RichBasis,      inner_m=4, inner_n=4),
+    "real_rich_16":  lambda m, n, seed=0: _blocked(m, n, seed, pdft.RealRichBasis,  inner_m=4, inner_n=4),
+    # Block topologies, fixed 32×32 block size (inner_m=inner_n=5). Only
+    # valid at m≥5; in scope for DIV2K m=8. QuickDraw m=5 also satisfies
+    # m≥5 (block_log = 0, no wrapping) but the cell is degenerate with
+    # the unblocked basis at m=n=5 and is not part of the QuickDraw grid.
+    "blocked_32":    lambda m, n, seed=0: _blocked(m, n, seed, pdft.QFTBasis,       inner_m=5, inner_n=5),
+    "rich_32":       lambda m, n, seed=0: _blocked(m, n, seed, pdft.RichBasis,      inner_m=5, inner_n=5),
+    "real_rich_32":  lambda m, n, seed=0: _blocked(m, n, seed, pdft.RealRichBasis,  inner_m=5, inner_n=5),
 }
 
 __all__ = ["BASIS_FACTORIES", "BasisFactory"]
