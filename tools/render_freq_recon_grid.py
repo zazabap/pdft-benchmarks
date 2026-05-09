@@ -69,6 +69,12 @@ def main():
     ap.add_argument("--dataset", choices=["quickdraw", "div2k_8q"],
                     default="quickdraw",
                     help="Which dataset+experiment-tree to render against.")
+    ap.add_argument("--methods", type=str, default="",
+                    help="Comma-separated method names to include "
+                         "(e.g. 'fft,dct,qft,block_dct_8,real_rich_8'). "
+                         "Empty → include all available. The block-wrapped-"
+                         "before-global ordering is preserved within the "
+                         "selected subset.")
     args = ap.parse_args()
 
     DATASET_CONFIG = {
@@ -211,6 +217,18 @@ def main():
     sample_key = (image_labels[0], keep_ratios[0])
     block_methods  = [m for m in block_methods_pref  if m in rec[sample_key]]
     global_methods = [m for m in global_methods_pref if m in rec[sample_key]]
+    if args.methods:
+        requested = [m.strip() for m in args.methods.split(",") if m.strip()]
+        available = set(block_methods) | set(global_methods)
+        missing = [m for m in requested if m not in available]
+        if missing:
+            raise ValueError(
+                f"requested methods not available: {missing}; "
+                f"available: {sorted(available)}"
+            )
+        requested_set = set(requested)
+        block_methods  = [m for m in block_methods  if m in requested_set]
+        global_methods = [m for m in global_methods if m in requested_set]
     methods = block_methods + global_methods
     n_methods = len(methods)
     n_cols = 1 + n_methods
