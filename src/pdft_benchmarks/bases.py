@@ -55,6 +55,12 @@ def _blocked(m: int, n: int, seed: int, inner_cls,
 BASIS_FACTORIES: dict[str, BasisFactory] = {
     # Circuit topologies (4): compared against DCT / FFT / blockDCT.
     "qft":           lambda m, n, seed=0: pdft.QFTBasis(m=m, n=n),
+    # Identity-initialized QFT: same topology as `qft`, but every gate
+    # starts at the QFT-family identity (H -> I_2, CP -> phase 0). Ablation
+    # against the analytic-QFT init to test whether the analytic init
+    # carries useful inductive bias or whether training reaches the same
+    # optimum from a featureless start.
+    "qft_identity": lambda m, n, seed=0: qft_identity_basis(m=m, n=n),
     "entangled_qft": lambda m, n, seed=0: pdft.EntangledQFTBasis(m=m, n=n, seed=seed),
     "tebd":          lambda m, n, seed=0: pdft.TEBDBasis(m=m, n=n, seed=seed),
     "mera":          lambda m, n, seed=0: pdft.MERABasis(m=m, n=n, seed=seed),
@@ -87,6 +93,46 @@ BASIS_FACTORIES: dict[str, BasisFactory] = {
     "rich_32":       lambda m, n, seed=0: _blocked(m, n, seed, pdft.RichBasis,      inner_m=5, inner_n=5),
     "real_rich_32":  lambda m, n, seed=0: _blocked(m, n, seed, pdft.RealRichBasis,  inner_m=5, inner_n=5),
 }
+
+
+def qft_identity_basis(m: int, n: int) -> pdft.QFTBasis:
+    """Construct a `QFTBasis(m, n)` initialized to the QFT-family identity.
+
+    Each gate is pinned to the identity element of its manifold:
+      - Hadamard -> 2x2 identity matrix.
+      - Controlled-phase -> `controlled_phase_diag(0.0)` = [[1,1],[1,1]],
+        the 2x2-stack representation of the 4x4 identity (phase phi = 0).
+
+    Topology matches the standard QFT decomposition (same gate sequence as
+    `pdft.QFTBasis(m, n)`); only the initial tensor values differ. All
+    m+n axis-1 + axis-2 gate parameters remain trainable on the U(2)
+    Riemannian manifold during `train_basis_batched`.
+    """
+    import jax.numpy as jnp
+    from pdft.bases.circuit.qft import _qft_gates_1d
+    from pdft.circuit.builder import controlled_phase_diag
+
+    eye2 = jnp.eye(2, dtype=jnp.complex128)
+    cp_identity = controlled_phase_diag(0.0)
+
+    gates_emit = _qft_gates_1d(m, offset=0) + _qft_gates_1d(n, offset=m)
+    temporal: list = []
+    for g in gates_emit:
+        if g["kind"] == "H":
+            temporal.append(eye2)
+        elif g["kind"] == "CP":
+            temporal.append(cp_identity)
+        else:
+            raise AssertionError(f"unexpected QFT gate kind {g['kind']}")
+
+    # QFTBasis stores tensors in Hadamard-first canonical order; stable-sort
+    # so within-group emit order is preserved.
+    emit_perm = sorted(
+        range(len(gates_emit)),
+        key=lambda i: gates_emit[i]["kind"] != "H",
+    )
+    sorted_tensors = [temporal[i] for i in emit_perm]
+    return pdft.QFTBasis(m=m, n=n, tensors=sorted_tensors)
 
 
 def qft_warm_from_trained_blocked(trained_blocked: pdft.BlockedBasis) -> pdft.QFTBasis:
@@ -202,4 +248,4 @@ def qft_warm_from_trained_blocked(trained_blocked: pdft.BlockedBasis) -> pdft.QF
     sorted_tensors = [jnp.asarray(t, dtype=jnp.complex128) for t in sorted_tensors]
     return pdft.QFTBasis(m=m_outer, n=n_outer, tensors=sorted_tensors)
 
-__all__ = ["BASIS_FACTORIES", "BasisFactory"]
+__all__ = ["BASIS_FACTORIES", "BasisFactory", "qft_identity_basis"]
