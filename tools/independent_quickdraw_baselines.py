@@ -12,10 +12,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import time
 from pathlib import Path
 
-import numpy as np
 
 
 def main():
@@ -50,7 +48,6 @@ def main():
     metrics: dict = {}
     for name in sorted(BASELINE_FACTORIES):
         print(f"[indep] fitting + evaluating baseline '{name}'…")
-        t0 = time.perf_counter()
         builder = BASELINE_FACTORIES[name]
         fn = builder(list(train))
         kr_metrics, elapsed = evaluate_baseline(fn, test, keep_ratios)
@@ -74,7 +71,7 @@ def main():
     # Build a small Markdown report for human reading.
     report = out / "REPORT.md"
     lines = []
-    lines.append(f"# Independent QuickDraw baseline rerun\n")
+    lines.append("# Independent QuickDraw baseline rerun\n")
     lines.append(f"- dataset: quickdraw\n- n_train: {args.n_train}\n- n_test: {args.n_test}\n"
                  f"- img_size: {args.img_size}\n- seed: {args.seed}\n"
                  f"- baselines: {sorted(BASELINE_FACTORIES)}\n\n")

@@ -94,7 +94,6 @@ def test_summarize_raises_if_basis_missing():
 
 
 import json
-from pathlib import Path
 
 from pdft_benchmarks._manifest import build_manifest
 

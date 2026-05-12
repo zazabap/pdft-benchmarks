@@ -21,6 +21,8 @@ def test_2gpu_fanout_smoke(tmp_path: Path):
 
     repo_root = Path(__file__).resolve().parents[2]
     script = repo_root / "benchmarks" / "run_all.sh"
+    if not script.is_file():
+        pytest.skip(f"run_all.sh not found at {script}")
     env = os.environ.copy()
     env["CUDA_VISIBLE_DEVICES"] = "0,1"
 

@@ -96,9 +96,6 @@ def _evaluate_family(
 
     # Compute per-image PSNR for every candidate (needed for fixed_best).
     # Shape: (n_test, n_candidates)
-    per_image_per_cand: list[list[float]] = [
-        [] for _ in range(n_test)
-    ]
     adaptive_psnrs: list[float] = []
     chosen_per_image: list[str] = []
 
@@ -200,7 +197,6 @@ def main() -> int:
 
     print(f"[adaptive] train={train_imgs.shape}, test={test_imgs.shape}")
 
-    m, n = cfg["m"], cfg["n"]
     classical_b = cfg["classical_b"]
     trained_b   = cfg["trained_b"]
     cells_root  = Path(cfg["cells_root"])

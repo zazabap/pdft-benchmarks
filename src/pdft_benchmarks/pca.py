@@ -511,7 +511,6 @@ def bd_pca_recover(basis: BdPcaBasis, Y: np.ndarray) -> np.ndarray:
     Block mode: per-block X̂ = U Y_block V.T + X̄, then re-tile.
     """
     if basis.block is not None:
-        b = basis.block
         # Y has shape (nbr, nbc, b, b)
         recon_patches = np.einsum("ij,abjk,kl->abil", basis.U, Y, basis.V.T) + basis.mean
         return _untile_blocks(recon_patches)
