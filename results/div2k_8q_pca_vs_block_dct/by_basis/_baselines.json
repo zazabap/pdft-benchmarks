@@ -38,7 +38,7 @@
         "nan_count": 0
       }
     },
-    "time": 1.423406295478344
+    "time": 0.9221917875111103
   },
   "block_bd_pca_8": {
     "metrics": {
@@ -79,7 +79,7 @@
         "nan_count": 0
       }
     },
-    "time": 4.73580895550549
+    "time": 4.085922511294484
   },
   "block_dct_8": {
     "metrics": {
@@ -120,7 +120,7 @@
         "nan_count": 0
       }
     },
-    "time": 1.0688951825723052
+    "time": 0.885487656109035
   },
   "block_dct_8_rank": {
     "metrics": {
@@ -161,7 +161,7 @@
         "nan_count": 0
       }
     },
-    "time": 1.030698494054377
+    "time": 0.8077293047681451
   },
   "block_fft_8": {
     "metrics": {
@@ -202,7 +202,7 @@
         "nan_count": 0
       }
     },
-    "time": 1.141794241964817
+    "time": 1.2314875349402428
   },
   "block_pca_8": {
     "metrics": {
@@ -243,7 +243,7 @@
         "nan_count": 0
       }
     },
-    "time": 1.1789427939802408,
+    "time": 0.8649793984368443,
     "_pdft_py": {
       "pca_fingerprint": {
         "n_samples_fit": 512000,
@@ -307,7 +307,7 @@
         "nan_count": 0
       }
     },
-    "time": 1.145257324911654,
+    "time": 0.7919947495684028,
     "_pdft_py": {
       "pca_fingerprint": {
         "n_samples_fit": 512000,
@@ -371,7 +371,7 @@
         "nan_count": 0
       }
     },
-    "time": 0.8052394464612007
+    "time": 0.77811967022717
   },
   "dct_rank": {
     "metrics": {
@@ -412,7 +412,7 @@
         "nan_count": 0
       }
     },
-    "time": 2.3893667617812753
+    "time": 2.1231548953801394
   },
   "fft": {
     "metrics": {
@@ -453,7 +453,7 @@
         "nan_count": 0
       }
     },
-    "time": 1.5682682981714606
+    "time": 1.0001253867521882
   },
   "pca": {
     "metrics": {
@@ -494,7 +494,7 @@
         "nan_count": 0
       }
     },
-    "time": 6.2406862042844296,
+    "time": 2.466927687637508,
     "_pdft_py": {
       "pca_fingerprint": {
         "n_samples_fit": 500,
@@ -558,7 +558,7 @@
         "nan_count": 0
       }
     },
-    "time": 6.090839179232717,
+    "time": 2.3753960262984037,
     "_pdft_py": {
       "pca_fingerprint": {
         "n_samples_fit": 500,
