@@ -85,56 +85,69 @@ and is reached by Adam from this warm-start init.
 #figure(
   image("figures/loss_curves_div2k_8q.svg", width: 100%),
   caption: [DIV2K-8q. Validation MSE per training step (log y).
-    Blue: `qft` from random init. Orange: `blocked_8` headline run
-    (warm-start source). Green: `qft_warmstart_blocked_8`. *The
-    green curve's step-$0$ marker is plotted at exactly the trained
-    blocked floor* — by the bit-exact identity, the warm-start's
-    val MSE at step $0$ equals `blocked_8`'s converged val MSE
-    (sampled training points are recorded only after each completed
-    epoch, so the JSON's first stored value is post-9-minibatch-updates
-    and misses the true initial state). The visible spike at step
-    $approx 10$ is *Adam's first-update sign behaviour*: at a
-    near-flat local minimum,
-    $hat(m)_1 \/ sqrt(hat(v)_1) approx "sign"(g_1)$ regardless of
-    gradient magnitude, so the first ~$9$ minibatch updates throw
-    the operator off the minimum by an amount that scales with LR,
-    not with gradient norm. Adam pulls it back to the blocked
-    floor by step $approx 100$ and stays there for the remaining
-    $900$ steps. Log y compresses the resulting $approx 10 times$
-    dynamic range to keep both the transient and the convergence
-    readable. Loss definition: $sum_(i j) abs(x_(i j) - (T_theta^dagger thin
-    "top"_K (T_theta thin x))_(i j))^2$ summed over $65536$ pixels of a $256 times
-    256$ image at $K = 6554$ ($rho = 0.10$), averaged over the
-    $75$-image validation split.]
+    Blue: `qft` from random init (~$269 arrow.r 148$). Orange:
+    `blocked_8` headline run, the warm-start source (~$159 arrow.r
+    129$). Green: `qft_warmstart_blocked_8` — *flat at the trained
+    blocked floor for all $1008$ steps* (val MSE stays in
+    $[129.32, 129.38]$ across every checkpoint). Adam started at
+    the blocked optimum, computed near-zero gradients on every
+    minibatch, and the operator did not drift. The qft (blue)
+    curve crosses below the blocked starting point around step
+    $approx 200$ and converges to its own basin near $148$,
+    confirming that the random-init qft basin is *different from
+    and worse than* the blocked basin even though the latter sits
+    inside the QFT(8, 8) parameter family. Loss definition:
+    $sum_(i j) abs(x_(i j) - (T_theta^dagger thin "top"_K (T_theta thin x))_(i j))^2$
+    summed over $65536$ pixels of a $256 times 256$ image at
+    $K = 6554$ ($rho = 0.10$), averaged over the $75$-image
+    validation split.]
 )
 
 #figure(
   image("figures/loss_curves_quickdraw.svg", width: 100%),
   caption: [QuickDraw. Validation MSE per training step (log y).
-    Blue: `qft` from random init. Orange: `blocked` headline run
-    (warm-start source). Green: `qft_warmstart_blocked` — *step-0
-    marker plotted at the trained blocked floor* (bit-exact identity).
-    The visible spike around step $approx 10$ is the same Adam
-    first-update sign-behaviour described in the DIV2K caption;
-    converges back to the blocked floor by step $approx 200$ and
-    stays there. Loss
-    definition: $sum_(i j) abs(x_(i j) - (T_theta^dagger thin "top"_K (T_theta thin x))_(i j))^2$
-    summed over $1024$ pixels of a $32 times 32$ image at $K = 102$
-    ($rho = 0.10$), averaged over the $75$-image validation split.]
+    Same three curves as the DIV2K figure with smaller absolute
+    scales (32×32 images, $1024$ pixels, $K = 102$). Blue: `qft`
+    random init (~$30 arrow.r 15$). Orange: `blocked` warm-start
+    source (~$19 arrow.r 8.7$). Green: `qft_warmstart_blocked`
+    again *flat at the blocked floor* (val MSE in $[8.67, 8.68]$
+    throughout). Loss definition is the same form as DIV2K with
+    $K = 102$, summed over $1024$ pixels, averaged over the
+    $75$-image validation split.]
 )
 
 *What this rules out.* The headline `qft` $<$ `blocked_8` gap is *not*
 a parametric-family limitation — the trained blocked operator lives
-inside QFT(8, 8) and inside QFT(5, 5), and Adam keeps it there once it
-starts there. The gap is therefore an optimisation-from-random-init
-phenomenon: the `qft` random init does not lie in the basin of the
-blocked optimum, and gradient descent does not cross between them in
-$1008$ steps. (This experiment does not characterise *why* — it only
-confirms that the blocked optimum is achievable in the QFT family
-given the right starting point.)
+inside QFT(8, 8) and inside QFT(5, 5), and Adam keeps it there to
+within numerical noise once it starts there. The flat green curves
+on both datasets show the warm-start point is a stable local minimum
+of the QFT-family loss, not a saddle Adam wanders away from. The
+$0.97$ dB DIV2K gap (and $5.7$ dB QuickDraw gap) between random-init
+qft and blocked is therefore an *optimisation-from-random-init*
+phenomenon: random qft init lies in a different, shallower basin,
+and Adam does not cross between basins in $1008$ steps. This
+experiment does not characterise *why* — only that the blocked
+optimum is achievable in the QFT family given the right starting
+point.
 
 *Reproducibility.* `experiments/qft_warmstart_blocked.py
 --dataset {quickdraw, div2k_8q}`. The construction of the warm-start
 QFT lives in `pdft_benchmarks.bases.qft_warm_from_trained_blocked`
 and is asserted bit-exact against the loaded trained blocked basis at
 the start of every run.
+
+*Provenance note.* The first version of this experiment (committed
+to PR #34 before pdft#16) showed a dramatic green-curve spike at
+step $approx 10$, which was misattributed to "Adam's first-update
+sign behaviour at a near-flat local minimum." Investigation
+(`pdft-benchmarks` PR #34 review thread; root cause in `pdft#16`)
+traced the spike to a regression in `pdft.circuit.builder.compile_circuit`
+where the H-gate handler in the new stepped-tensordot implementation
+applied $"conj"(H)$ to the input on the inverse path instead of the
+proper adjoint $H^dagger = "conj"(H^T)$. For symmetric Hadamards the
+two coincide; for trained-perturbed Hadamards they differ, inflating
+loss by ~$12 times$ on the broken-inverse code path. After fixing
+`pdft` and rerunning, the green curve flattens entirely. Both
+findings are real and clean; the original "Adam transient" reading
+of the figure was an artefact of the bug, not optimisation
+behaviour.
