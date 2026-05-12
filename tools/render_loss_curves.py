@@ -105,17 +105,25 @@ def load_loss(by_basis_root: Path, name: str) -> tuple[np.ndarray, np.ndarray] |
 
 
 def plot_panel(ax, by_basis_root: Path, names: list[str], title: str,
-               ylim: tuple[float, float] = (0.4, 1.0)):
+               ylim: tuple[float, float] = (0.4, 1.0),
+               mode: str = "normalized",
+               show_legend: bool = True,
+               show_xlabel: bool = True,
+               show_title: bool = True):
     """Plot per-basis training-loss curves on `ax` following standard
     technical-figure conventions:
 
-    - Y axis normalised by each basis's *own* initial step-loss so cross-
-      basis comparison is on convergence speed/floor, not raw scale.
+    - Y axis is either L/L_0 (mode="normalized") or absolute MSE
+      (mode="absolute"). Normalized mode is good for cross-basis
+      convergence shape; absolute mode preserves PSNR-equivalent
+      ordering (lower curve == higher PSNR).
     - One line per basis (full validation trajectory), one marker style
       per basis (subset of points; phase-staggered across bases so two
       coincident curves never put markers at the same x).
-    - Legend ordered by final L/L₀ ascending — best (lowest) at the top
-      so the reader maps the legend to the curve order at the right edge.
+    - Legend ordered by absolute final MSE ascending — best (lowest) at
+      the top so the reader maps the legend to the curve order at the
+      right edge in absolute mode (and the legend stays consistent
+      across both modes).
     - Subtle line alpha (0.85) so overlapping coincident curves blend
       into a slightly darker stroke instead of fighting for ink.
     """
@@ -135,18 +143,22 @@ def plot_panel(ax, by_basis_root: Path, names: list[str], title: str,
         n_epochs = len(val_norm)
         steps_per_epoch = max(1, len(step_losses) // n_epochs)
         x_val = np.arange(1, n_epochs + 1) * steps_per_epoch
-        curves.append((name, x_val, val_norm))
+        # Pick which curve to plot based on mode; keep both around so
+        # the legend can always reference the absolute (L_0 -> L_f) pair.
+        y_curve = val_losses if mode == "absolute" else val_norm
+        curves.append((name, x_val, y_curve, val_norm, L0))
 
     if not curves:
         ax.set_title(f"{title} — no curves found", fontsize=9, color="#888888")
         ax.set_xticks([]); ax.set_yticks([])
         return False
 
-    # Sort by final value ascending: lowest-loss curves listed first in
-    # the legend. The reader's eye lands on the bottom of the panel last,
-    # so the legend top = panel bottom = best.
-    curves.sort(key=lambda c: float(c[2][-1]))
-    n_bases = len(curves)
+    # Sort by final ABSOLUTE value (val_norm[-1] * L_0) ascending: lowest
+    # absolute-loss curves listed first in the legend. The figure may
+    # show L/L_0 OR absolute MSE depending on mode; sorting by absolute
+    # value keeps the legend faithful to which basis actually achieves
+    # the lowest MSE (which is what the headline PSNR table reports).
+    curves.sort(key=lambda c: float(c[3][-1]) * float(c[4]))
     # Per-basis (period, offset) for marker placement, in epochs.
     # Periods are relatively prime so the marker schedules don't
     # synchronise even when two curves coincide; offsets push each
@@ -156,7 +168,7 @@ def plot_panel(ax, by_basis_root: Path, names: list[str], title: str,
     # uniform-spacing version look overlap-y on coincident curves.
     SCHEDULE = [(7, 2), (9, 4), (11, 6), (13, 8), (8, 3), (10, 5), (12, 7)]
 
-    for i, (name, x_val, val_norm) in enumerate(curves):
+    for i, (name, x_val, y_curve, val_norm, L0) in enumerate(curves):
         color = COLOR.get(name, "#888888")
         marker = MARKER.get(name, "o")
         hollow = HOLLOW.get(name, False)
@@ -167,35 +179,52 @@ def plot_panel(ax, by_basis_root: Path, names: list[str], title: str,
         # offset+period, offset+2*period, ... Each basis uses a
         # different (period, offset) so adjacent markers from different
         # bases never share an x — even on coincident curves.
+        n_y = len(y_curve)
         period, offset = SCHEDULE[i % len(SCHEDULE)]
-        idx = np.arange(offset, n_epochs, period)
+        idx = np.arange(offset, n_y, period)
         # Cap at ~14 markers so dense panels don't get crowded.
         if len(idx) > 14:
             idx = idx[:14]
         # Always include the final epoch as a marker (anchors the
         # convergence floor at the right edge of the panel).
-        if len(idx) == 0 or idx[-1] != n_epochs - 1:
-            idx = np.concatenate([idx, [n_epochs - 1]])
+        if len(idx) == 0 or idx[-1] != n_y - 1:
+            idx = np.concatenate([idx, [n_y - 1]])
         x_marker = x_val[idx]
-        y_marker = val_norm[idx]
+        y_marker = y_curve[idx]
 
         # Connecting line — slight transparency so overlapping equivalent
         # curves blend, plus they don't visually compete for ink.
-        ax.plot(x_val, val_norm, color=color, linewidth=1.5,
+        ax.plot(x_val, y_curve, color=color, linewidth=1.5,
                 linestyle="-", alpha=0.85, zorder=2)
         # Markers at staggered slots.
         msize = MARKER_SIZE.get(marker, 4.5)
+        # Legend label: in absolute mode the y-axis already shows MSE,
+        # so the basis name alone suffices. In normalized mode we
+        # include the (L_0 -> L_f) absolute pair so the reader can
+        # de-normalise the L/L_0 view by inspection (a curve sitting
+        # lower in L/L_0 space can still have higher absolute MSE).
+        L_final_abs = float(val_norm[-1]) * float(L0)
+        if mode == "absolute":
+            label = f"`{name}`"
+        else:
+            label = f"`{name}`  ({L0:.0f}$\\rightarrow${L_final_abs:.0f})"
         ax.plot(x_marker, y_marker, color=color, linewidth=0,
                 marker=marker, markersize=msize,
                 markerfacecolor=face, markeredgecolor=color,
                 markeredgewidth=1.0,
-                label=f"`{name}`", zorder=3)
+                label=label,
+                zorder=3)
     plotted_any = True
     if plotted_any:
-        ax.set_xlabel("training step", fontsize=8)
-        ax.set_ylabel(r"loss / $L_0$", fontsize=8)
+        if show_xlabel:
+            ax.set_xlabel("training step", fontsize=8)
+        if mode == "absolute":
+            ax.set_ylabel("absolute val MSE", fontsize=8)
+        else:
+            ax.set_ylabel(r"loss / $L_0$", fontsize=8)
         ax.tick_params(labelsize=7)
-        ax.set_title(title, fontsize=9)
+        if show_title:
+            ax.set_title(title, fontsize=9)
         # Full grid on both axes — major gridlines for primary readability
         # and a fainter minor grid so individual checkpoint positions are
         # easy to read off without the lines competing with the markers.
@@ -204,13 +233,15 @@ def plot_panel(ax, by_basis_root: Path, names: list[str], title: str,
                 color="#999999", zorder=0)
         ax.grid(True, which="minor", alpha=0.15, linewidth=0.3,
                 color="#bbbbbb", zorder=0)
-        ax.axhline(1.0, color="#888888", linewidth=0.7, zorder=0)
-        ax.set_ylim(*ylim)
+        if mode != "absolute":
+            ax.axhline(1.0, color="#888888", linewidth=0.7, zorder=0)
+            ax.set_ylim(*ylim)
         # Trim the panel borders for a less boxy look.
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        ax.legend(fontsize=7, loc="upper right", framealpha=0.85,
-                  handlelength=2.4)
+        if show_legend:
+            ax.legend(fontsize=7, loc="upper right", framealpha=0.85,
+                      handlelength=2.4)
     else:
         ax.set_title(f"{title} — no curves found", fontsize=9, color="#888888")
         ax.set_xticks([]); ax.set_yticks([])
@@ -231,18 +262,17 @@ def main():
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(1, 2, figsize=(8.0, 3.4), sharey=True)
-    ylim = cfg.get("ylim", (0.4, 1.0))
-    plot_panel(axes[0], by_basis_root, UNBLOCKED_PREF,
-               "unblocked (full-image transform)", ylim=ylim)
-    plot_panel(axes[1], by_basis_root, BLOCK_PREF,
-               "block-wrapped (8×8 inner transform)", ylim=ylim)
-    # Right panel inherits the y-axis from sharey=True; clear its ylabel so
-    # only the left panel labels the shared axis (avoids overlap with the
-    # right panel's left edge under tight inter-panel spacing).
-    axes[1].set_ylabel("")
-    fig.subplots_adjust(left=0.07, right=0.99, top=0.92, bottom=0.13,
-                        wspace=0.05)
+    # Single panel, absolute val MSE, all bases together — the canonical
+    # ML-paper loss curve format. Same y-axis for every basis means the
+    # right-edge curve ordering equals the headline PSNR ordering
+    # (max PSNR == min MSE) by inspection. The previous L/L_0
+    # normalization caused that ordering to disagree with PSNR (because
+    # per-basis L_0 differs by ~2x); the absolute view fixes that.
+    fig, ax = plt.subplots(1, 1, figsize=(8.0, 4.6))
+    plot_panel(ax, by_basis_root, UNBLOCKED_PREF + BLOCK_PREF,
+               title="",
+               mode="absolute", show_legend=True, show_title=False)
+    fig.subplots_adjust(left=0.08, right=0.99, top=0.97, bottom=0.10)
 
     out_pdf.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_pdf, bbox_inches="tight")
