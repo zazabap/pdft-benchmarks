@@ -356,20 +356,36 @@ comparison. All separable except `entangled_qft`.
 
 = Training loss curves
 
+*Loss definition.* Per-image loss is
+$ ell(theta, x) = sum_(i,j) abs(x_(i j) - (T_theta^dagger thin "top"_K (T_theta thin x))_(i j))^2, quad K = 102 thin (rho = 0.10), $
+summed over all $1024$ pixels of a $32 times 32$ image, where $T_theta$
+is the parametric forward unitary and $T_theta^dagger$ its inverse
+(conjugate transpose). The plotted y-axis is this loss averaged over
+the $75$-image validation split. $K = 102$ is the *training*
+keep-count ($rho = 0.10$, fixed across the run); the headline Table 2
+reports per-image PSNR at $rho in {0.05, 0.10, 0.15, 0.20}$ on a
+separate $50$-image test split, so the absolute scales here do not
+equal the dB values there — only the ranking is shared.
+
 #figure(
   image("figures/loss_curve_1000.svg", width: 100%),
-  caption: [Per-epoch validation loss for each trained basis on
-            QuickDraw at the headline 1008-step training budget.
-            Y-axis is *normalised* by each basis's own initial
-            step-loss ($L\/L_0$); cross-basis comparison is on
-            convergence speed and floor. Left: unblocked /
-            full-image bases. Right: $8 times 8$ block-wrapped
-            bases. Each basis is a (colour, marker, filled/hollow)
-            triple from a colourblind-safe palette so every
-            validation-checkpoint is observable as a discrete
-            marker, no per-step noise overlay. `mera` is omitted
+  caption: [Per-epoch validation MSE for each trained basis on
+            QuickDraw at the headline 1008-step training budget. All
+            six bases share a single linear y-axis: absolute MSE,
+            which is the operational quantity (max PSNR $equiv$ min
+            MSE), so the right-edge curve ordering reproduces the
+            headline PSNR ranking by inspection. The block-wrapped
+            bases (`real_rich`, `rich`, `blocked`) start at lower
+            $L_0$ than the unblocked ones because block transforms
+            are already sensible bases at random init for $32 times
+            32$ line drawings. Each basis is a (colour, marker)
+            pair from a colourblind-safe palette; coincident curve
+            pairs (`qft` $equiv$ `entangled_qft`) overlap exactly
+            because their parametric families compile to the same
+            operator at this circuit depth. `mera` is omitted
             because $m + n = 10$ is not a power of $2$ and the
-            MERA hierarchy is structurally inapplicable.]
+            MERA hierarchy is structurally inapplicable. Loss is
+            essentially flat past step $approx 300$ for every basis.]
 )
 
 #pagebreak(weak: true)

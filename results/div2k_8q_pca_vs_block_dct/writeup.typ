@@ -307,21 +307,39 @@ The key facts the table encodes:
 
 = Training loss curves
 
+*Loss definition.* Per-image loss is
+$ ell(theta, x) = sum_(i,j) abs(x_(i j) - (T_theta^dagger thin "top"_K (T_theta thin x))_(i j))^2, quad K = 6554 thin (rho = 0.10), $
+summed over all $65536$ pixels of a $256 times 256$ image. The plotted
+y-axis is this loss averaged over the $75$-image validation split.
+$K = 6554$ is the *training* keep-count ($rho = 0.10$, fixed across
+the run); the headline Table 2 reports per-image PSNR at $rho in
+{0.05, 0.10, 0.15, 0.20}$ on a separate $50$-image test split, so the
+absolute scales here do not equal the dB values there — only the
+ranking is shared.
+
 #figure(
   image("figures/loss_curve_1000.svg", width: 100%),
-  caption: [Per-epoch validation loss for each trained basis on
-            DIV2K-8q at the headline 1008-step training budget.
-            Y-axis is *normalised* by each basis's own initial
-            step-loss ($L\/L_0$); cross-basis comparison is on
-            convergence speed and floor. Left: unblocked /
-            full-image bases. Right: $8 times 8$ block-wrapped
-            bases. Each basis is a (colour, marker, filled/hollow)
-            triple from a colourblind-safe palette — every
-            validation-checkpoint is observable as a discrete
-            marker, no per-step noise overlay. Loss is essentially
-            flat past step ~700 for every basis (the appendix
-            plateau check at 2000 steps moves headline values by
-            $<= 0.01$ dB).]
+  caption: [Per-epoch validation MSE for each trained basis on
+            DIV2K-8q at the headline 1008-step training budget. All
+            seven bases share a single linear y-axis: absolute MSE,
+            which is the operational quantity (max PSNR $equiv$ min
+            MSE), so the right-edge curve ordering reproduces the
+            headline PSNR ranking by inspection. The block-wrapped
+            bases (`real_rich_8`, `rich_8`, `blocked_8`) start at
+            lower $L_0$ than the unblocked ones (block transforms
+            are already sensible image bases at random init,
+            whereas a random Hadamard$times$CP product on
+            $256 times 256$ images is far from any natural-image
+            statistic); the unblocked group catches up in
+            convergence shape but not in absolute floor. Each basis
+            is a (colour, marker) pair from a colourblind-safe
+            palette; coincident curve pairs (`qft` $equiv$
+            `entangled_qft`, `tebd` $equiv$ `mera`) overlap
+            exactly because their parametric families compile to
+            the same operator at this circuit depth. Loss is
+            essentially flat past step $approx 300$ for every
+            basis (the appendix plateau check at 2000 steps moves
+            headline values by $<= 0.01$ dB).]
 )
 
 #pagebreak(weak: true)
