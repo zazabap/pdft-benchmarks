@@ -88,4 +88,118 @@ BASIS_FACTORIES: dict[str, BasisFactory] = {
     "real_rich_32":  lambda m, n, seed=0: _blocked(m, n, seed, pdft.RealRichBasis,  inner_m=5, inner_n=5),
 }
 
+
+def qft_warm_from_trained_blocked(trained_blocked: pdft.BlockedBasis) -> pdft.QFTBasis:
+    """Embed a trained `BlockedBasis(QFTBasis(m_i, n_i), block_log_m, block_log_n)`
+    into a full `QFTBasis(m, n)` whose initial operator equals the trained blocked
+    one bit-exactly.
+
+    Construction:
+      - Inner gates (acting only on the inner qubits of each axis) take the
+        TRAINED inner tensor values.
+      - Every other gate (touching a block-index qubit, or a cross-axis CP) is
+        pinned to identity: H -> I_2, controlled-phase -> phase 0
+        (= [[1,1],[1,1]]).
+
+    The returned basis exposes all m+n axis-1 + axis-2 gate parameters as
+    trainable, so subsequent `train_basis_batched` is free to drift away from
+    the blocked configuration. Used by the warm-start experiment to
+    demonstrate that the trained blocked optimum is reachable from the larger
+    QFT family — and that training from this init does not degrade.
+    """
+    import jax.numpy as jnp
+    import numpy as np
+    from pdft.bases.circuit.qft import _qft_gates_1d
+    from pdft.circuit.builder import controlled_phase_diag
+
+    inner = trained_blocked.inner
+    if not isinstance(inner, pdft.QFTBasis):
+        raise TypeError(
+            f"qft_warm_from_trained_blocked: inner must be QFTBasis, "
+            f"got {type(inner).__name__}"
+        )
+    m_inner, n_inner = inner.m, inner.n
+    m_outer = m_inner + trained_blocked.block_log_m
+    n_outer = n_inner + trained_blocked.block_log_n
+
+    # The trained inner.tensors is in QFTBasis canonical order (Hadamards
+    # first, then CPs, in gate-emission order within each group). To map a
+    # trained inner tensor to its outer-gate position, we recompute that
+    # canonicalization on the inner gate sequence.
+    inner_gates_emit = (
+        _qft_gates_1d(m_inner, offset=0)
+        + _qft_gates_1d(n_inner, offset=m_inner)
+    )
+    if len(inner_gates_emit) != len(inner.tensors):
+        raise AssertionError(
+            f"inner gate count mismatch: {len(inner_gates_emit)} gates emitted "
+            f"vs {len(inner.tensors)} trained tensors in BlockedBasis.inner"
+        )
+    inner_emit_perm = sorted(
+        range(len(inner_gates_emit)),
+        key=lambda i: inner_gates_emit[i]["kind"] != "H",
+    )
+    # Inverse map: emit-order index -> sorted-order index, so we can index
+    # inner.tensors (which is in sorted order) by the emit-order position.
+    inner_emit_to_sorted = [0] * len(inner_emit_perm)
+    for new_idx, orig_idx in enumerate(inner_emit_perm):
+        inner_emit_to_sorted[orig_idx] = new_idx
+    trained_in_emit_order = [
+        inner.tensors[inner_emit_to_sorted[j]] for j in range(len(inner_gates_emit))
+    ]
+
+    # Inner-qubit-pattern -> trained tensor lookup (outer 1-indexed qubits).
+    # Inner qubits sit at the LOW indices of each outer axis: axis 1 q in
+    # [1..m_inner], axis 2 q in [m_outer+1..m_outer+n_inner]. Inner gates'
+    # 1-indexed qubits translate via:
+    #     q_inner in [1..m_inner]               -> q_outer = q_inner
+    #     q_inner in [m_inner+1..m_inner+n_inner] -> q_outer = q_inner + (m_outer - m_inner)
+    def _to_outer_q(q_inner_1ix: int) -> int:
+        return q_inner_1ix if q_inner_1ix <= m_inner else q_inner_1ix + (m_outer - m_inner)
+
+    inner_lookup: dict[tuple, Any] = {}
+    for j, g in enumerate(inner_gates_emit):
+        outer_q = tuple(_to_outer_q(q) for q in g["qubits"])
+        inner_lookup[(g["kind"], outer_q)] = trained_in_emit_order[j]
+
+    eye2 = jnp.eye(2, dtype=jnp.complex128)
+    cp_identity = controlled_phase_diag(0.0)
+
+    def _is_inner_outer_q(q_outer_1ix: int) -> bool:
+        if 1 <= q_outer_1ix <= m_outer:
+            return q_outer_1ix <= m_inner
+        return (q_outer_1ix - m_outer) <= n_inner
+
+    outer_gates_emit = (
+        _qft_gates_1d(m_outer, offset=0)
+        + _qft_gates_1d(n_outer, offset=m_outer)
+    )
+    new_temporal: list[Any] = []
+    for g in outer_gates_emit:
+        if g["kind"] == "H":
+            (q,) = g["qubits"]
+            if _is_inner_outer_q(q):
+                new_temporal.append(inner_lookup[("H", (q,))])
+            else:
+                new_temporal.append(eye2)
+        elif g["kind"] == "CP":
+            q_ctrl, q_tgt = g["qubits"]
+            if _is_inner_outer_q(q_ctrl) and _is_inner_outer_q(q_tgt):
+                new_temporal.append(inner_lookup[("CP", (q_ctrl, q_tgt))])
+            else:
+                new_temporal.append(cp_identity)
+        else:
+            raise AssertionError(f"unexpected QFT gate kind {g['kind']}")
+
+    # QFTBasis stores tensors in Hadamard-first canonical order; sort.
+    outer_emit_perm = sorted(
+        range(len(outer_gates_emit)),
+        key=lambda i: outer_gates_emit[i]["kind"] != "H",
+    )
+    sorted_tensors = [new_temporal[i] for i in outer_emit_perm]
+    # Ensure dtypes are consistent (jnp arrays); some trained tensors may
+    # have been loaded as numpy arrays.
+    sorted_tensors = [jnp.asarray(t, dtype=jnp.complex128) for t in sorted_tensors]
+    return pdft.QFTBasis(m=m_outer, n=n_outer, tensors=sorted_tensors)
+
 __all__ = ["BASIS_FACTORIES", "BasisFactory"]
