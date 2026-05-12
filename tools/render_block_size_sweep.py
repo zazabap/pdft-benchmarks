@@ -230,8 +230,6 @@ def render_panel(
         x_peak = xs[peak_idx]
         y_peak_actual = ys[peak_idx]
         y_peak_display = ys_display[peak_idx]
-        is_peak_clipped = clipped_mask[peak_idx]
-
         ax.plot(
             x_peak, y_peak_display,
             marker="D",

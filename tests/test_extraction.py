@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 
 from pdft_benchmarks._extraction import (
-    SOURCE_TO_REGISTRY,
     rename_basis_key,
 )
 

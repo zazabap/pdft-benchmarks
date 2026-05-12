@@ -17,7 +17,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import time
 from pathlib import Path
 
 
@@ -55,7 +54,6 @@ def main() -> int:
     metrics: dict = {}
     for name in sorted(BASELINE_FACTORIES):
         print(f"[indep] fitting + evaluating baseline '{name}'…")
-        t0 = time.perf_counter()
         builder = BASELINE_FACTORIES[name]
         fn = builder(list(train))
         kr_metrics, elapsed = evaluate_baseline(fn, test, keep_ratios)
