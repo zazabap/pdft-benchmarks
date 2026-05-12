@@ -86,12 +86,23 @@ and is reached by Adam from this warm-start init.
   image("figures/loss_curves_div2k_8q.svg", width: 100%),
   caption: [DIV2K-8q. Validation MSE per training step (log y).
     Blue: `qft` from random init. Orange: `blocked_8` headline run
-    (warm-start source). Green: `qft_warmstart_blocked_8`. The
-    log y compresses a real $approx 10 times$ dynamic range — the
-    cosine-LR warmup briefly throws the warm-started operator far
-    above its starting MSE before Adam pulls it back to the blocked
-    floor by step $approx 100$, where it stays for the remaining
-    $900$ steps. Loss definition: $sum_(i j) abs(x_(i j) - (T_theta^dagger thin
+    (warm-start source). Green: `qft_warmstart_blocked_8`. *The
+    green curve's step-$0$ marker is plotted at exactly the trained
+    blocked floor* — by the bit-exact identity, the warm-start's
+    val MSE at step $0$ equals `blocked_8`'s converged val MSE
+    (sampled training points are recorded only after each completed
+    epoch, so the JSON's first stored value is post-9-minibatch-updates
+    and misses the true initial state). The visible spike at step
+    $approx 10$ is *Adam's first-update sign behaviour*: at a
+    near-flat local minimum,
+    $hat(m)_1 \/ sqrt(hat(v)_1) approx "sign"(g_1)$ regardless of
+    gradient magnitude, so the first ~$9$ minibatch updates throw
+    the operator off the minimum by an amount that scales with LR,
+    not with gradient norm. Adam pulls it back to the blocked
+    floor by step $approx 100$ and stays there for the remaining
+    $900$ steps. Log y compresses the resulting $approx 10 times$
+    dynamic range to keep both the transient and the convergence
+    readable. Loss definition: $sum_(i j) abs(x_(i j) - (T_theta^dagger thin
     "top"_K (T_theta thin x))_(i j))^2$ summed over $65536$ pixels of a $256 times
     256$ image at $K = 6554$ ($rho = 0.10$), averaged over the
     $75$-image validation split.]
@@ -101,11 +112,12 @@ and is reached by Adam from this warm-start init.
   image("figures/loss_curves_quickdraw.svg", width: 100%),
   caption: [QuickDraw. Validation MSE per training step (log y).
     Blue: `qft` from random init. Orange: `blocked` headline run
-    (warm-start source). Green: `qft_warmstart_blocked`. The
-    warm-started run is bit-exact equal to the trained blocked
-    operator at step $0$; the cosine-LR warmup briefly perturbs it
-    away from the blocked optimum before Adam pulls it back to the
-    blocked floor by step $approx 200$ and stays there. Loss
+    (warm-start source). Green: `qft_warmstart_blocked` — *step-0
+    marker plotted at the trained blocked floor* (bit-exact identity).
+    The visible spike around step $approx 10$ is the same Adam
+    first-update sign-behaviour described in the DIV2K caption;
+    converges back to the blocked floor by step $approx 200$ and
+    stays there. Loss
     definition: $sum_(i j) abs(x_(i j) - (T_theta^dagger thin "top"_K (T_theta thin x))_(i j))^2$
     summed over $1024$ pixels of a $32 times 32$ image at $K = 102$
     ($rho = 0.10$), averaged over the $75$-image validation split.]

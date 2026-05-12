@@ -86,6 +86,22 @@ def render(cfg: dict) -> None:
             f"Did the warm-start run finish for {cfg['warmstart_name']}?"
         )
 
+    # Prepend a step-0 marker on the WARM-START curve at the trained
+    # blocked val MSE. The bit-exact identity (qft_warm_from_trained_blocked
+    # produces an operator equal to the trained blocked one to numerical
+    # zero on random complex inputs) means the warm-start's actual val
+    # MSE at step 0 IS the blocked floor. The JSON's val_losses[0] is
+    # recorded after epoch 1 (9 minibatch updates), by which time Adam's
+    # sign-update behavior has already perturbed the operator off the
+    # local minimum — so the first stored point is misleadingly high.
+    # Showing the step-0 marker visually anchors the warm-start at its
+    # true starting position, making the "starts at blocked, briefly
+    # diverges, returns" story unambiguous.
+    blocked_floor = float(blocked[1][-1])
+    warm_x = np.concatenate([[0], warm[0]])
+    warm_y = np.concatenate([[blocked_floor], warm[1]])
+    warm = (warm_x, warm_y)
+
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
