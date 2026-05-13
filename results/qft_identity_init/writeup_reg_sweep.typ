@@ -29,28 +29,95 @@ $ cal(L)_text("total")(theta) = cal(L)_text("MSE-topK")(theta) + lambda dot R_te
 
 $ R_text("block")(theta) = sum_(g in cal(G)_text("outer")) W dot norm(T_g - I_g)_F^2 + sum_(g in cal(G)_text("inner")) norm(T_g - I_g)_F^2 $
 
-where $I_g = I_2$ for Hadamards and $I_g = [[1, 1], [1, 1]]$ for
-controlled-phase (the QFT-family identity elements), and the
-inner/outer mask is matched to `blocked_8`: a gate is inner iff every
-qubit it touches lies in $\{1, 2, 3\}$ (axis 1) or $\{9, 10, 11\}$
-(axis 2). For QFT(8, 8) at inner $= (3, 3)$: $|cal(G)_text("inner")| = 12$
-(6 H + 6 CP), $|cal(G)_text("outer")| = 60$ (10 H + 50 CP). Outer gates
-are penalised $W$-times more strongly than inner gates so that lambda
-can grow without pushing the $12$ useful inner-block gates back toward
-identity. Implementation: `pdft_benchmarks.identity_reg.BlockMaskedIdentityRegQFTMSELoss`,
+The construction makes four design choices, each motivated by a property
+of `blocked_8`'s optimum.
+
+*(1) Per-gate-kind identity elements.* $I_g = I_2 = mat(1, 0; 0, 1)$ for
+Hadamards; $I_g = mat(1, 1; 1, 1)$ for controlled-phase (this is
+`controlled_phase_diag(0)`, the $2 times 2$ diagonal-stack
+representation of the $4 times 4$ identity — CP with phase $0$).
+These are *the gates that `blocked_8` has at the outer positions*,
+not the QFT analytic values. Choosing the right per-kind reference
+is what makes "outer gates at blocked_8's optimum contribute exactly
+$0$ to $R_text("block")$" hold bit-exactly, which is the key
+invariant below.
+
+*(2) Frobenius-squared distance, not L1 or geodesic.*
+$norm(T_g - I_g)_F^2$ is smooth and differentiable everywhere, with
+Euclidean gradient $nabla_(T_g) = 2 w_g (T_g - I_g)$ where
+$w_g in {1, W}$ is the per-gate weight. For small displacements from
+identity (the regime the regulariser targets), the Euclidean
+Frobenius distance on $bb(C)^(2 times 2)$ agrees with the $U(2)$
+geodesic distance to first order, so the Riemannian projection in
+`pdft.train_basis_batched` preserves most of the reg signal. L1 was
+a candidate (induces actual sparsity rather than shrinkage) but
+introduces non-smoothness at $T_g = I_g$ and was deferred as a
+follow-up.
+
+*(3) Inner/outer mask matched to `blocked_8`.* A gate is *inner* iff
+every qubit it touches lies in the inner range $\{1, 2, 3\}$
+(axis 1) or $\{9, 10, 11\}$ (axis 2). The mask is built by walking
+the QFT decomposition's gate sequence
+`_qft_gates_1d(m) + _qft_gates_1d(n)` in canonical sort order
+(Hadamard-first) and classifying each gate's qubit support — the
+same classification used by `qft_warm_from_trained_blocked` to
+decide which gates take the trained-inner values vs which are
+pinned to identity in the warm-start construction. For QFT(8, 8) at
+inner $= (3, 3)$:
+
+#table(
+  columns: (auto, auto, auto, auto),
+  align: (left, right, right, right),
+  stroke: 0.5pt,
+  table.header([gate kind], [inner], [outer], [total]),
+  [Hadamards], [6 (axes 1+2: $q in \{1,2,3,9,10,11\}$)], [10], [16],
+  [controlled-phase], [6 ($binom(3, 2) = 3$ per axis)], [50], [56],
+  [*total*], [*12*], [*60*], [*72*],
+)
+
+The $12$-vs-$60$ split is *bit-exactly* the structural shape of
+`blocked_8`'s optimum: $12$ trained QFT(3, 3) gates + $60$
+identity-pinned gates.
+
+*(4) Single multiplier $W >> 1$ on the outer set.* Outer gates are
+penalised $W$ times more strongly than inner gates. This is
+load-bearing: at the blocked optimum, the $12$ inner gates take
+*non-trivial* trained-QFT(3, 3) values, so their L2 distance from
+identity is large. Under uniform L2 (regulariser family (a),
+$W = 1$), a large $lambda$ would pull these $12$ useful gates *back*
+toward identity along with the $60$ outer ones — the prior would
+*fight* the blocked optimum. The matched-mask weighting separates
+the two roles: $lambda$ controls overall strength; $W$ controls how
+much harder outer-pinning is enforced than inner shrinkage. Using a
+single $W$ rather than two independent multipliers
+$(lambda_text("outer"), lambda_text("inner"))$ keeps the sweep
+one-dimensional. We fix $W = 10$ for this sweep; $W in {1, 10, 100}$
+is a flagged follow-up.
+
+*Key invariant.* The construction guarantees
+$R_text("block")(theta_text("blocked\_8")) =
+sum_(g in cal(G)_text("inner")) norm(T_g - I_g)_F^2 + epsilon$
+with $epsilon approx 0$ (the outer contribution at the blocked
+endpoint), so increasing $lambda$ does not push the operator *away*
+from blocked. The $epsilon$ is the small drift of $60$ outer gates
+during the warm-start cell's $1008$-step training (one CP outlier
+contributes $approx 1.1$ to the outer sum; the rest are
+$< 10^(-2)$). Quantitatively: at $W = 10$, the inner-sum is
+$approx 34.5$ and the outer-sum is $approx 1.6$, giving
+$R_text("block")(theta_text("blocked")) approx 50.3$ — dominated by
+the *legitimate* inner cost, with only $approx 3 %$ from the small
+outer drift. This is the design property that lets us crank
+$lambda$ up to $10$ without destabilising training, as the result
+section confirms.
+
+Implementation: `pdft_benchmarks.identity_reg.BlockMaskedIdentityRegQFTMSELoss`,
 via pdft's `MSELoss._extra_loss` hook (pdft PR \#18). We sweep
 $lambda in {0, 10^(-3), 10^(-2), 10^(-1), 1, 10}$ at fixed $W = 10$
 under the headline preset ($1008$ steps, batch $50$, val split $0.15$,
 seed $42$, `--no-early-stop`), starting from `qft_identity` init.
 
-*Calibration.* At the trained `qft_warmstart_blocked_8` endpoint,
-$R_text("block")(theta_text("blocked")) approx 50.3$ at $W = 10$
-(inner-sum $approx 34.5$, outer-sum $approx 1.6$; the outer
-contribution is small as designed, confirming the regulariser is
-aligned with `blocked_8`'s structure — outer gates are nearly all at
-identity except one CP outlier). With per-image MSE $approx 129$ at
-the blocked optimum, the planned grid spans reg fractions
-$0.04 % arrow.r 390 %$ of MSE.
+With per-image MSE $approx 129$ at the blocked optimum, the planned
+grid spans reg fractions $0.04 % arrow.r 390 %$ of MSE.
 
 *Result.* Test-set reconstruction PSNR after $1008$ steps:
 
