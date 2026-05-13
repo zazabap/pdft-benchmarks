@@ -282,15 +282,22 @@ specifying the grid.
 
 *Implementation sketch.* ~30 lines added to
 `pdft_benchmarks.identity_reg`. Subclass `MSELoss` as before, but with
-an extra trainable scalar field $s$. The `_extra_loss(tensors)` hook
-needs access to $s$, which means either (a) make $s$ a class field
-treated as a parameter by `train_basis_batched` (requires upstream
-support for non-tensor learnables) or (b) treat $s$ as a 1-entry
-"tensor" registered in the basis under a trivial 1D manifold. Option
-(b) fits inside the existing `pdft` API without modification; option
-(a) is cleaner but needs an upstream change to plumb non-manifold
-learnables through `_build_jit_adam_step`. Recommend option (b) for
-the first cut.
+$s$ as an additional trainable parameter registered alongside the $72$
+gate tensors. pdft's current manifold cascade
+(`UnitaryManifold` / `Unitary2qManifold` / `PhaseManifold`) has no home
+for an unconstrained scalar — `classify_manifold` would route $s$ to
+`PhaseManifold` (wrong: constrains $|s| = 1$). The clean path is to add
+a trivial `EuclideanManifold` upstream in pdft (project = identity,
+retract = $x + alpha xi$, transport = identity; ~15 LoC), then register
+$s$ on it alongside the $72$ U(2) tensors. Tracked as
+zazabap/pdft \#19. With that in place, $s$ joins the Adam step
+naturally — *per-step compute overhead is essentially zero* (one
+extra scalar Adam update per step, dominated by the $72$ U(2)
+Cayley retractions), and the joint $(theta, s)$ gradient under one
+optimiser state gives a coherent trajectory. The constraint
+$s in [1, m]$ is enforced by reparametrisation
+$s = 1 + (m - 1) sigma(tilde(s))$, $tilde(s) in bb(R)$; the
+unconstrained $tilde(s)$ is what lives on `EuclideanManifold`.
 
 *Pitfalls and acceptance criteria.*
 
