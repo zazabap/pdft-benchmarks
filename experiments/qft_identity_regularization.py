@@ -34,6 +34,10 @@ def main() -> int:
     parser.add_argument("--lambdas", type=str,
                         default="0,1e-3,1e-2,1e-1,1,10",
                         help="Comma-separated lambda values for the sweep.")
+    parser.add_argument("--dataset", type=str, default="div2k_8q",
+                        choices=["div2k_8q", "quickdraw"],
+                        help="Dataset + qubit-config. div2k_8q -> m=n=8, "
+                             "256x256 DIV2K; quickdraw -> m=n=5, 32x32 QuickDraw.")
     parser.add_argument("--reg", type=str, default="block", choices=["block", "L1"],
                         help="Regulariser family. 'block': block-masked L2 "
                              "(BlockMaskedIdentityRegQFTMSELoss, default); "
@@ -48,8 +52,9 @@ def main() -> int:
     parser.add_argument("--inner-n", type=int, default=3,
                         help="Axis-2 inner-block size. Default 3 (matches blocked_8).")
     parser.add_argument("--out-base", type=str,
-                        default="results/qft_identity_init/div2k_8q/_runs",
-                        help="Parent directory for per-lambda run folders.")
+                        default=None,
+                        help="Parent directory for per-lambda run folders. "
+                             "Default depends on --dataset.")
     parser.add_argument("--preset", type=str, default="generalized",
                         choices=["smoke", "moderate", "generalized"])
     parser.add_argument("--epochs", type=int, default=112,
@@ -72,6 +77,7 @@ def main() -> int:
         L1IdentityRegQFTMSELoss,
     )
     from pdft_benchmarks.datasets.div2k import load_div2k
+    from pdft_benchmarks.datasets.quickdraw import load_quickdraw
     from pdft_benchmarks.evaluation import evaluate_basis_shared
     from pdft_benchmarks.presets import get_preset
 
@@ -83,22 +89,35 @@ def main() -> int:
         print(f"[qft_id_reg] outer_weight W={W}, inner=({args.inner_m},{args.inner_n})")
     print(f"[qft_id_reg] preset={args.preset}, epochs={args.epochs}")
 
-    preset = get_preset("div2k_8q", args.preset)
+    preset = get_preset(args.dataset, args.preset)
     if args.no_early_stop:
         preset = replace(preset, epochs=args.epochs, early_stopping_patience=10**9)
     else:
         preset = replace(preset, epochs=args.epochs)
-    print(f"[qft_id_reg] preset.epochs={preset.epochs}, patience={preset.early_stopping_patience}")
+    print(f"[qft_id_reg] dataset={args.dataset}, preset.epochs={preset.epochs}, "
+          f"patience={preset.early_stopping_patience}")
 
-    m = n = 8
+    if args.dataset == "div2k_8q":
+        m = n = 8
+        train_imgs_np, test_imgs_np = load_div2k(
+            n_train=preset.n_train, n_test=preset.n_test, seed=preset.seed, size=2**m,
+        )
+    else:  # quickdraw
+        m = n = 5
+        train_imgs_np, test_imgs_np = load_quickdraw(
+            n_train=preset.n_train, n_test=preset.n_test, seed=preset.seed, img_size=2**m,
+        )
     k = max(1, round(2 ** (m + n) * 0.1))
+    print(f"[qft_id_reg] m=n={m}, loaded {len(train_imgs_np)} train, "
+          f"{len(test_imgs_np)} test images")
 
-    train_imgs_np, test_imgs_np = load_div2k(
-        n_train=preset.n_train, n_test=preset.n_test, seed=preset.seed, size=2**m,
-    )
-    print(f"[qft_id_reg] loaded {len(train_imgs_np)} train, {len(test_imgs_np)} test images")
-
-    out_base = Path(args.out_base)
+    if args.out_base is None:
+        if args.dataset == "div2k_8q":
+            out_base = Path("results/qft_identity_init/div2k_8q/_runs")
+        else:  # quickdraw
+            out_base = Path("results/qft_identity_init/quickdraw/_runs")
+    else:
+        out_base = Path(args.out_base)
     out_base.mkdir(parents=True, exist_ok=True)
 
     for lam in lambdas:
