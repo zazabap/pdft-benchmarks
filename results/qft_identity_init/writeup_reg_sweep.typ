@@ -20,7 +20,9 @@ Total loss with regulariser:
 
 $ cal(L)_text("total")(theta) = cal(L)_text("MSE-topK")(theta) + lambda dot R_text("block")(theta) $
 
-$ R_text("block")(theta) = sum_(g in cal(G)_text("outer")) W dot norm(T_g - I_g)_F^2 + sum_(g in cal(G)_text("inner")) norm(T_g - I_g)_F^2 $
+#text(fill: red)[
+  $ R_text("block")(theta) = sum_(g in cal(G)_text("outer")) W dot norm(T_g - I_g)_F^2 + sum_(g in cal(G)_text("inner")) norm(T_g - I_g)_F^2 $
+]
 
 A gate $g$ is *inner* iff every qubit it touches lies in $\{1, 2, 3\}$
 (axis 1) or $\{9, 10, 11\}$ (axis 2). Otherwise *outer*. Per-kind
@@ -140,7 +142,9 @@ weak a prior suffices*.
 Drop the inner/outer mask; penalise all gates uniformly with an L1
 norm (Huber-smoothed to avoid the kink at $T_g = I_g$):
 
-$ R_text("L1")(theta) = sum_g sqrt(norm(T_g - I_g)_F^2 + epsilon), quad epsilon = 10^(-12) $
+#text(fill: red)[
+  $ R_text("L1")(theta) = sum_g sqrt(norm(T_g - I_g)_F^2 + epsilon), quad epsilon = 10^(-12) $
+]
 
 The unsmoothed L1's gradient $(T_g - I_g)/norm(T_g - I_g)_F$ is $0/0$
 at qft_identity init; `jax.grad` returns NaN there. The
