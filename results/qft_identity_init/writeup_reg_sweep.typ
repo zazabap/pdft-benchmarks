@@ -29,6 +29,32 @@ $ cal(L)_text("total")(theta) = cal(L)_text("MSE-topK")(theta) + lambda dot R_te
 
 $ R_text("block")(theta) = sum_(g in cal(G)_text("outer")) W dot norm(T_g - I_g)_F^2 + sum_(g in cal(G)_text("inner")) norm(T_g - I_g)_F^2 $
 
+*Notation.*
+
+#table(
+  columns: (auto, auto, 1fr),
+  align: (left + horizon, left + horizon, left),
+  stroke: 0.5pt,
+  table.header([symbol], [type], [meaning]),
+  [$theta$], [parameter vector], [The trainable parameters — concatenation of all $72$ gate tensors of `QFTBasis(8, 8)`, living on the product manifold $U(2)^(72)$.],
+  [$R_text("block")(theta)$], [scalar], [The block-masked reg cost — a non-negative real number.],
+  [$g$], [gate label], [Indexes one of the $72$ gates of `QFTBasis(8, 8)` ($16$ H + $56$ CP). The $sum_g$ is a sum over gate labels, not qubits or matrix entries.],
+  [$cal(G)_text("inner")$], [set], [Subset of gate labels classified as inner: every qubit the gate touches is in $\{1, 2, 3\}$ (axis 1) or $\{9, 10, 11\}$ (axis 2). $|cal(G)_text("inner")| = 12$.],
+  [$cal(G)_text("outer")$], [set], [Complement: $|cal(G)_text("outer")| = 60$. Disjoint from $cal(G)_text("inner")$; together they tile the $72$-gate set.],
+  [$T_g (theta)$], [$2 times 2$ complex matrix], [The current trained tensor for gate $g$ at parameter point $theta$ — at runtime, `basis.tensors[g]`. Hadamards: $2 times 2$ unitary. CPs: $2 times 2$ diagonal-stack of the $4 times 4$ unitary $"diag"(1, 1, 1, e^(i phi))$.],
+  [$I_g$], [$2 times 2$ complex matrix], [Fixed identity element for gate $g$'s kind, not parameterised. $I_g = I_2$ if $g$ is a Hadamard; $I_g = mat(1, 1; 1, 1)$ if $g$ is a controlled-phase.],
+  [$norm(M)_F$], [scalar], [Frobenius norm: $norm(M)_F = sqrt(sum_(i j) |M_(i j)|^2)$. For a $2 times 2$ matrix, four squared moduli summed and square-rooted.],
+  [$norm(T_g - I_g)_F^2$], [scalar], [Squared Frobenius distance from $T_g$ to its identity element. Equals $0$ iff $T_g = I_g$ bit-exactly.],
+  [$W$], [scalar], [Outer-gate weight. Fixed at $W = 10$ in this sweep. $W = 1$ degenerates to uniform L2.],
+  [$lambda$], [scalar], [(In $cal(L)_text("total") = cal(L)_text("MSE-topK") + lambda dot R_text("block")$.) Overall regulariser strength. Swept $lambda in {0, 10^(-3), 10^(-2), 10^(-1), 1, 10}$.],
+)
+
+A subtlety on $g$: it indexes a *gate identity*, not a circuit position.
+Inside `pdft_benchmarks.identity_reg` we enumerate gates by walking
+$"_qft_gates_1d"(m, 0) + "_qft_gates_1d"(n, m)$ and sorting
+Hadamard-first (canonical order); the resulting $72$-element list
+indexes `tensors[g]`, `identities[g]`, and `is_inner[g]` position-for-position.
+
 The construction makes four design choices, each motivated by a property
 of `blocked_8`'s optimum.
 
