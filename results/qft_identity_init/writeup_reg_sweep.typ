@@ -5,14 +5,25 @@
 #show heading.where(level: 2): set block(above: 0.8em, below: 0.4em)
 #show raw: set text(size: 8.5pt)
 
-= Block-masked identity regularisation closes the qft → blocked gap
+= L1-to-identity regularisation finds dataset-adaptive sparse bases in QFT(m, n)
 
-*Setting.* DIV2K-8q, QFT(8, 8) basis. `blocked_8` reaches $32.26$ dB
-at $rho = 0.20$; it is a stable local minimum of QFT(8, 8) (the
-`qft_warmstart_from_trained_blocked` cell verified this).
-`qft` (analytic init) reaches $31.29$, `qft_identity` (identity init)
-reaches $31.66$. Neither generic-init path crosses to the blocked
-basin in $1008$ steps. Can a structural prior bridge the gap?
+*Setting.* `qft_identity`-initialised QFT(m, n) bases are trained
+under the headline preset on three datasets at two spatial scales:
+DIV2K-8q ($256 times 256$ natural, $m = n = 8$), TU-Berlin sketches
+($256 times 256$, $m = n = 8$), and QuickDraw sketches ($32 times 32$,
+$m = n = 5$). Without regularisation, vanilla Adam reaches `qft`
+basins ($31.66$ dB on DIV2K-8q, $24.36$ dB on QuickDraw) that
+trail the dataset-fitted `blocked_b` ceilings by $0.6$ to $5.7$ dB.
+
+This writeup's question: *what minimum prior makes Adam find the
+right basin, and what does the discovered basin look like across
+content types?* The headline answer: an L1-to-identity regulariser
+(no block-aligned mask, no extra trained parameter) is enough — and
+the basin L1 picks is *dataset-adaptive*: on natural images it matches
+`blocked_8`'s PSNR with a structurally different sparse circuit; on
+sparse sketches it collapses to the *identity* basis, beating every
+`blocked_b` by tens of dB. A companion block-masked regulariser
+(Appendix A) confirms the matched-prior baseline.
 
 == Equations
 
@@ -133,92 +144,28 @@ approx 50.3$.
   [$W$], [outer-gate weight; fixed $W = 10$],
 )
 
-== Key invariant (justification)
-
-The fourth blue equation above is the design property: at
-`blocked_8`'s optimum the outer-gate contribution to $R_text("block")$
-is bit-exactly $0$ (every outer gate sits at its identity element).
-Empirically the small $epsilon_text("drift") approx 1.6$ at $W = 10$
-is dominated by one CP outlier — the other $59$ outer gates each
-contribute $< 10^(-2)$. The reg term therefore does *not* push the
-operator away from blocked even at large $lambda$; this is what
-enables crank-up of $lambda$ without collapse.
-
 == Implementation
 
-`pdft_benchmarks.identity_reg.BlockMaskedIdentityRegQFTMSELoss`, via
-the `MSELoss._extra_loss` hook (pdft PR \#18). Headline preset:
-$1008$ steps, batch $50$, val split $0.15$, seed $42$, `--no-early-stop`.
-Start from `qft_identity` init.
+`pdft_benchmarks.identity_reg.L1IdentityRegQFTMSELoss` (this writeup's
+headline result), with `BlockMaskedIdentityRegQFTMSELoss` as a
+companion variant covered in Appendix A. Both subclass `pdft.MSELoss`
+and use the `_extra_loss` hook (pdft PR \#18). Headline preset:
+$1008$ steps, batch $50$, val split $0.15$, seed $42$,
+`--no-early-stop`. Start from `qft_identity` init.
 
-== Result
+== Result: L1-to-identity
 
-Test PSNR (dB) after $1008$ steps:
-
-#table(
-  columns: (auto, auto, auto, auto, auto),
-  align: (left, right, right, right, right),
-  stroke: 0.5pt,
-  table.header(
-    [*basis / reg*], $rho = 0.05$, $rho = 0.10$, $rho = 0.15$, $rho = 0.20$,
-  ),
-  [`qft` (analytic init)],          [25.09], [27.57], [29.53], [31.29],
-  [`qft_identity` (identity init)], [25.23], [27.81], [29.84], [31.66],
-  [`qft_identity` + reg, $lambda = 10^(-3)$], [25.23], [27.81], [29.84], [31.66],
-  [`qft_identity` + reg, $lambda = 10^(-2)$], [25.23], [27.81], [29.84], [31.66],
-  [`qft_identity` + reg, $lambda = 10^(-1)$], [25.24], [27.81], [29.84], [31.66],
-  [*`qft_identity` + reg, $lambda = 1$*], [*25.18*], [*28.09*], [*30.30*], [*32.26*],
-  [`qft_identity` + reg, $lambda = 10$], [25.18], [28.08], [30.29], [32.25],
-  [`blocked_8` (warm-start ceiling)], [25.18], [28.09], [30.30], [32.26],
-)
-
-At $lambda = 1$, the trained operator matches `blocked_8` *bit-exactly
-to $2$ decimals at every $rho$*. Trajectory crosses from $31.66$ dB
-(qft_identity basin) to $32.26$ dB (blocked basin), closing the full
-$0.60$ dB gap. $lambda = 10$ within $0.01$ dB.
-
-#figure(
-  image("figures/lambda_sweep.svg", width: 100%),
-  caption: [Left: test PSNR at $rho = 0.20$ vs $lambda$ (log x). Sharp
-    transition $31.66 arrow.r 32.26$ dB between $lambda = 10^(-1)$
-    and $lambda = 1$. Right: per-gate $norm(T_g - I_g)_F$ at end of
-    training, inner (12, orange) vs outer (60, blue). At
-    $lambda gt.eq 1$, outer gates collapse to a thin line at zero —
-    *all $60$ pinned bit-exactly at identity*, matching `blocked_8`'s
-    structural shape. Inner-gate distributions are invariant across
-    $lambda$: the prior leaves them free.]
-)
-
-== Interpretation
-
-Outcome (i) from the spec's three-falsifiable-outcomes frame: the
-blocked basin was *unfavored, not isolated*. Given the matched
-structural prior, smooth-Riemannian Adam reaches it from identity
-init in $1008$ steps with no curriculum and no warm-start.
-
-*Leading-prior caveat.* The regulariser bakes in `blocked_8`'s known
-structural shape. A positive result is "if you tell the optimiser the
-answer-shape, it finds the answer" — closer to warm-start with extra
-steps than to basin discovery from scratch.
-
-The shift in framing: the headline `qft` $<$ `blocked_8` gap is now
-attributable to *initialisation + optimiser-coupling*, not to a
-loss-landscape obstruction. The remaining open question is *how
-weak a prior suffices*.
-
-== L1-to-identity: dropping the block-aligned mask
-
-Drop the inner/outer mask; penalise all gates uniformly with the
-Huber-smoothed L1 norm of §Equations (third blue line above):
-$R_text("L1")(theta) = sum_g sqrt(norm(T_g - I_g)_F^2 + epsilon)$.
-
-The unsmoothed gradient $(T_g - I_g)/norm(T_g - I_g)_F$ is $0/0$ at
-qft_identity init; `jax.grad` returns NaN there. The
-$epsilon$-smoothing yields a finite ($= 0$) gradient at the kink
-while agreeing with true L1 to leading order for
-$norm(T_g - I_g)_F gt.tilde 10^(-5)$. L1 induces sparsity from
-training dynamics: gates either move appreciably or stay pinned;
+The L1 regulariser (§Equations, third blue line) penalises every
+gate uniformly with the Huber-smoothed Frobenius distance from
+identity. No block-aligned mask is required; sparsity emerges from
+training dynamics — gates either move appreciably or stay pinned,
 no continuous shrinkage.
+
+*Numerical note.* The unsmoothed gradient
+$(T_g - I_g) / norm(T_g - I_g)_F$ is $0/0$ at qft_identity init;
+`jax.grad` returns NaN there. The $epsilon = 10^(-12)$ smoothing
+yields a finite ($= 0$) gradient at the kink while agreeing with
+true L1 to leading order for $norm(T_g - I_g)_F gt.tilde 10^(-5)$.
 
 *L1 sweep — DIV2K-8q.* $lambda in {0.1, 1, 10}$, qft_identity init,
 same headline preset:
@@ -422,12 +369,82 @@ warm-start init — steers training to one of those minima.
 
 == Reproducibility
 
+Main result (L1 across three datasets):
+
 ```
 python experiments/qft_identity_regularization.py \
-    --gpu 0 --reg block --lambdas 0,1e-3,1e-2,1e-1,1,10 \
-    --outer-weight 10 --epochs 112
+    --gpu 0 --reg L1 --lambdas 0.1,1,10 --epochs 112 \
+    --dataset {div2k_8q, quickdraw, tuberlin}
 ```
 
-Per-run output: `results/qft_identity_init/div2k_8q/_runs/reg_lambda_<lam>_W<W>/`.
+Per-run output: `results/qft_identity_init/<dataset>/_runs/regL1_lambda_<lam>/`.
+Block-masked variant (Appendix A) uses `--reg block --lambdas 0,1e-3,1e-2,1e-1,1,10
+--outer-weight 10 --epochs 112` on `--dataset div2k_8q`.
+
 Run time: $approx 9$ min per $lambda$ on RTX 3090.
 $17$ unit tests in `tests/test_identity_reg.py`.
+
+= Appendix A: Block-masked regularisation result
+
+The block-masked regulariser $R_text("block")$ (§Equations, second
+blue line) preceded the L1 result and motivated the writeup's
+construction. We include it as a companion finding: it confirms the
+`blocked_8` basin is *reachable* from `qft_identity` init under a
+matched structural prior, before the L1 sweep then shows that *no
+matched mask is required* — generic sparsity finds a different
+(in fact sparser) basin with equivalent PSNR.
+
+*Key invariant (justification).* At `blocked_8`'s optimum the
+outer-gate contribution to $R_text("block")$ is bit-exactly $0$
+(every outer gate sits at its identity element). Empirically the
+small $epsilon_text("drift") approx 1.6$ at $W = 10$ is dominated by
+one CP outlier — the other $59$ outer gates each contribute
+$< 10^(-2)$. The reg term therefore does *not* push the operator
+away from blocked even at large $lambda$.
+
+*DIV2K-8q sweep* — $lambda in {0, 10^(-3), 10^(-2), 10^(-1), 1, 10}$,
+$W = 10$, inner=(3, 3), `qft_identity` init:
+
+#table(
+  columns: (auto, auto, auto, auto, auto),
+  align: (left, right, right, right, right),
+  stroke: 0.5pt,
+  table.header(
+    [*basis / reg*], $rho = 0.05$, $rho = 0.10$, $rho = 0.15$, $rho = 0.20$,
+  ),
+  [`qft` (analytic init)],          [25.09], [27.57], [29.53], [31.29],
+  [`qft_identity` (no reg)],        [25.23], [27.81], [29.84], [31.66],
+  [block reg, $lambda = 10^(-3)$],   [25.23], [27.81], [29.84], [31.66],
+  [block reg, $lambda = 10^(-2)$],   [25.23], [27.81], [29.84], [31.66],
+  [block reg, $lambda = 10^(-1)$],   [25.24], [27.81], [29.84], [31.66],
+  [*block reg, $lambda = 1$*],       [*25.18*], [*28.09*], [*30.30*], [*32.26*],
+  [block reg, $lambda = 10$],        [25.18], [28.08], [30.29], [32.25],
+  [`blocked_8` (warm-start ceiling)], [25.18], [28.09], [30.30], [32.26],
+)
+
+At $lambda = 1$ the trained operator matches `blocked_8` *bit-exactly
+to $2$ decimals at every $rho$*. Sharp transition between
+$lambda = 10^(-1)$ and $lambda = 1$; at $lambda gt.eq 1$ all $60$
+outer gates collapse to identity, matching the $12$/$60$ structural
+split.
+
+#figure(
+  image("figures/lambda_sweep.svg", width: 100%),
+  caption: [Block-masked sweep. Left: test PSNR at $rho = 0.20$ vs
+    $lambda$. Right: per-gate $norm(T_g - I_g)_F$ at end of training,
+    inner ($12$, orange) vs outer ($60$, blue). At $lambda gt.eq 1$
+    outer gates collapse bit-exactly to identity.]
+)
+
+*Interpretation.* Outcome (i) from the spec's three-falsifiable-outcomes
+frame: the blocked basin was *unfavored, not isolated*. Given the
+matched structural prior, smooth-Riemannian Adam reaches it from
+identity init in $1008$ steps with no curriculum and no warm-start
+at the blocked operator.
+
+*Leading-prior caveat.* The regulariser bakes in `blocked_8`'s known
+structural shape. A positive result is "if you tell the optimiser the
+answer-shape, it finds the answer" — closer to warm-start with extra
+steps than to basin discovery from scratch. The L1 result in the main
+body is the more discriminating finding because it succeeds *without*
+the matched mask.
