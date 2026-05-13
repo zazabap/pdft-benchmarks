@@ -242,95 +242,85 @@ implement L1-to-identity for comparison; characterise the boundary
 between the two basins (e.g., via interpolation along a
 linear/geodesic path).
 
-*Proposed follow-up: learnable block size.* The current regulariser
-requires the user to supply $(text("inner")_m, text("inner")_n)$ —
-i.e., to *know in advance* which block size to target. This collapses
-the experiment from "discover the best block structure" to "verify
-the matched prior reaches the prepared basin." A natural extension is
-to make the block size *itself* a trained parameter and let the
-optimiser pick it.
+*Proposed follow-up: L1-to-identity.* The block-masked sweep
+established that the basin is reachable *given a matched structural
+prior*. The natural next question is whether the matched prior is
+necessary, or whether *any* sparsity-inducing regulariser can find
+the same basin. The simplest test is to swap the squared Frobenius
+distance for an unsquared one:
 
-*Construction.* Replace the discrete inner/outer mask with a smooth
-mask parameterised by a single learnable scalar $s in [1, m]$ per
-axis. For each gate $g$ in the QFT decomposition, let $q^*_g$ be the
-highest-indexed qubit it touches (along $g$'s axis). The per-gate
-weight becomes a sigmoid in $(q^*_g - s)$:
+$ R_text("L1")(theta) = sum_g norm(T_g - I_g)_F $
 
-$ w_g (s) = sigma((q^*_g - s) / tau) dot (W - 1) + 1 $
+This is the L1-norm of the per-gate $L_F$ distance — a *group lasso*
+on the gate set. Unlike squared L2 (which shrinks gates toward
+identity uniformly), L1's non-smoothness at $T_g = I_g$ creates a
+*"stay at identity" attractor*: gates where the MSE pressure justifies
+departure move, gates where it doesn't get pinned bit-exactly at
+identity. *Sparsity emerges from training dynamics of $theta$ alone;
+no new parameters, no new manifolds, no upstream pdft changes.*
 
-so $w_g approx 1$ (treat as inner — soft penalty) when $q^*_g < s$
-and $w_g approx W$ (treat as outer — hard pinning) when $q^*_g > s$;
-the transition has width $tau$. The regulariser becomes
+*What this tests.* The regulariser does *not* tell the optimiser which
+gates should be free — only that the *count* of free gates should be
+small. Three outcomes are informative:
 
-$ R_text("learn")(theta, s) = sum_g w_g (s) dot norm(T_g - I_g)_F^2 $
++ Some $lambda$ reaches $approx 32.26$ dB AND the auto-discovered
+  sparse subset matches `blocked_8`'s 12-inner gates →
+  *the block-aligned structure emerges from sparsity alone* — the
+  matched mask was not load-bearing. Strongest possible reduction of
+  the prior.
 
-with $s$ trained jointly with $theta$ by the same Adam optimiser.
-Add a small *budget term* $mu dot s$ to the total loss so the
-optimiser pays a cost for freeing more gates — without it, $s
-arrow.r m$ (every gate inner, no reg pressure) is a trivial fixed
-point of the joint problem.
++ Some $lambda$ reaches $approx 32.26$ dB but the auto-discovered
+  sparse subset is *different* from `blocked_8`'s mask → a
+  *non-blocked* sparse configuration in QFT(8, 8) achieves the same
+  PSNR. Discovers a new basin; reframes "blocked is optimal" as
+  "sparsity-12 is optimal, of which blocked is one realisation."
 
-*What this discovers.* At convergence, $s^*$ snaps to (approximately)
-an integer corresponding to the best inner-block size for the
-dataset and rate. On DIV2K-8q at $rho = 0.20$, prior is that
-$s^* approx 3$ (matching b=8). On QuickDraw at high $rho$, the
-block-size sweep showed b=2 wins — so $s^* approx 1$ would be the
-expected discovery. The same sweep, run at multiple $(rho, "dataset")$
-points, would generate a full map of "best block size for this
-content and rate" *automatically*, from data, without the user
-specifying the grid.
++ Best $lambda$ stays below $32.26$ → the matched block-aligned mask
+  *was* load-bearing; generic sparsity is not enough. Confirms the
+  block structure is the right prior shape, not just sparsity.
 
-*Implementation sketch.* ~30 lines added to
-`pdft_benchmarks.identity_reg`. Subclass `MSELoss` as before, but with
-$s$ as an additional trainable parameter registered alongside the $72$
-gate tensors. pdft's current manifold cascade
-(`UnitaryManifold` / `Unitary2qManifold` / `PhaseManifold`) has no home
-for an unconstrained scalar — `classify_manifold` would route $s$ to
-`PhaseManifold` (wrong: constrains $|s| = 1$). The clean path is to add
-a trivial `EuclideanManifold` upstream in pdft (project = identity,
-retract = $x + alpha xi$, transport = identity; ~15 LoC), then register
-$s$ on it alongside the $72$ U(2) tensors. Tracked as
-zazabap/pdft \#19. With that in place, $s$ joins the Adam step
-naturally — *per-step compute overhead is essentially zero* (one
-extra scalar Adam update per step, dominated by the $72$ U(2)
-Cayley retractions), and the joint $(theta, s)$ gradient under one
-optimiser state gives a coherent trajectory. The constraint
-$s in [1, m]$ is enforced by reparametrisation
-$s = 1 + (m - 1) sigma(tilde(s))$, $tilde(s) in bb(R)$; the
-unconstrained $tilde(s)$ is what lives on `EuclideanManifold`.
+*Implementation sketch.* ~20 lines in `pdft_benchmarks.identity_reg`
+— a sibling class `L1IdentityRegQFTMSELoss(MSELoss)` whose
+`_extra_loss(tensors)` returns
+$lambda dot sum_g norm(T_g - I_g)_F$ (without the squared exponent
+or block mask). Drop-in replacement: same `pdft.MSELoss._extra_loss`
+hook, same `qft_identity_table` for the per-kind identity elements,
+no inner/outer classification, no W. The sweep driver
+(`experiments/qft_identity_regularization.py`) can grow a `--reg
+{block,L1}` flag to switch between the two; everything else
+(headline preset, λ grid, output layout) stays the same.
 
-*Pitfalls and acceptance criteria.*
+*Pitfalls.*
 
-+ *Collapse modes.* Without the budget term, $s arrow.r m$ (free
-  everything → equivalent to vanilla `qft_identity`, PSNR $31.66$);
-  with too-large budget, $s arrow.r 0$ (pin everything → identity
-  operator → FFT-equivalent, PSNR $approx 24.5$). The budget $mu$
-  must be tuned; suggest sweeping $mu$ at fixed $(lambda, W) = (1, 10)$
-  initially.
++ *Non-smoothness at $T_g = I_g$.* The L1 norm has a discontinuous
+  subgradient at the origin. JAX's autodiff returns $0$ at the kink
+  via convention, which is the correct subgradient choice (it lets
+  pinned gates *stay* pinned rather than oscillating around
+  identity). No proximal operator needed; standard Adam handles it.
 
-+ *Snapping.* Final $s$ is fractional. Snap to nearest integer at
-  the end; report both pre- and post-snap PSNR. A large pre/post gap
-  signals the soft mask is doing something the discrete mask can't,
-  which is itself interesting (it suggests the *optimum* isn't at a
-  standard block boundary).
++ *Discovered sparsity may be partial.* Unlike L0, L1 only shrinks
+  gates toward zero; it does not strictly enforce $T_g = I_g$. The
+  resulting "pinned" gates have $norm(T_g - I_g)_F < epsilon$ for
+  some small $epsilon$, not exactly zero. Report the
+  per-gate distance distribution (as the right panel of Fig 1 does
+  for block-masked) to distinguish "softly small" from "structurally
+  zero."
 
-+ *Sanity check.* Initialise $s = 3$ and run with $(lambda, W) = (1,
-  10)$ and the budget term off. The trained $s$ should *stay at 3*
-  (or drift very little) and the PSNR should match this sweep's
-  $32.26$ dB. Departure from $s = 3$ in this setting would indicate
-  the joint problem has different attractors than the discrete one.
++ *Lambda calibration is different.* The L1 reg term grows linearly
+  rather than quadratically with the average gate displacement, so
+  the appropriate $lambda$ scale will differ. Re-calibrate against
+  $R_text("L1")(theta_text("blocked\_8")) approx 4.6$ (square root of
+  the L2 inner-sum, scaled by 12-gate count), giving a different
+  lambda grid — start with $lambda in {0, 10^(-3), 10^(-2), 10^(-1),
+  1, 10}$ and adjust based on the first few runs.
 
-If $s^*$ reliably matches the block-size-sweep's per-dataset peak,
-the method is a *learnable structural-prior generator* — a path
-toward the §6.1 "block size becomes a learnable structural
-parameter" goal flagged in the block-size-sweep design. No published
-regulariser in the QFT-basis space addresses this directly; the
-closest priors are group lasso for general structured sparsity
-(Yuan and Lin, 2006), L0 with hard-concrete (Louizos et al., 2018),
-and lottery-ticket-style iterative pruning (Frankle and Carbin,
-2019). None are drop-in tools for this setting, but they all argue
-that the structural mask should be learnable rather than
-hand-specified.
+Closest published priors (none QFT-specific): group lasso for
+structured sparsity (Yuan and Lin, 2006), L0 with hard-concrete
+relaxation (Louizos et al., 2018), and lottery-ticket-style
+iterative magnitude pruning (Frankle and Carbin, 2019). All argue
+that sparse structure should *emerge* from training rather than be
+hand-specified. L1-to-identity is the smallest possible such
+regulariser for the QFT-family setting.
 
 *Reproducibility.*
 
