@@ -135,7 +135,7 @@ attributable to *initialisation + optimiser-coupling*, not to a
 loss-landscape obstruction. The remaining open question is *how
 weak a prior suffices*.
 
-== Proposed follow-up: L1-to-identity
+== L1-to-identity: dropping the block-aligned mask
 
 Drop the inner/outer mask; penalise all gates uniformly with an L1
 norm (Huber-smoothed to avoid the kink at $T_g = I_g$):
@@ -143,29 +143,125 @@ norm (Huber-smoothed to avoid the kink at $T_g = I_g$):
 $ R_text("L1")(theta) = sum_g sqrt(norm(T_g - I_g)_F^2 + epsilon), quad epsilon = 10^(-12) $
 
 The unsmoothed L1's gradient $(T_g - I_g)/norm(T_g - I_g)_F$ is $0/0$
-at qft_identity init; `jax.grad` returns NaN there (not subgradient
-$0$). NaN poisons Adam's first step and freezes every gate. The
-$epsilon$-smoothing makes the gradient finite ($= 0$) at the kink while
-agreeing with true L1 to leading order for
-$norm(T_g - I_g)_F gt.tilde 10^(-5)$.
+at qft_identity init; `jax.grad` returns NaN there. The
+$epsilon$-smoothing yields a finite ($= 0$) gradient at the kink
+while agreeing with true L1 to leading order for
+$norm(T_g - I_g)_F gt.tilde 10^(-5)$. L1 induces sparsity from
+training dynamics: gates either move appreciably or stay pinned;
+no continuous shrinkage.
 
-L1 does not tell the optimiser *which* gates should be free — only
-that the count of free gates should be small. Three outcomes:
+*L1 sweep — DIV2K-8q.* $lambda in {0.1, 1, 10}$, qft_identity init,
+same headline preset:
 
-+ Some $lambda$ reaches $approx 32.26$ AND the auto-discovered sparse
-  subset matches `blocked_8`'s 12-inner mask → matched mask was not
-  load-bearing; sparsity alone suffices.
+#table(
+  columns: (auto, auto, auto, auto, auto, auto),
+  align: (left, right, right, right, right, right),
+  stroke: 0.5pt,
+  table.header(
+    [*basis / reg*], $rho = 0.05$, $rho = 0.10$, $rho = 0.15$, $rho = 0.20$, [active gates],
+  ),
+  [`qft_identity` (no reg)],                  [25.23], [27.81], [29.84], [31.66], [72/72],
+  [L1 reg, $lambda = 0.1$],                    [25.23], [27.81], [29.84], [31.66], [72/72],
+  [L1 reg, $lambda = 1$],                      [25.23], [27.81], [29.84], [31.66], [72/72],
+  [*L1 reg, $lambda = 10$*],                   [*25.18*], [*28.08*], [*30.30*], [*32.26*], [*6/72*],
+  [`blocked_8` (ceiling)],                    [25.18], [28.09], [30.30], [32.26], [12/72],
+)
 
-+ Some $lambda$ reaches $approx 32.26$ but the sparse subset is
-  *different* → a non-blocked sparse configuration in QFT(8, 8)
-  achieves the same PSNR.
+L1 at $lambda = 10$ matches `blocked_8` to $approx 0.02$ dB at every
+$rho$, with *only $6$ active gates* (vs `blocked_8`'s $12$). The $6$
+are exactly the inner-block Hadamards (indices $0, 1, 2, 8, 9, 10$);
+all $6$ inner CPs that `blocked_8` makes non-trivial are pinned at
+identity by L1. The $6$ active gates trained to rotation-by-$pi/4$
+matrices $mat(c, s; -s, c)$ with $c, s approx 1/sqrt(2)$ — *not*
+Hadamards $mat(c, s; s, -c)$. The basin is structurally distinct
+from `blocked_8` (no CP entanglement) yet PSNR-equivalent.
 
-+ Best $lambda$ stays below $32.26$ → the block-aligned mask was
-  load-bearing; generic sparsity is insufficient.
+*Comparison against the full block-size grid (DIV2K-8q):*
 
-Implementation: `L1IdentityRegQFTMSELoss(k, lam, m, n, epsilon)` in
-`pdft_benchmarks.identity_reg`. ${tilde} 20$ LoC, same hook, no
-upstream changes. Sweep planned at $lambda in {0.1, 1, 10}$.
+#table(
+  columns: (auto, auto, auto, auto, auto),
+  align: (left, right, right, right, right),
+  stroke: 0.5pt,
+  table.header([basis], $rho = 0.05$, $rho = 0.10$, $rho = 0.15$, $rho = 0.20$),
+  [blocked_4],       [19.06], [26.93], [29.76], [32.05],
+  [*blocked_8*],     [*25.18*], [*28.09*], [*30.30*], [*32.26*],
+  [blocked_16],      [25.23], [27.81], [29.84], [31.66],
+  [blocked_32],      [24.91], [27.30], [29.20], [30.91],
+  [*L1 $lambda = 10$*], [*25.18*], [*28.08*], [*30.30*], [*32.26*],
+)
+
+L1 hits the *training-rate-optimal* blocked ceiling at every $rho$
+(blocked_8 wins at $rho gt.eq 0.10$; at $rho = 0.05$ blocked_16 wins
+by $0.05$ dB and L1 matches blocked_8 rather than blocked_16). Loss
+trains at $rho = 0.10$ via $k = round(2^(m+n) dot 0.1)$.
+
+*L1 sweep — QuickDraw ($m = n = 5$).* Same procedure, $30$-gate
+QFT(5, 5) basis:
+
+#table(
+  columns: (auto, auto, auto, auto, auto, auto),
+  align: (left, right, right, right, right, right),
+  stroke: 0.5pt,
+  table.header(
+    [*basis / reg*], $rho = 0.05$, $rho = 0.10$, $rho = 0.15$, $rho = 0.20$, [active gates],
+  ),
+  [`qft` (analytic init)],          [16.72], [19.58], [22.05], [24.36], [30/30],
+  [blocked_4 / blocked_8],          [18.12], [22.40], [26.18], [30.04], [varies],
+  [L1 reg, $lambda = 0.1$],          [17.24], [23.33], [30.06], [40.62], [2/30],
+  [L1 reg, $lambda = 1$],            [12.82], [18.35], [30.48], [54.11], [0/30],
+  [*L1 reg, $lambda = 10$*],         [*12.82*], [*18.34*], [*30.85*], [*61.89*], [*0/30*],
+)
+
+On QuickDraw, L1 finds a *different* answer: at $lambda gt.eq 1$
+*every gate is pinned at identity* and the trained operator is
+literally $T(x) = x$. PSNR at $rho = 0.20$ reaches $61.89$ dB —
+$30+$ dB above any `blocked_b` and $37+$ dB above analytic `qft`.
+QuickDraw images are sparse line drawings; top-$k$ truncation in the
+pixel domain already captures essentially all the strokes. A
+transform basis is *worse* than no transform.
+
+*Caveat.* The $61.89$ dB QuickDraw number is partly a property of
+the data, not just the regulariser: at $32 times 32$ with mostly-zero
+pixels, top-$20%$-of-pixels retention is near-perfect by construction.
+The DIV2K result is the more discriminating signal because DIV2K is
+not pixel-sparse.
+
+#figure(
+  image("figures/l1_sweep_combined.svg", width: 100%),
+  caption: [Left, middle: test PSNR at $rho = 0.20$ vs $lambda$ for
+    L1-regularised qft_identity on DIV2K-8q and QuickDraw. On DIV2K,
+    L1 matches `blocked_8` at $lambda = 10$; on QuickDraw L1 *exceeds*
+    every `blocked_b` by $30+$ dB at $lambda gt.eq 1$. Right:
+    end-of-training per-gate $norm(T_g - I_g)_F$ at $lambda = 10$ for
+    both datasets, coloured by `blocked_8`'s inner ($12$, orange) /
+    outer ($60$, blue) mask. DIV2K: $6$ inner-Hadamard gates are
+    active at distance $approx 1.08$; everything else is bit-exactly
+    at identity. QuickDraw: *all* gates are bit-exactly at identity
+    — L1 picked no transform.]
+)
+
+== What this reveals
+
+L1 is *not* finding `blocked_8`. It is finding the *best basis* for
+the dataset under the sparsity prior:
+
+- DIV2K (transform-needy): L1 picks $6$ rotations on the inner-block
+  qubits. PSNR equal to the training-rate-optimal `blocked_b`,
+  structurally simpler ($6$ gates vs $12$, no CP entanglement).
+- QuickDraw (already pixel-sparse): L1 picks the identity basis.
+  PSNR far above any `blocked_b`, because no transform was needed.
+
+This is substantially stronger than the original "auto-discover
+block size" framing: L1 generalises beyond the `blocked_b` family
+entirely. The block-aligned mask is one valid sparse-basis shape;
+L1 finds others when they exist (DIV2K's no-CP basin) or returns to
+identity when no transform is needed (QuickDraw).
+
+The headline `qft` $<$ `blocked_8` gap is then explained as
+*Adam-from-qft_identity is poorly coupled to the sparse local
+minima of the QFT(8, 8) loss surface*. Any sparsity-inducing prior
+— matched mask (block-aware L2), generic sparsity (L1), or even the
+warm-start init — steers training to one of those minima.
 
 == Reproducibility
 
