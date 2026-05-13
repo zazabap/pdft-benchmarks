@@ -132,5 +132,48 @@ class BlockMaskedIdentityRegQFTMSELoss(MSELoss):
         return self.lam * total
 
 
+@dataclass(frozen=True)
+class L1IdentityRegQFTMSELoss(MSELoss):
+    """MSELoss + L1-norm pull toward QFT identity elements.
+
+    Loss = sum_pixel |x - T_dagger(topk(T(x), k))|^2
+         + lam * sum_g ||T_g - I_g||_F
+
+    where ``I_g`` is the gate-kind identity (H -> I_2,
+    CP -> [[1,1],[1,1]]). Unlike ``BlockMaskedIdentityRegQFTMSELoss``,
+    there is no inner/outer classification: every gate is treated
+    uniformly. L1's non-smoothness at ``T_g = I_g`` induces actual
+    sparsity rather than uniform shrinkage — gates where MSE pressure
+    justifies departure move, the rest stay near identity. Tests
+    whether plain sparsity (without the matched block-aligned mask)
+    suffices to reach the ``blocked_8`` basin.
+
+    Note: ``jnp.linalg.norm(..., ord='fro')`` is differentiable
+    everywhere except exactly at ``T_g = I_g``; JAX returns
+    subgradient 0 at that kink by convention, which is the correct
+    behaviour for "pinned" gates (they stay pinned rather than
+    oscillating).
+    """
+    lam: float = 0.0
+    m: int = 0
+    n: int = 0
+
+    def _extra_loss(self, tensors: Sequence[jax.Array]) -> jax.Array:
+        if self.lam == 0.0:
+            return jnp.asarray(0.0, dtype=jnp.float64)
+        identities = qft_identity_table(self.m, self.n)
+        if len(identities) != len(tensors):
+            raise ValueError(
+                f"L1IdentityRegQFTMSELoss: gate count mismatch — "
+                f"m={self.m}, n={self.n} → {len(identities)} entries, "
+                f"but tensors has {len(tensors)} elements."
+            )
+        total = jnp.asarray(0.0, dtype=jnp.float64)
+        for t, i in zip(tensors, identities):
+            total = total + jnp.linalg.norm(t - i, ord="fro")
+        return self.lam * total
+
+
 __all__ = ["qft_identity_table", "qft_inner_mask",
-           "BlockMaskedIdentityRegQFTMSELoss"]
+           "BlockMaskedIdentityRegQFTMSELoss",
+           "L1IdentityRegQFTMSELoss"]

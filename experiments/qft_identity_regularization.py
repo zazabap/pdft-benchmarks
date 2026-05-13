@@ -34,9 +34,15 @@ def main() -> int:
     parser.add_argument("--lambdas", type=str,
                         default="0,1e-3,1e-2,1e-1,1,10",
                         help="Comma-separated lambda values for the sweep.")
+    parser.add_argument("--reg", type=str, default="block", choices=["block", "L1"],
+                        help="Regulariser family. 'block': block-masked L2 "
+                             "(BlockMaskedIdentityRegQFTMSELoss, default); "
+                             "'L1': sum of unsquared Frobenius distances "
+                             "(L1IdentityRegQFTMSELoss). The L1 variant ignores "
+                             "--outer-weight, --inner-m, --inner-n.")
     parser.add_argument("--outer-weight", type=float, default=10.0,
                         help="W: weight on outer-gate contributions to R_block. "
-                             "Default 10. W=1 degenerates to uniform L2-to-identity.")
+                             "Default 10. Ignored when --reg=L1.")
     parser.add_argument("--inner-m", type=int, default=3,
                         help="Axis-1 inner-block size. Default 3 (matches blocked_8).")
     parser.add_argument("--inner-n", type=int, default=3,
@@ -61,15 +67,20 @@ def main() -> int:
     import pdft
     import pdft.io  # noqa: F401 — register pdft.io submodule for evaluate_basis_shared
     from pdft_benchmarks.bases import qft_identity_basis
-    from pdft_benchmarks.identity_reg import BlockMaskedIdentityRegQFTMSELoss
+    from pdft_benchmarks.identity_reg import (
+        BlockMaskedIdentityRegQFTMSELoss,
+        L1IdentityRegQFTMSELoss,
+    )
     from pdft_benchmarks.datasets.div2k import load_div2k
     from pdft_benchmarks.evaluation import evaluate_basis_shared
     from pdft_benchmarks.presets import get_preset
 
     lambdas = [float(x.strip()) for x in args.lambdas.split(",") if x.strip()]
     W = args.outer_weight
+    print(f"[qft_id_reg] reg family: {args.reg}")
     print(f"[qft_id_reg] sweep lambdas: {lambdas}")
-    print(f"[qft_id_reg] outer_weight W={W}, inner=({args.inner_m},{args.inner_n})")
+    if args.reg == "block":
+        print(f"[qft_id_reg] outer_weight W={W}, inner=({args.inner_m},{args.inner_n})")
     print(f"[qft_id_reg] preset={args.preset}, epochs={args.epochs}")
 
     preset = get_preset("div2k_8q", args.preset)
@@ -92,18 +103,25 @@ def main() -> int:
 
     for lam in lambdas:
         lam_str = f"{lam:.0e}" if lam > 0 else "0"
-        lam_tag = f"reg_lambda_{lam_str}_W{int(W) if W == int(W) else W}"
+        if args.reg == "block":
+            lam_tag = f"reg_lambda_{lam_str}_W{int(W) if W == int(W) else W}"
+        else:  # L1
+            lam_tag = f"regL1_lambda_{lam_str}"
         out_dir = out_base / lam_tag
         out_dir.mkdir(parents=True, exist_ok=True)
         (out_dir / "loss_history").mkdir(parents=True, exist_ok=True)
-        print(f"\n[qft_id_reg] === lambda={lam:.2e}, W={W} (out: {out_dir}) ===")
+        print(f"\n[qft_id_reg] === reg={args.reg}, lambda={lam:.2e} (out: {out_dir}) ===")
 
         basis = qft_identity_basis(m, n)
-        loss = (BlockMaskedIdentityRegQFTMSELoss(
-                    k=k, lam=lam, m=m, n=n,
-                    inner_m=args.inner_m, inner_n=args.inner_n,
-                    outer_weight=W)
-                if lam > 0 else pdft.MSELoss(k=k))
+        if lam == 0:
+            loss = pdft.MSELoss(k=k)
+        elif args.reg == "block":
+            loss = BlockMaskedIdentityRegQFTMSELoss(
+                k=k, lam=lam, m=m, n=n,
+                inner_m=args.inner_m, inner_n=args.inner_n,
+                outer_weight=W)
+        else:  # L1
+            loss = L1IdentityRegQFTMSELoss(k=k, lam=lam, m=m, n=n)
 
         t0 = time.perf_counter()
         result = pdft.train_basis_batched(
@@ -132,10 +150,11 @@ def main() -> int:
                 "metrics": eval_metrics,
                 "time": elapsed,
                 "_pdft_py": {
+                    "reg": args.reg,
                     "lam": lam,
-                    "outer_weight": W,
-                    "inner_m": args.inner_m,
-                    "inner_n": args.inner_n,
+                    "outer_weight": W if args.reg == "block" else None,
+                    "inner_m": args.inner_m if args.reg == "block" else None,
+                    "inner_n": args.inner_n if args.reg == "block" else None,
                     "steps": int(result.steps),
                     "epochs_completed": int(result.epochs_completed),
                     "device": str(jax.devices()[0]),

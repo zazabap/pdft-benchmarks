@@ -214,6 +214,79 @@ def test_reg_loss_outer_weight_amplifies_outer_gates_only():
 
 # --- end-to-end lambda=0 equivalence -----------------------------------
 
+# --- L1IdentityRegQFTMSELoss ---------------------------------------------
+
+def test_l1_reg_loss_lam_zero_equals_base_mse():
+    """At lambda=0, the L1 reg loss equals plain MSELoss."""
+    from pdft.bases.circuit.qft import qft_code
+    from pdft.loss import loss_function
+    from pdft_benchmarks.identity_reg import L1IdentityRegQFTMSELoss
+
+    m, n = 2, 2
+    code, tensors = qft_code(m, n)
+    inv_code, _ = qft_code(m, n, inverse=True)
+    pic = jnp.ones((4, 4), dtype=jnp.complex128) / 4.0
+
+    base = float(loss_function(tensors, m, n, code, pic, MSELoss(k=1),
+                                inverse_code=inv_code))
+    reg = float(loss_function(
+        tensors, m, n, code, pic,
+        L1IdentityRegQFTMSELoss(k=1, lam=0.0, m=m, n=n),
+        inverse_code=inv_code,
+    ))
+    assert abs(reg - base) < 1e-10
+
+
+def test_l1_reg_loss_at_identity_tensors_is_pure_mse():
+    """At qft_identity init (T_g == I_g for all g), the L1 reg term is 0."""
+    from pdft.bases.circuit.qft import qft_code
+    from pdft.loss import loss_function
+    from pdft_benchmarks.bases import qft_identity_basis
+    from pdft_benchmarks.identity_reg import L1IdentityRegQFTMSELoss
+
+    m, n = 2, 2
+    code, _ = qft_code(m, n)
+    inv_code, _ = qft_code(m, n, inverse=True)
+    basis = qft_identity_basis(m, n)
+    tensors = list(basis.tensors)
+    pic = jnp.ones((4, 4), dtype=jnp.complex128) / 4.0
+
+    base = float(loss_function(tensors, m, n, code, pic, MSELoss(k=1),
+                                inverse_code=inv_code))
+    reg = float(loss_function(
+        tensors, m, n, code, pic,
+        L1IdentityRegQFTMSELoss(k=1, lam=0.5, m=m, n=n),
+        inverse_code=inv_code,
+    ))
+    assert abs(reg - base) < 1e-10
+
+
+def test_l1_reg_loss_adds_lam_times_sum_of_fro_distances():
+    """Reg term = lam * sum_g ||T_g - I_g||_F (unsquared)."""
+    from pdft.bases.circuit.qft import qft_code
+    from pdft.loss import loss_function
+    from pdft_benchmarks.identity_reg import L1IdentityRegQFTMSELoss
+
+    m, n = 2, 2
+    code, tensors = qft_code(m, n)
+    inv_code, _ = qft_code(m, n, inverse=True)
+    pic = jnp.zeros((4, 4), dtype=jnp.complex128)
+
+    table = qft_identity_table(m, n)
+    expected_reg = float(sum(jnp.linalg.norm(t - i, ord="fro")
+                              for t, i in zip(tensors, table)))
+
+    lam = 0.3
+    base = float(loss_function(tensors, m, n, code, pic, MSELoss(k=1),
+                                inverse_code=inv_code))
+    reg = float(loss_function(
+        tensors, m, n, code, pic,
+        L1IdentityRegQFTMSELoss(k=1, lam=lam, m=m, n=n),
+        inverse_code=inv_code,
+    ))
+    assert abs(reg - base - lam * expected_reg) < 1e-6
+
+
 def test_reg_loss_lam_zero_e2e_matches_base_mse_training():
     """End-to-end: training with BlockMaskedIdentityRegQFTMSELoss(lam=0)
     produces the same loss trajectory as training with vanilla MSELoss.
