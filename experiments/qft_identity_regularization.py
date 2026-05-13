@@ -35,9 +35,12 @@ def main() -> int:
                         default="0,1e-3,1e-2,1e-1,1,10",
                         help="Comma-separated lambda values for the sweep.")
     parser.add_argument("--dataset", type=str, default="div2k_8q",
-                        choices=["div2k_8q", "quickdraw"],
+                        choices=["div2k_8q", "quickdraw", "tuberlin"],
                         help="Dataset + qubit-config. div2k_8q -> m=n=8, "
-                             "256x256 DIV2K; quickdraw -> m=n=5, 32x32 QuickDraw.")
+                             "256x256 DIV2K; quickdraw -> m=n=5, 32x32 "
+                             "QuickDraw; tuberlin -> m=n=8, 256x256 "
+                             "TU-Berlin sketches (sparse line drawings "
+                             "at DIV2K scale).")
     parser.add_argument("--reg", type=str, default="block", choices=["block", "L1"],
                         help="Regulariser family. 'block': block-masked L2 "
                              "(BlockMaskedIdentityRegQFTMSELoss, default); "
@@ -78,6 +81,7 @@ def main() -> int:
     )
     from pdft_benchmarks.datasets.div2k import load_div2k
     from pdft_benchmarks.datasets.quickdraw import load_quickdraw
+    from pdft_benchmarks.datasets.tuberlin import load_tuberlin
     from pdft_benchmarks.evaluation import evaluate_basis_shared
     from pdft_benchmarks.presets import get_preset
 
@@ -102,20 +106,22 @@ def main() -> int:
         train_imgs_np, test_imgs_np = load_div2k(
             n_train=preset.n_train, n_test=preset.n_test, seed=preset.seed, size=2**m,
         )
-    else:  # quickdraw
+    elif args.dataset == "quickdraw":
         m = n = 5
         train_imgs_np, test_imgs_np = load_quickdraw(
             n_train=preset.n_train, n_test=preset.n_test, seed=preset.seed, img_size=2**m,
+        )
+    else:  # tuberlin
+        m = n = 8
+        train_imgs_np, test_imgs_np = load_tuberlin(
+            n_train=preset.n_train, n_test=preset.n_test, seed=preset.seed, size=2**m,
         )
     k = max(1, round(2 ** (m + n) * 0.1))
     print(f"[qft_id_reg] m=n={m}, loaded {len(train_imgs_np)} train, "
           f"{len(test_imgs_np)} test images")
 
     if args.out_base is None:
-        if args.dataset == "div2k_8q":
-            out_base = Path("results/qft_identity_init/div2k_8q/_runs")
-        else:  # quickdraw
-            out_base = Path("results/qft_identity_init/quickdraw/_runs")
+        out_base = Path(f"results/qft_identity_init/{args.dataset}/_runs")
     else:
         out_base = Path(args.out_base)
     out_base.mkdir(parents=True, exist_ok=True)

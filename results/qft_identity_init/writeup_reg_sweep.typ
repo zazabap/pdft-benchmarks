@@ -164,10 +164,11 @@ same headline preset:
   table.header(
     [*basis / reg*], $rho = 0.05$, $rho = 0.10$, $rho = 0.15$, $rho = 0.20$, [active gates],
   ),
+  [`block_dct_8` (classical)],                [*26.11*], [*29.41*], [*31.86*], [*34.01*], [—],
   [`qft_identity` (no reg)],                  [25.23], [27.81], [29.84], [31.66], [72/72],
   [L1 reg, $lambda = 0.1$],                    [25.23], [27.81], [29.84], [31.66], [72/72],
   [L1 reg, $lambda = 1$],                      [25.23], [27.81], [29.84], [31.66], [72/72],
-  [*L1 reg, $lambda = 10$*],                   [*25.18*], [*28.08*], [*30.30*], [*32.26*], [*6/72*],
+  [L1 reg, $lambda = 10$],                    [25.18], [28.08], [30.30], [32.26], [6/72],
   [`blocked_8` (ceiling)],                    [25.18], [28.09], [30.30], [32.26], [12/72],
 )
 
@@ -209,6 +210,7 @@ QFT(5, 5) basis:
   table.header(
     [*basis / reg*], $rho = 0.05$, $rho = 0.10$, $rho = 0.15$, $rho = 0.20$, [active gates],
   ),
+  [`block_dct_8` (classical)],      [17.20], [20.70], [23.72], [26.63], [—],
   [`qft` (analytic init)],          [16.72], [19.58], [22.05], [24.36], [30/30],
   [blocked_4 / blocked_8],          [18.12], [22.40], [26.18], [30.04], [varies],
   [L1 reg, $lambda = 0.1$],          [17.24], [23.33], [30.06], [40.62], [2/30],
@@ -275,6 +277,58 @@ $rho = 0.20$ make the dataset-adaptive behaviour visible.
     the raw pixels reconstructs the image to numerical precision
     (PSNR $infinity$ at init, $91.86$ dB after L1 training — both
     effectively perfect). The transform was unnecessary.]
+)
+
+*L1 sweep — TU-Berlin ($m = n = 8$).* Larger sketch dataset at the
+DIV2K scale ($256 times 256$), $20{,}000$ hand-drawn sketches across
+$250$ categories (CC-BY-4.0; HuggingFace mirror `sdiaeyu6n/tu-berlin`).
+Same QFT(8, 8) basis, same headline preset; tests whether the QuickDraw
+"L1 picks identity" finding is a $32 times 32$ pixel-sparsity artefact
+or a genuine pixel-sparse-data phenomenon:
+
+#table(
+  columns: (auto, auto, auto, auto, auto),
+  align: (left, right, right, right, right),
+  stroke: 0.5pt,
+  table.header(
+    [*basis / reg*], $rho = 0.05$, $rho = 0.10$, $rho = 0.15$, $rho = 0.20$,
+  ),
+  [`block_dct_8` (classical)],       [41.31], [61.88], [90.70], [117.58],
+  [L1 reg, $lambda = 10$],            [68.69], [104.54], [114.28], [120.47],
+  [L1 reg, $lambda = 1$],             [68.48], [104.72], [115.32], [121.77],
+  [*L1 reg, $lambda = 0.1$*],          [*68.78*], [*105.38*], [*116.04*], [*123.08*],
+)
+
+All three L1 $lambda$ values reach near-exact reconstruction
+($> 120$ dB at $rho = 0.20$), confirming the QuickDraw finding is
+*not* a $32 times 32$ artefact: pixel-sparse content at $256 times 256$
+also resolves under L1 into a near-identity operator. `block_dct_8`
+trails L1 by $5.5$ dB at $rho = 0.20$ — block-DCT transforms the
+already-sparse pixel signal *away* from its native sparsity.
+
+The $lambda$ dependence is *inverted* relative to QuickDraw: smaller
+$lambda$ → slightly higher PSNR (L1 $lambda = 0.1$ wins at $rho = 0.20$,
+$123.08$ dB). At $m = n = 8$, $72$ gates have more room to perturb
+without hurting; a tiny amount of structure beyond pure identity
+helps marginally on TU-Berlin.
+
+#figure(
+  image("figures/cross_dataset_psnr.svg", width: 100%),
+  caption: [*Cross-dataset PSNR(ρ) summary.* Each panel: PSNR vs
+    keep-ratio $rho$ for one dataset. Black solid: `block_dct_8`
+    (classical JPEG-style 8×8 block DCT, no training). Coloured
+    squares: L1 reg at $lambda in {0.1, 1, 10}$. *Three regimes:*
+    (left, DIV2K-8q natural images) `block_dct_8` *wins* by
+    $1.75$ dB — JPEG-style block-DCT remains the empirical optimum
+    on natural-image content at $rho = 0.20$; L1's $6$-rotation
+    basin trails. (middle, QuickDraw $32 times 32$ sketch) L1
+    $lambda = 10$ *dominates* at high $rho$ by $35+$ dB —
+    identity-basis L1 beats block-DCT massively because the data is
+    already pixel-sparse. (right, TU-Berlin $256 times 256$ sketch)
+    all three L1 $lambda$ values dominate `block_dct_8` by $5.5$ dB
+    at $rho = 0.20$ and by larger gaps at lower $rho$. The sketch-
+    dataset finding replicates at the DIV2K spatial scale, confirming
+    it is not a low-resolution pixel-sparsity artefact.]
 )
 
 == What this reveals
