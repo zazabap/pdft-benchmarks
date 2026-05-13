@@ -14,14 +14,36 @@ at $rho = 0.20$; it is a stable local minimum of QFT(8, 8) (the
 reaches $31.66$. Neither generic-init path crosses to the blocked
 basin in $1008$ steps. Can a structural prior bridge the gap?
 
-== Construction
+== Equations
 
-Total loss minimised by the optimiser (Riemannian Adam over
-$U(2)^(72)$):
+All four equations of the construction in one place. The total loss
+is minimised by Riemannian Adam over the $72$-tensor product
+manifold $U(2)^(72)$. The two regulariser shapes
+$R_text("block")$ and $R_text("L1")$ are the central technical
+contributions; the *key invariant* equation justifies why large
+$lambda$ does not destabilise training for the block-masked
+variant. Per-image and per-gate notation follows the term-by-term
+table below.
 
 #text(fill: blue)[
   $ cal(L)_text("total")(theta) = underbrace(1/B sum_(b=1)^B norm(x_b - T_theta^dagger \, "top"_K (T_theta thin x_b))_F^2, "reconstruction loss (MSE-topK), per minibatch") + lambda dot underbrace(R(theta), "regulariser") $
+
+  $ R_text("block")(theta) = sum_(g in cal(G)_text("outer")) W dot norm(T_g - I_g)_F^2 + sum_(g in cal(G)_text("inner")) norm(T_g - I_g)_F^2 $
+
+  $ R_text("L1")(theta) = sum_(g = 1)^(72) sqrt(norm(T_g - I_g)_F^2 + epsilon), quad epsilon = 10^(-12) $
+
+  $ R_text("block")(theta_text("blocked\_8")) = sum_(g in cal(G)_text("inner")) norm(T_g - I_g)_F^2 + epsilon_text("drift"), quad epsilon_text("drift") approx 0 $
 ]
+
+The four lines, in order: *total loss* (reconstruction MSE-topK
+averaged over minibatch + reg term scaled by $lambda$);
+*block-masked reg* with outer-vs-inner asymmetry weight $W = 10$;
+*L1-to-identity reg* with Huber smoothing $epsilon = 10^(-12)$ to
+avoid NaN gradient at the kink $T_g = I_g$; *key invariant*
+asserting the outer-gate contribution at the blocked optimum is
+$approx 0$ — empirically $epsilon_text("drift") = 1.6$ at $W = 10$,
+inner-sum $approx 34.5$, giving $R_text("block")(theta_text("blocked\_8"))
+approx 50.3$.
 
 *Term-by-term:*
 
@@ -45,49 +67,43 @@ $U(2)^(72)$):
      $72$ gates are $16$ Hadamards + $56$ controlled-phase gates in
      QFT canonical order.],
   [$T_theta^dagger$],
-    [The *inverse* circuit. Implemented by conjugating each gate
-     tensor and running the inverse-direction einsum (Hadamards stay
-     Hadamards under conjugation; CPs pick up $-phi$). Identical
+    [The *inverse* circuit. Conjugates each gate tensor; Hadamards
+     stay Hadamards under conjugation; CPs pick up $-phi$. Identical
      compute cost to $T_theta$.],
   [$"top"_K(y)$],
-    [*Top-K magnitude truncation*. Sorts the $2^(m+n)$ entries of
-     $y in bb(C)^(2^m times 2^n)$ by $|y[i, j]|$, keeps the $K$
-     largest in-place and zeros the rest. $K = floor(2^(m+n) dot 0.1)$
-     at training time — i.e., training is at $rho = 0.10$
-     ($K = 6554$ for $m = n = 8$, $K = 102$ for $m = n = 5$);
-     test-time evaluation reports PSNR at
-     $rho in \{0.05, 0.10, 0.15, 0.20\}$. Non-smooth at threshold
-     ties, broken stably in implementation.],
+    [*Top-K magnitude truncation*. Keeps the $K$ entries of
+     $y in bb(C)^(2^m times 2^n)$ with largest $|y[i, j]|$ in-place;
+     zeros the rest. $K = floor(2^(m+n) dot 0.1)$ at training time —
+     i.e., training is at $rho = 0.10$ ($K = 6554$ for $m = n = 8$,
+     $K = 102$ for $m = n = 5$); test-time PSNR reported at
+     $rho in \{0.05, 0.10, 0.15, 0.20\}$.],
   [$norm(M)_F^2$],
-    [Squared Frobenius norm, $sum_(i, j) |M[i, j]|^2$. The
-     per-image squared reconstruction error, summed over all
-     $2^(m+n)$ pixels.],
+    [Squared Frobenius norm, $sum_(i, j) |M[i, j]|^2$.],
+  [$T_g$, $I_g$],
+    [Per-gate $2 times 2$ tensor and its identity element. $I_g = I_2$
+     for Hadamards; $I_g = ((1, 1), (1, 1)) = $
+     `controlled_phase_diag(0)` for controlled-phase gates.],
+  [$cal(G)_text("inner")$, $cal(G)_text("outer")$],
+    [Disjoint partition of the $72$ gates. A gate is *inner* iff
+     every qubit it touches lies in $\{1, 2, 3\}$ (axis 1) or
+     $\{9, 10, 11\}$ (axis 2); otherwise *outer*. At $m = n = 8$,
+     inner=(3, 3): $|cal(G)_text("inner")| = 12$,
+     $|cal(G)_text("outer")| = 60$, matching `blocked_8`'s structural
+     sparsity bit-exactly ($12$ trained QFT(3, 3) gates + $60$
+     identity-pinned gates).],
+  [$W$],
+    [Outer-gate weight in $R_text("block")$. Fixed $W = 10$ for this
+     sweep. $W = 1$ degenerates to uniform L2 ($R_text("block")$
+     equivalent to family (a) in the design discussion).],
   [$lambda$],
-    [Regulariser strength scalar, swept across
-     $\{0, 10^(-3), 10^(-2), 10^(-1), 1, 10\}$ for the block-masked
-     experiment and $\{0.1, 1, 10\}$ for the L1 experiment.],
-  [$R(theta)$],
-    [The regulariser — either $R_text("block")$ (red equation below)
-     or $R_text("L1")$ (red equation in §"L1-to-identity"). Sums
-     a per-gate Frobenius-norm-of-distance-to-identity over the
-     $72$ gates, with structural weighting in the block case.],
+    [Regulariser strength. Swept $\{0, 10^(-3), 10^(-2), 10^(-1), 1, 10\}$
+     for block-masked, $\{0.1, 1, 10\}$ for L1.],
+  [$epsilon$ (in $R_text("L1")$)],
+    [Huber smoothing constant $10^(-12)$. Makes $sqrt(norm(M)_F^2 + epsilon)$
+     differentiable at $M = 0$ (gradient $= 0$ there) while agreeing
+     with the true Frobenius norm to leading order for
+     $norm(M)_F gt.tilde 10^(-5)$.],
 )
-
-The reconstruction-loss core is: forward-transform the image via
-$T_theta$, drop the $1 - rho$ fraction of smallest-magnitude
-coefficients (lossy compression), reconstruct via $T_theta^dagger$,
-and measure pixel-wise squared error. The optimiser trains $theta$
-to minimise this expected error over the train split *plus*
-$lambda dot R(theta)$.
-
-#text(fill: red)[
-  $ R_text("block")(theta) = sum_(g in cal(G)_text("outer")) W dot norm(T_g - I_g)_F^2 + sum_(g in cal(G)_text("inner")) norm(T_g - I_g)_F^2 $
-]
-
-A gate $g$ is *inner* iff every qubit it touches lies in $\{1, 2, 3\}$
-(axis 1) or $\{9, 10, 11\}$ (axis 2). Otherwise *outer*. Per-kind
-identity element: $I_g = I_2$ for Hadamards;
-$I_g = mat(1, 1; 1, 1) =$ `controlled_phase_diag(0)` for CPs.
 
 #table(
   columns: (auto, auto, auto, auto),
@@ -98,9 +114,6 @@ $I_g = mat(1, 1; 1, 1) =$ `controlled_phase_diag(0)` for CPs.
   [controlled-phase],  [6],  [50], [56],
   [*total*],           [*12*], [*60*], [*72*],
 )
-
-The $12$/$60$ split matches `blocked_8`'s sparse shape bit-exactly:
-$12$ trained QFT(3, 3) gates + $60$ identity-pinned gates.
 
 == Notation
 
@@ -120,20 +133,16 @@ $12$ trained QFT(3, 3) gates + $60$ identity-pinned gates.
   [$W$], [outer-gate weight; fixed $W = 10$],
 )
 
-== Key invariant
+== Key invariant (justification)
 
-By construction, at the blocked optimum the outer contribution to
-$R_text("block")$ is zero (every outer gate is bit-exactly at its
-identity element):
-
-$ R_text("block")(theta_text("blocked\_8")) = sum_(g in cal(G)_text("inner")) norm(T_g - I_g)_F^2 + epsilon, quad epsilon approx 0 $
-
-Empirically $R_text("block")(theta_text("blocked\_8")) approx 50.3$
-at $W = 10$: inner-sum $approx 34.5$, outer-sum $approx 1.6$
-(dominated by one CP outlier; the other $59$ outer gates contribute
-$< 10^(-2)$ each). The reg term does *not* push the operator away
-from blocked even at large $lambda$ — this is the design property
-that enables crank-up without collapse.
+The fourth blue equation above is the design property: at
+`blocked_8`'s optimum the outer-gate contribution to $R_text("block")$
+is bit-exactly $0$ (every outer gate sits at its identity element).
+Empirically the small $epsilon_text("drift") approx 1.6$ at $W = 10$
+is dominated by one CP outlier — the other $59$ outer gates each
+contribute $< 10^(-2)$. The reg term therefore does *not* push the
+operator away from blocked even at large $lambda$; this is what
+enables crank-up of $lambda$ without collapse.
 
 == Implementation
 
@@ -199,15 +208,12 @@ weak a prior suffices*.
 
 == L1-to-identity: dropping the block-aligned mask
 
-Drop the inner/outer mask; penalise all gates uniformly with an L1
-norm (Huber-smoothed to avoid the kink at $T_g = I_g$):
+Drop the inner/outer mask; penalise all gates uniformly with the
+Huber-smoothed L1 norm of §Equations (third blue line above):
+$R_text("L1")(theta) = sum_g sqrt(norm(T_g - I_g)_F^2 + epsilon)$.
 
-#text(fill: red)[
-  $ R_text("L1")(theta) = sum_g sqrt(norm(T_g - I_g)_F^2 + epsilon), quad epsilon = 10^(-12) $
-]
-
-The unsmoothed L1's gradient $(T_g - I_g)/norm(T_g - I_g)_F$ is $0/0$
-at qft_identity init; `jax.grad` returns NaN there. The
+The unsmoothed gradient $(T_g - I_g)/norm(T_g - I_g)_F$ is $0/0$ at
+qft_identity init; `jax.grad` returns NaN there. The
 $epsilon$-smoothing yields a finite ($= 0$) gradient at the kink
 while agreeing with true L1 to leading order for
 $norm(T_g - I_g)_F gt.tilde 10^(-5)$. L1 induces sparsity from
