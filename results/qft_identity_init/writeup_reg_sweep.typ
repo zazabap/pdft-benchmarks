@@ -244,6 +244,39 @@ not pixel-sparse.
     — L1 picked no transform.]
 )
 
+== Frequency-space evidence
+
+Per-image frequency representations $|T(x)|$ and reconstructions at
+$rho = 0.20$ make the dataset-adaptive behaviour visible.
+
+#figure(
+  image("figures/freq_recon_div2k_8q.svg", width: 100%),
+  caption: [*DIV2K-8q, single test image.* Rows: `qft_identity` at
+    bare init (identity operator, no training), block-masked
+    $lambda = 1$ (trained), L1 $lambda = 10$ (trained). Columns:
+    input, $log_10 |T(x)|$, reconstruction at $rho = 0.20$. The
+    identity operator (top row) leaves the image in pixel domain;
+    top-$20%$ pixel retention destroys it (PSNR $8.50$ dB on this
+    image). Both trained operators (rows 2 and 3) produce structured
+    frequency spectra and recover the image cleanly. Block-masked
+    and L1 trained operators yield visibly similar $|T(x)|$ panels
+    despite training under different regulariser shapes — consistent
+    with both landing on PSNR-equivalent points of the QFT(8, 8)
+    loss surface.]
+)
+
+#figure(
+  image("figures/freq_recon_quickdraw.svg", width: 95%),
+  caption: [*QuickDraw, single test image.* Rows: `qft_identity` at
+    bare init, L1 $lambda = 10$ (trained). The L1-trained operator
+    is *essentially the identity* — its frequency representation
+    nearly matches the input (only faint perturbations on the
+    column-sum lines). On pixel-sparse data, top-$20%$ retention of
+    the raw pixels reconstructs the image to numerical precision
+    (PSNR $infinity$ at init, $91.86$ dB after L1 training — both
+    effectively perfect). The transform was unnecessary.]
+)
+
 == What this reveals
 
 L1 is *not* finding `blocked_8`. It is finding the *best basis* for
