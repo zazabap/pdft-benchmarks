@@ -148,15 +148,24 @@ class L1IdentityRegQFTMSELoss(MSELoss):
     whether plain sparsity (without the matched block-aligned mask)
     suffices to reach the ``blocked_8`` basin.
 
-    Note: ``jnp.linalg.norm(..., ord='fro')`` is differentiable
-    everywhere except exactly at ``T_g = I_g``; JAX returns
-    subgradient 0 at that kink by convention, which is the correct
-    behaviour for "pinned" gates (they stay pinned rather than
-    oscillating).
+    Note: ``jnp.linalg.norm(..., ord='fro')`` is non-smooth at
+    ``T_g = I_g`` and ``jax.grad`` returns NaN there (the gradient
+    is undefined at the origin of the norm). At qft_identity init
+    every gate sits exactly at that kink, so a naive L1 implementation
+    NaN-poisons the very first Adam update and freezes all gates at
+    identity. We avoid this with a small Huber-style smoothing
+    constant ``eps``:
+
+        ||T - I||_F ≈ sqrt(||T - I||_F^2 + eps)
+
+    Smooth everywhere; equals the true L1 to first order for
+    ``||T - I||_F >> sqrt(eps)``; gradient at ``T = I`` is zero,
+    which is the correct "stay pinned" behaviour.
     """
     lam: float = 0.0
     m: int = 0
     n: int = 0
+    eps: float = 1e-12
 
     def _extra_loss(self, tensors: Sequence[jax.Array]) -> jax.Array:
         if self.lam == 0.0:
@@ -168,9 +177,11 @@ class L1IdentityRegQFTMSELoss(MSELoss):
                 f"m={self.m}, n={self.n} → {len(identities)} entries, "
                 f"but tensors has {len(tensors)} elements."
             )
+        eps = jnp.asarray(self.eps, dtype=jnp.float64)
         total = jnp.asarray(0.0, dtype=jnp.float64)
         for t, i in zip(tensors, identities):
-            total = total + jnp.linalg.norm(t - i, ord="fro")
+            sq = jnp.sum(jnp.abs(t - i) ** 2)
+            total = total + jnp.sqrt(sq + eps)
         return self.lam * total
 
 

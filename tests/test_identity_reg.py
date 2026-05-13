@@ -238,7 +238,11 @@ def test_l1_reg_loss_lam_zero_equals_base_mse():
 
 
 def test_l1_reg_loss_at_identity_tensors_is_pure_mse():
-    """At qft_identity init (T_g == I_g for all g), the L1 reg term is 0."""
+    """At qft_identity init (T_g == I_g for all g), the L1 reg term equals
+    only the smoothing constant lam * n_gates * sqrt(eps) — a small
+    deterministic offset (≈ 3e-6 at the default eps=1e-12), not zero.
+    """
+    import math
     from pdft.bases.circuit.qft import qft_code
     from pdft.loss import loss_function
     from pdft_benchmarks.bases import qft_identity_basis
@@ -251,14 +255,49 @@ def test_l1_reg_loss_at_identity_tensors_is_pure_mse():
     tensors = list(basis.tensors)
     pic = jnp.ones((4, 4), dtype=jnp.complex128) / 4.0
 
+    lam = 0.5
+    eps = 1e-12
+    n_gates = len(tensors)
+    expected_smoothing_offset = lam * n_gates * math.sqrt(eps)
+
     base = float(loss_function(tensors, m, n, code, pic, MSELoss(k=1),
                                 inverse_code=inv_code))
     reg = float(loss_function(
         tensors, m, n, code, pic,
-        L1IdentityRegQFTMSELoss(k=1, lam=0.5, m=m, n=n),
+        L1IdentityRegQFTMSELoss(k=1, lam=lam, m=m, n=n, eps=eps),
         inverse_code=inv_code,
     ))
-    assert abs(reg - base) < 1e-10
+    assert abs(reg - base - expected_smoothing_offset) < 1e-9
+
+
+def test_l1_reg_loss_gradient_at_identity_is_finite():
+    """Regression test: at qft_identity init, the L1 reg gradient must be
+    finite (not NaN). Naive jnp.linalg.norm at the kink returns NaN and
+    NaN-poisons Adam's first step, freezing every gate at identity.
+    """
+    import jax
+    from pdft.bases.circuit.qft import qft_code
+    from pdft.loss import loss_function
+    from pdft_benchmarks.bases import qft_identity_basis
+    from pdft_benchmarks.identity_reg import L1IdentityRegQFTMSELoss
+
+    m, n = 3, 3
+    code, _ = qft_code(m, n)
+    inv_code, _ = qft_code(m, n, inverse=True)
+    basis = qft_identity_basis(m, n)
+    tensors = list(basis.tensors)
+    pic = jnp.ones((2**m, 2**n), dtype=jnp.complex128) / (2**(m+n))
+
+    loss_obj = L1IdentityRegQFTMSELoss(k=1, lam=1.0, m=m, n=n)
+
+    def total_loss(tensors_list):
+        return loss_function(tensors_list, m, n, code, pic, loss_obj,
+                             inverse_code=inv_code)
+
+    grads = jax.grad(total_loss)(tensors)
+    for i, g in enumerate(grads):
+        assert jnp.all(jnp.isfinite(g)), \
+            f"gate {i} gradient has NaN/Inf at qft_identity init"
 
 
 def test_l1_reg_loss_adds_lam_times_sum_of_fro_distances():
@@ -273,7 +312,9 @@ def test_l1_reg_loss_adds_lam_times_sum_of_fro_distances():
     pic = jnp.zeros((4, 4), dtype=jnp.complex128)
 
     table = qft_identity_table(m, n)
-    expected_reg = float(sum(jnp.linalg.norm(t - i, ord="fro")
+    # Use the same smoothed form the class implements: sqrt(||T - I||_F^2 + eps).
+    eps = 1e-12
+    expected_reg = float(sum(jnp.sqrt(jnp.sum(jnp.abs(t - i) ** 2) + eps)
                               for t, i in zip(tensors, table)))
 
     lam = 0.3
@@ -281,7 +322,7 @@ def test_l1_reg_loss_adds_lam_times_sum_of_fro_distances():
                                 inverse_code=inv_code))
     reg = float(loss_function(
         tensors, m, n, code, pic,
-        L1IdentityRegQFTMSELoss(k=1, lam=lam, m=m, n=n),
+        L1IdentityRegQFTMSELoss(k=1, lam=lam, m=m, n=n, eps=eps),
         inverse_code=inv_code,
     ))
     assert abs(reg - base - lam * expected_reg) < 1e-6
