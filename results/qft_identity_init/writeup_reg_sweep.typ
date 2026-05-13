@@ -242,6 +242,89 @@ implement L1-to-identity for comparison; characterise the boundary
 between the two basins (e.g., via interpolation along a
 linear/geodesic path).
 
+*Proposed follow-up: learnable block size.* The current regulariser
+requires the user to supply $(text("inner")_m, text("inner")_n)$ —
+i.e., to *know in advance* which block size to target. This collapses
+the experiment from "discover the best block structure" to "verify
+the matched prior reaches the prepared basin." A natural extension is
+to make the block size *itself* a trained parameter and let the
+optimiser pick it.
+
+*Construction.* Replace the discrete inner/outer mask with a smooth
+mask parameterised by a single learnable scalar $s in [1, m]$ per
+axis. For each gate $g$ in the QFT decomposition, let $q^*_g$ be the
+highest-indexed qubit it touches (along $g$'s axis). The per-gate
+weight becomes a sigmoid in $(q^*_g - s)$:
+
+$ w_g (s) = sigma((q^*_g - s) / tau) dot (W - 1) + 1 $
+
+so $w_g approx 1$ (treat as inner — soft penalty) when $q^*_g < s$
+and $w_g approx W$ (treat as outer — hard pinning) when $q^*_g > s$;
+the transition has width $tau$. The regulariser becomes
+
+$ R_text("learn")(theta, s) = sum_g w_g (s) dot norm(T_g - I_g)_F^2 $
+
+with $s$ trained jointly with $theta$ by the same Adam optimiser.
+Add a small *budget term* $mu dot s$ to the total loss so the
+optimiser pays a cost for freeing more gates — without it, $s
+arrow.r m$ (every gate inner, no reg pressure) is a trivial fixed
+point of the joint problem.
+
+*What this discovers.* At convergence, $s^*$ snaps to (approximately)
+an integer corresponding to the best inner-block size for the
+dataset and rate. On DIV2K-8q at $rho = 0.20$, prior is that
+$s^* approx 3$ (matching b=8). On QuickDraw at high $rho$, the
+block-size sweep showed b=2 wins — so $s^* approx 1$ would be the
+expected discovery. The same sweep, run at multiple $(rho, "dataset")$
+points, would generate a full map of "best block size for this
+content and rate" *automatically*, from data, without the user
+specifying the grid.
+
+*Implementation sketch.* ~30 lines added to
+`pdft_benchmarks.identity_reg`. Subclass `MSELoss` as before, but with
+an extra trainable scalar field $s$. The `_extra_loss(tensors)` hook
+needs access to $s$, which means either (a) make $s$ a class field
+treated as a parameter by `train_basis_batched` (requires upstream
+support for non-tensor learnables) or (b) treat $s$ as a 1-entry
+"tensor" registered in the basis under a trivial 1D manifold. Option
+(b) fits inside the existing `pdft` API without modification; option
+(a) is cleaner but needs an upstream change to plumb non-manifold
+learnables through `_build_jit_adam_step`. Recommend option (b) for
+the first cut.
+
+*Pitfalls and acceptance criteria.*
+
++ *Collapse modes.* Without the budget term, $s arrow.r m$ (free
+  everything → equivalent to vanilla `qft_identity`, PSNR $31.66$);
+  with too-large budget, $s arrow.r 0$ (pin everything → identity
+  operator → FFT-equivalent, PSNR $approx 24.5$). The budget $mu$
+  must be tuned; suggest sweeping $mu$ at fixed $(lambda, W) = (1, 10)$
+  initially.
+
++ *Snapping.* Final $s$ is fractional. Snap to nearest integer at
+  the end; report both pre- and post-snap PSNR. A large pre/post gap
+  signals the soft mask is doing something the discrete mask can't,
+  which is itself interesting (it suggests the *optimum* isn't at a
+  standard block boundary).
+
++ *Sanity check.* Initialise $s = 3$ and run with $(lambda, W) = (1,
+  10)$ and the budget term off. The trained $s$ should *stay at 3*
+  (or drift very little) and the PSNR should match this sweep's
+  $32.26$ dB. Departure from $s = 3$ in this setting would indicate
+  the joint problem has different attractors than the discrete one.
+
+If $s^*$ reliably matches the block-size-sweep's per-dataset peak,
+the method is a *learnable structural-prior generator* — a path
+toward the §6.1 "block size becomes a learnable structural
+parameter" goal flagged in the block-size-sweep design. No published
+regulariser in the QFT-basis space addresses this directly; the
+closest priors are group lasso for general structured sparsity
+(Yuan and Lin, 2006), L0 with hard-concrete (Louizos et al., 2018),
+and lottery-ticket-style iterative pruning (Frankle and Carbin,
+2019). None are drop-in tools for this setting, but they all argue
+that the structural mask should be learnable rather than
+hand-specified.
+
 *Reproducibility.*
 
 ```
