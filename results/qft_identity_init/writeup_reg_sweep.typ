@@ -16,9 +16,69 @@ basin in $1008$ steps. Can a structural prior bridge the gap?
 
 == Construction
 
-Total loss with regulariser:
+Total loss minimised by the optimiser (Riemannian Adam over
+$U(2)^(72)$):
 
-$ cal(L)_text("total")(theta) = cal(L)_text("MSE-topK")(theta) + lambda dot R_text("block")(theta) $
+#text(fill: blue)[
+  $ cal(L)_text("total")(theta) = underbrace(1/B sum_(b=1)^B norm(x_b - T_theta^dagger \, "top"_K (T_theta thin x_b))_F^2, "reconstruction loss (MSE-topK), per minibatch") + lambda dot underbrace(R(theta), "regulariser") $
+]
+
+*Term-by-term:*
+
+#table(
+  columns: (auto, 1fr),
+  align: (left + horizon, left),
+  stroke: 0.5pt,
+  table.header([symbol], [meaning]),
+  [$x_b in bb(R)^(2^m times 2^n)$],
+    [The $b$-th image in the minibatch (real, normalised to $[0, 1]$,
+     grayscale, $256 times 256$ for DIV2K/TU-Berlin, $32 times 32$ for
+     QuickDraw).],
+  [$B$],
+    [Minibatch size; $B = 50$ for DIV2K/TU-Berlin, $B = 16$ for
+     QuickDraw at the headline preset.],
+  [$T_theta : bb(R)^(2^m times 2^n) -> bb(C)^(2^m times 2^n)$],
+    [The trainable *forward* QFT(m, n) circuit. Contracts the
+     $(2^m times 2^n)$ image (reshaped to $(2, 2, dots.h, 2)$ over
+     $m + n$ qubit axes) through the $72$ parametric $U(2)$ gates
+     $\{T_g (theta)\}$ and reshapes back. For $m = n = 8$, the
+     $72$ gates are $16$ Hadamards + $56$ controlled-phase gates in
+     QFT canonical order.],
+  [$T_theta^dagger$],
+    [The *inverse* circuit. Implemented by conjugating each gate
+     tensor and running the inverse-direction einsum (Hadamards stay
+     Hadamards under conjugation; CPs pick up $-phi$). Identical
+     compute cost to $T_theta$.],
+  [$"top"_K(y)$],
+    [*Top-K magnitude truncation*. Sorts the $2^(m+n)$ entries of
+     $y in bb(C)^(2^m times 2^n)$ by $|y[i, j]|$, keeps the $K$
+     largest in-place and zeros the rest. $K = floor(2^(m+n) dot 0.1)$
+     at training time — i.e., training is at $rho = 0.10$
+     ($K = 6554$ for $m = n = 8$, $K = 102$ for $m = n = 5$);
+     test-time evaluation reports PSNR at
+     $rho in \{0.05, 0.10, 0.15, 0.20\}$. Non-smooth at threshold
+     ties, broken stably in implementation.],
+  [$norm(M)_F^2$],
+    [Squared Frobenius norm, $sum_(i, j) |M[i, j]|^2$. The
+     per-image squared reconstruction error, summed over all
+     $2^(m+n)$ pixels.],
+  [$lambda$],
+    [Regulariser strength scalar, swept across
+     $\{0, 10^(-3), 10^(-2), 10^(-1), 1, 10\}$ for the block-masked
+     experiment and $\{0.1, 1, 10\}$ for the L1 experiment.],
+  [$R(theta)$],
+    [The regulariser — either $R_text("block")$ (red equation below)
+     or $R_text("L1")$ (red equation in §"L1-to-identity"). Sums
+     a per-gate Frobenius-norm-of-distance-to-identity over the
+     $72$ gates, with structural weighting in the block case.],
+)
+
+The reconstruction-loss core is: forward-transform the image via
+$T_theta$, drop the $1 - rho$ fraction of smallest-magnitude
+coefficients (lossy compression), reconstruct via $T_theta^dagger$,
+and measure pixel-wise squared error. The optimiser trains $theta$
+to minimise this expected error over the train split *plus*
+$lambda dot R(theta)$.
 
 #text(fill: red)[
   $ R_text("block")(theta) = sum_(g in cal(G)_text("outer")) W dot norm(T_g - I_g)_F^2 + sum_(g in cal(G)_text("inner")) norm(T_g - I_g)_F^2 $
