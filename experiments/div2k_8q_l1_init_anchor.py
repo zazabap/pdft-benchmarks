@@ -55,6 +55,14 @@ def main() -> int:
     parser.add_argument("--out-base", type=str,
                         default="results/qft_identity_init/div2k_8q_l1_init_anchor/_runs",
                         help="Parent directory for per-(basis,lambda) run folders.")
+    parser.add_argument("--init-mode", type=str, default="canonical",
+                        choices=["canonical", "identity"],
+                        help="Initial tensor values + L1 anchor target. "
+                             "'canonical' (default): each basis starts at its "
+                             "analytic init (qft -> approximate FFT, etc.); "
+                             "L1 anchors there. 'identity': each basis starts at "
+                             "T = identity (H -> I_2, CP -> [[1,1],[1,1]], "
+                             "U(4) -> 4x4 I); L1 anchors at identity for all.")
     parser.add_argument("--preset", type=str, default="generalized",
                         choices=["smoke", "moderate", "generalized"])
     parser.add_argument("--epochs", type=int, default=112,
@@ -71,7 +79,7 @@ def main() -> int:
     import jax
     import pdft
     import pdft.io  # noqa: F401
-    from pdft_benchmarks.bases import BASIS_FACTORIES
+    from pdft_benchmarks.bases import BASIS_FACTORIES, identity_basis_for
     from pdft_benchmarks.identity_reg import L1InitAnchorMSELoss
     from pdft_benchmarks.datasets.div2k import load_div2k
     from pdft_benchmarks.evaluation import evaluate_basis_shared
@@ -118,7 +126,10 @@ def main() -> int:
             print(f"\n[l1_anchor] === basis={basis_name}, lambda={lam:.2e} "
                   f"(out: {out_dir}) ===")
 
-            basis = BASIS_FACTORIES[basis_name](m=m, n=n, seed=preset.seed)
+            if args.init_mode == "identity":
+                basis = identity_basis_for(basis_name, m=m, n=n)
+            else:
+                basis = BASIS_FACTORIES[basis_name](m=m, n=n, seed=preset.seed)
             target_tensors = tuple(basis.tensors)
 
             if lam == 0:
@@ -158,6 +169,7 @@ def main() -> int:
                     "_pdft_py": {
                         "basis": basis_name,
                         "lam": lam,
+                        "init_mode": args.init_mode,
                         "regulariser":
                             "L1InitAnchorMSELoss" if lam > 0 else "MSELoss",
                         "steps": int(result.steps),
