@@ -185,6 +185,53 @@ class L1IdentityRegQFTMSELoss(MSELoss):
         return self.lam * total
 
 
+@dataclass(frozen=True)
+class L1InitAnchorMSELoss(MSELoss):
+    """MSELoss + L1 pull of each gate tensor toward a frozen target list.
+
+    Loss = sum_pixel |x - T_dagger(topk(T(x), k))|^2
+         + lam * sum_g sqrt(||T_g - target_g||_F^2 + eps)
+
+    Generalisation of L1IdentityRegQFTMSELoss to any basis whose tensor
+    list matches ``target_tensors`` in length and per-entry shape. The
+    caller supplies the targets at construction time, typically by
+    snapshotting ``basis.tensors`` immediately after construction so the
+    regulariser pulls each gate back toward its initial value.
+
+    For QFT identity-init with ``target_tensors = qft_identity_table(m, n)``,
+    behaviour is identical to ``L1IdentityRegQFTMSELoss``. For other
+    topologies (TEBD, MERA, EntangledQFT, BlockedBasis), pass that basis's
+    analytic-init tensors and L1 pulls each trainable gate back toward
+    that prior — used to test whether the QFT/L1 identity-collapse finding
+    transfers across topologies.
+
+    Huber smoothing constant ``eps`` (default 1e-12) makes ``sqrt(sq + eps)``
+    differentiable at the kink ``T_g == target_g``; without it, ``jax.grad``
+    returns NaN there and freezes Adam on the first step. Matches the
+    smoothing used by ``L1IdentityRegQFTMSELoss``.
+    """
+    lam: float = 0.0
+    target_tensors: tuple = ()
+    eps: float = 1e-12
+
+    def _extra_loss(self, tensors: Sequence[jax.Array]) -> jax.Array:
+        if self.lam == 0.0:
+            return jnp.asarray(0.0, dtype=jnp.float64)
+        if len(self.target_tensors) != len(tensors):
+            raise ValueError(
+                f"L1InitAnchorMSELoss: gate-count mismatch — "
+                f"target_tensors has {len(self.target_tensors)} entries, "
+                f"tensors has {len(tensors)}."
+            )
+        eps = jnp.asarray(self.eps, dtype=jnp.float64)
+        total = jnp.asarray(0.0, dtype=jnp.float64)
+        for t, tgt in zip(tensors, self.target_tensors):
+            sq = jnp.sum(jnp.abs(t - tgt) ** 2)
+            total = total + jnp.sqrt(sq + eps)
+        return self.lam * total
+
+
 __all__ = ["qft_identity_table", "qft_inner_mask",
            "BlockMaskedIdentityRegQFTMSELoss",
-           "L1IdentityRegQFTMSELoss"]
+           "L1IdentityRegQFTMSELoss",
+           "L1InitAnchorMSELoss"]

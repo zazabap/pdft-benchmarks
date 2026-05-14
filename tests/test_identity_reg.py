@@ -372,3 +372,114 @@ def test_reg_loss_lam_zero_e2e_matches_base_mse_training():
         assert abs(la - lb) < 1e-9, f"loss divergence: {la} vs {lb}"
     for ta, tb in zip(res_a.basis.tensors, res_b.basis.tensors):
         assert jnp.allclose(ta, tb, atol=1e-9), "final tensors differ"
+
+
+# --- L1InitAnchorMSELoss -------------------------------------------------
+
+def test_l1_init_anchor_matches_l1_qft_identity():
+    """L1InitAnchorMSELoss with target_tensors == qft_identity_table(m, n)
+    is numerically equivalent to L1IdentityRegQFTMSELoss(m, n) on the same
+    perturbed tensor list."""
+    import jax
+    from pdft.bases.circuit.qft import qft_code
+    from pdft.loss import loss_function
+    from pdft_benchmarks.bases import qft_identity_basis
+    from pdft_benchmarks.identity_reg import (
+        L1InitAnchorMSELoss, L1IdentityRegQFTMSELoss, qft_identity_table,
+    )
+
+    m, n = 3, 3
+    code, _ = qft_code(m, n)
+    inv_code, _ = qft_code(m, n, inverse=True)
+    basis = qft_identity_basis(m, n)
+    base_tensors = [jnp.asarray(t) for t in basis.tensors]
+    # Perturb tensors so the L1 term is non-trivial.
+    key = jax.random.PRNGKey(0)
+    keys = jax.random.split(key, len(base_tensors))
+    perturbed = [
+        t + 0.05 * jax.random.normal(k, t.shape, dtype=jnp.float64).astype(jnp.complex128)
+        for t, k in zip(base_tensors, keys)
+    ]
+    pic = jnp.ones((2**m, 2**n), dtype=jnp.complex128) / (2**(m+n))
+
+    targets = tuple(jnp.asarray(t) for t in qft_identity_table(m, n))
+    loss_anchor = L1InitAnchorMSELoss(k=1, lam=1.0, target_tensors=targets)
+    loss_qft = L1IdentityRegQFTMSELoss(k=1, lam=1.0, m=m, n=n)
+
+    val_anchor = float(loss_function(perturbed, m, n, code, pic, loss_anchor,
+                                      inverse_code=inv_code))
+    val_qft = float(loss_function(perturbed, m, n, code, pic, loss_qft,
+                                   inverse_code=inv_code))
+    assert abs(val_anchor - val_qft) < 1e-9, \
+        f"L1InitAnchor {val_anchor} != L1IdentityRegQFT {val_qft}"
+
+
+def test_l1_init_anchor_lam_zero_equals_base_mse():
+    """At lambda=0, L1InitAnchorMSELoss equals plain MSELoss (fast path)."""
+    from pdft.bases.circuit.qft import qft_code
+    from pdft.loss import loss_function
+    from pdft_benchmarks.identity_reg import L1InitAnchorMSELoss
+
+    m, n = 2, 2
+    code, tensors = qft_code(m, n)
+    inv_code, _ = qft_code(m, n, inverse=True)
+    pic = jnp.ones((4, 4), dtype=jnp.complex128) / 4.0
+
+    base = float(loss_function(tensors, m, n, code, pic, MSELoss(k=1),
+                                inverse_code=inv_code))
+    # Use bogus target_tensors of correct length; lam=0 must short-circuit.
+    targets = tuple(jnp.zeros((2, 2), dtype=jnp.complex128) for _ in tensors)
+    reg = float(loss_function(
+        tensors, m, n, code, pic,
+        L1InitAnchorMSELoss(k=1, lam=0.0, target_tensors=targets),
+        inverse_code=inv_code,
+    ))
+    assert abs(reg - base) < 1e-10
+
+
+def test_l1_init_anchor_gradient_finite_at_target():
+    """Regression: gradient of L1InitAnchorMSELoss at tensors == target_tensors
+    must be finite. Huber-smoothing constant eps prevents the NaN that would
+    come from differentiating sqrt(0)."""
+    import jax
+    from pdft.bases.circuit.qft import qft_code
+    from pdft.loss import loss_function
+    from pdft_benchmarks.bases import qft_identity_basis
+    from pdft_benchmarks.identity_reg import L1InitAnchorMSELoss
+
+    m, n = 3, 3
+    code, _ = qft_code(m, n)
+    inv_code, _ = qft_code(m, n, inverse=True)
+    basis = qft_identity_basis(m, n)
+    tensors = list(basis.tensors)
+    pic = jnp.ones((2**m, 2**n), dtype=jnp.complex128) / (2**(m+n))
+
+    targets = tuple(jnp.asarray(t) for t in tensors)
+    loss_obj = L1InitAnchorMSELoss(k=1, lam=1.0, target_tensors=targets)
+
+    def total_loss(ts):
+        return loss_function(ts, m, n, code, pic, loss_obj,
+                             inverse_code=inv_code)
+
+    grads = jax.grad(total_loss)(tensors)
+    for i, g in enumerate(grads):
+        assert jnp.all(jnp.isfinite(g)), \
+            f"gate {i} gradient non-finite at target"
+
+
+def test_l1_init_anchor_runs_on_tebd_shapes():
+    """L1InitAnchorMSELoss accepts non-QFT topologies (TEBD) without shape
+    errors. At tensors == target, loss term equals n_gates * sqrt(eps)
+    (smoothing offset)."""
+    import math
+    from pdft_benchmarks.identity_reg import L1InitAnchorMSELoss
+
+    basis = pdft.TEBDBasis(m=3, n=3, seed=0)
+    tensors = list(basis.tensors)
+    targets = tuple(jnp.asarray(t) for t in tensors)
+
+    eps = 1e-12
+    loss_obj = L1InitAnchorMSELoss(k=1, lam=1.0, target_tensors=targets, eps=eps)
+    val = float(loss_obj._extra_loss(tensors))
+    expected = len(targets) * math.sqrt(eps)
+    assert abs(val - expected) < 1e-9, f"got {val}, expected {expected}"
