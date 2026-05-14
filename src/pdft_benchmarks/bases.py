@@ -135,6 +135,80 @@ def qft_identity_basis(m: int, n: int) -> pdft.QFTBasis:
     return pdft.QFTBasis(m=m, n=n, tensors=sorted_tensors)
 
 
+def _identity_tensor_for(t) -> "jax.Array":
+    """Return the identity element of the slot a canonical-init tensor occupies.
+
+    Classification rule (verified for QFT, EntangledQFT, TEBD, MERA, RichBasis,
+    RealRichBasis at canonical init):
+      - shape (2, 2) and approximately equal to the constant Hadamard
+        (1/sqrt(2)) * [[1, 1], [1, -1]]: this is an H slot -> identity = I_2.
+      - shape (2, 2) and NOT the Hadamard: this is a controlled-phase slot in
+        the 2x2 diag-stack form -> identity = [[1, 1], [1, 1]] (= phase 0).
+      - shape (2, 2, 2, 2): this is a U(4) slot (Rich/RealRich) -> identity =
+        the 4x4 identity reshaped to (2, 2, 2, 2).
+
+    Used by ``identity_basis_for`` to construct T = identity init for any
+    registered basis topology.
+    """
+    import jax.numpy as jnp
+    import numpy as np
+
+    HADAMARD = (1.0 / np.sqrt(2.0)) * np.array(
+        [[1, 1], [1, -1]], dtype=np.complex128
+    )
+    ta = np.asarray(t)
+    if ta.shape == (2, 2):
+        if np.allclose(ta, HADAMARD, atol=1e-9):
+            return jnp.eye(2, dtype=jnp.complex128)
+        return jnp.array([[1, 1], [1, 1]], dtype=jnp.complex128)
+    if ta.shape == (2, 2, 2, 2):
+        return jnp.eye(4, dtype=jnp.complex128).reshape(2, 2, 2, 2)
+    raise ValueError(
+        f"_identity_tensor_for: unexpected tensor shape {ta.shape}; "
+        f"expected (2,2) or (2,2,2,2)"
+    )
+
+
+def identity_basis_for(name: str, m: int, n: int):
+    """Construct the named basis with every gate pinned to its identity element.
+
+    Generalises ``qft_identity_basis`` to all 7 registered topologies. Each
+    slot's identity element is detected from the canonical-init tensor's
+    shape and value via ``_identity_tensor_for``:
+
+      - H gate -> ``I_2``
+      - CP gate -> ``[[1, 1], [1, 1]]`` (phase 0, the 2x2 diag-stack form of
+        the 4x4 identity)
+      - U(4) gate (Rich/RealRich) -> ``eye(4).reshape(2, 2, 2, 2)``
+
+    Result: ``basis.forward_transform(x) == x`` for any x, regardless of
+    topology. Used by the L1-init-anchor sweep to isolate the topology
+    effect from the analytic-init effect: all 7 bases start from the same
+    T=identity operator, and L1 anchors at identity for all.
+
+    For BlockedBasis variants (blocked_8, rich_8, real_rich_8), only the
+    inner basis is identity-initialised; the block-tiling is implicit and
+    not parameterised.
+    """
+    factory = BASIS_FACTORIES[name]
+    canonical = factory(m=m, n=n, seed=0)
+
+    if isinstance(canonical, pdft.BlockedBasis):
+        inner = canonical.inner
+        inner_cls = type(inner)
+        new_inner_tensors = [_identity_tensor_for(t) for t in inner.tensors]
+        new_inner = inner_cls(m=inner.m, n=inner.n, tensors=new_inner_tensors)
+        return pdft.BlockedBasis(
+            inner=new_inner,
+            block_log_m=canonical.block_log_m,
+            block_log_n=canonical.block_log_n,
+        )
+
+    cls = type(canonical)
+    new_tensors = [_identity_tensor_for(t) for t in canonical.tensors]
+    return cls(m=m, n=n, tensors=new_tensors)
+
+
 def qft_warm_from_trained_blocked(trained_blocked: pdft.BlockedBasis) -> pdft.QFTBasis:
     """Embed a trained `BlockedBasis(QFTBasis(m_i, n_i), block_log_m, block_log_n)`
     into a full `QFTBasis(m, n)` whose initial operator equals the trained blocked
@@ -248,4 +322,5 @@ def qft_warm_from_trained_blocked(trained_blocked: pdft.BlockedBasis) -> pdft.QF
     sorted_tensors = [jnp.asarray(t, dtype=jnp.complex128) for t in sorted_tensors]
     return pdft.QFTBasis(m=m_outer, n=n_outer, tensors=sorted_tensors)
 
-__all__ = ["BASIS_FACTORIES", "BasisFactory", "qft_identity_basis"]
+__all__ = ["BASIS_FACTORIES", "BasisFactory", "qft_identity_basis",
+           "identity_basis_for"]
