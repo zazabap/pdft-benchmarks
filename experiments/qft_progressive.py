@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""Drive the 8-stage qft_progressive curriculum on DIV2K-8q.
+"""Drive the 8-stage qft_progressive block-size sweep on DIV2K-8q.
 
-Trains QFT(8, 8) from identity init via progressive unfreezing: at each
-stage k=1..8, the basis is BlockedBasis(QFTBasis(k, k), 8-k, 8-k) for
-k<8 and bare QFTBasis(8, 8) for k=8. Inner gates carry forward from the
-previous stage via pdft_benchmarks.bases.qft_warm_from_smaller_qft;
-newly introduced gates at each stage start at their identity element.
+For each stage k=1..8, train INDEPENDENTLY from identity init:
+  - basis = BlockedBasis(QFTBasis(k, k), 8-k, 8-k)  for k < 8
+          = bare QFTBasis(8, 8)                      for k = 8
+  - inner init = qft_identity_basis(m=k, n=k)  (all gates at H -> I_2, CP -> phase 0)
+  - train under the headline preset for --epochs-per-stage epochs
+
+Stages do NOT share any state — there is no warm-start chain. Each k's
+training trajectory is recorded independently; the resulting per-stage
+training dynamics + end-state PSNRs constitute the sweep.
 
 Standalone driver: does NOT use pdft_benchmarks.run_experiment. Cells
 land at results/qft_progressive/div2k_8q/_runs/stage_k<k>/ with the
@@ -105,10 +109,7 @@ def main() -> int:
     import jax
     import pdft
     import pdft.io  # noqa: F401 — needed by evaluate_basis_shared
-    from pdft_benchmarks.bases import (
-        qft_identity_basis,
-        qft_warm_from_smaller_qft,
-    )
+    from pdft_benchmarks.bases import qft_identity_basis
     from pdft_benchmarks.datasets import load_div2k
     from pdft_benchmarks.evaluation import evaluate_basis_shared
     from pdft_benchmarks.presets import get_preset
@@ -148,9 +149,7 @@ def main() -> int:
         Path(f"results/qft_progressive/{args.dataset}/_runs")
     out_base.mkdir(parents=True, exist_ok=True)
 
-    prev_inner = None
-    prev_cell_path = None
-    prev_cell_sha = None
+    # Each stage is independent; no carry-forward state needed.
     stage_summaries: list[dict] = []
 
     for k in range(1, 9):
@@ -188,10 +187,10 @@ def main() -> int:
             # below from the on-disk file, so consistency is preserved.
         else:
             # Train path: build basis, train, evaluate, persist.
-            if prev_inner is None:
-                inner_k = qft_identity_basis(m=k, n=k)
-            else:
-                inner_k = qft_warm_from_smaller_qft(prev_inner)
+            # Each stage trains INDEPENDENTLY from identity init — no warm-start
+            # chain. The block-size sweep over k captures per-block-size training
+            # dynamics with a fixed identity-init policy across all k.
+            inner_k = qft_identity_basis(m=k, n=k)
             if k < 8:
                 basis = pdft.BlockedBasis(inner=inner_k,
                                           block_log_m=8 - k,
@@ -278,18 +277,15 @@ def main() -> int:
                 "steps_used": steps,
                 "n_trainable": int(n_trainable),
                 "block_size": int(2**k),
-                "prev_cell_path": prev_cell_path,
-                "prev_cell_sha256": prev_cell_sha,
+                "init_policy": "identity",
                 "preset_name": args.preset,
                 "preset_epochs_per_stage": int(args.epochs_per_stage),
                 "device": str(jax.devices()[0]),
                 "git_sha": _git_sha(),
             }, indent=2))
 
-        # COMMON path (both resume and train): update carry-forward state + manifest.
-        prev_inner = inner_trained
-        prev_cell_path = str(trained_path)
-        prev_cell_sha = _sha256_file(trained_path)
+        # COMMON path (both resume and train): record manifest summary. No
+        # carry-forward state — each stage is independent.
 
         stage_summaries.append({
             "k": k,

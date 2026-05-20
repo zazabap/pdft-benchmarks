@@ -4,7 +4,6 @@ Runs experiments/qft_progressive.py with a tiny budget (smoke preset,
 1 epoch per stage) and verifies the per-stage cell layout + manifest
 are produced correctly.
 """
-import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -15,14 +14,6 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PYTHON = "/opt/conda/envs/pdft/bin/python"
 DRIVER = REPO_ROOT / "experiments" / "qft_progressive.py"
-
-
-def _sha256_file(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 @pytest.mark.slow
@@ -74,12 +65,9 @@ def test_driver_runs_8_stages_smoke(tmp_path):
         assert stage["k"] == k
         assert stage["cell"] == f"stage_k{k}"
 
-    # Provenance chain: env.json at stage k+1 must record stage-k trained-tensor SHA.
-    for k in range(2, 9):
+    # init_policy: each stage trains independently from identity init;
+    # env.json records this as a positive provenance signal.
+    for k in range(1, 9):
         env = json.loads((out_runs / f"stage_k{k}" / "env.json").read_text())
-        prev_trained = out_runs / f"stage_k{k-1}" / f"trained_qft_progressive_k{k-1}.json"
-        expected_sha = _sha256_file(prev_trained)
-        assert env["prev_cell_sha256"] == expected_sha, (
-            f"stage_k{k} env.json prev_cell_sha256 does not match "
-            f"stage_k{k-1} trained-tensor SHA"
-        )
+        assert env["init_policy"] == "identity", \
+            f"stage_k{k} env.json init_policy != 'identity'"
