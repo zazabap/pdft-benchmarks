@@ -93,3 +93,50 @@ def test_qft_warm_from_smaller_qft_k3_to_k4_gate_counts_and_identity_init():
     assert n_inherited >= 12, f"expected ≥12 inherited (non-identity) tensors, got {n_inherited}"
     assert n_new_identity >= 8, f"expected ≥8 new identity tensors, got {n_new_identity}"
     assert n_inherited + n_new_identity == 20
+
+
+def test_operator_preservation_at_stage_boundary_k2_to_k3():
+    """BlockedBasis(QFT(2, 2), 6, 6).forward_transform(x) ==
+    BlockedBasis(QFT(3, 3) lifted via qft_warm_from_smaller_qft, 5, 5).forward_transform(x)
+
+    Verifies the spec's central operator-preservation claim: putting newly
+    introduced gates at identity in the larger QFT keeps the global image
+    operator bit-exactly identical at the stage boundary, so the
+    training-dynamics curve is continuous across boundaries.
+    """
+    # Build a small "trained" QFTBasis(2, 2) by perturbing identity init.
+    # We need ALL gates to be realistic, including CPs (PhaseManifold —
+    # each entry on U(1)).
+    h_tensors = [_almost_unitary_2x2(seed=20 + i) for i in range(4)]
+    cp_tensors = []
+    rng = np.random.default_rng(42)
+    for i in range(2):
+        phases = np.exp(1j * rng.uniform(-np.pi, np.pi, size=4))
+        cp_tensors.append(jnp.asarray(phases.reshape(2, 2), dtype=jnp.complex128))
+    smaller_inner = pdft.QFTBasis(m=2, n=2, tensors=h_tensors + cp_tensors)
+    smaller_block = pdft.BlockedBasis(
+        inner=smaller_inner, block_log_m=6, block_log_n=6,
+    )
+
+    # Lift to k=3.
+    larger_inner = qft_warm_from_smaller_qft(smaller_inner)
+    larger_block = pdft.BlockedBasis(
+        inner=larger_inner, block_log_m=5, block_log_n=5,
+    )
+
+    # Apply both to the same random 256x256 image.
+    rng = np.random.default_rng(123)
+    x = jnp.asarray(
+        rng.standard_normal((256, 256)) + 1j * rng.standard_normal((256, 256)),
+        dtype=jnp.complex128,
+    )
+    y_small = smaller_block.forward_transform(x)
+    y_large = larger_block.forward_transform(x)
+
+    max_abs_diff = float(jnp.max(jnp.abs(y_large - y_small)))
+    # Numerical noise floor: 256x256 complex with many gate contractions
+    # — 1e-9 is a comfortable tolerance well below any meaningful drift.
+    assert max_abs_diff < 1e-9, (
+        f"operator preservation FAILED at k=2 -> k=3 stage boundary: "
+        f"max |y_large - y_small| = {max_abs_diff:.3e}"
+    )
