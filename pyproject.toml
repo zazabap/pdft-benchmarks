@@ -62,4 +62,5 @@ testpaths = ["tests"]
 addopts = "-ra --strict-markers"
 markers = [
     "integration: GPU/dataset-dependent benchmark tests (deselect with -m 'not integration')",
+    "slow: end-to-end driver tests with real training (skip with -m 'not slow')",
 ]
