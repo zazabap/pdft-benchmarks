@@ -1,0 +1,86 @@
+{
+  "experiment": "qft_progressive",
+  "dataset": "div2k_8q",
+  "epochs_per_stage": 56,
+  "total_epochs": 448,
+  "stages": [
+    {
+      "k": 1,
+      "n_trainable": 2,
+      "block_size": 2,
+      "cell": "stage_k1",
+      "psnr_rho_020": 21.138937184426492,
+      "steps": 504,
+      "elapsed_seconds": 34.49976776354015
+    },
+    {
+      "k": 2,
+      "n_trainable": 6,
+      "block_size": 4,
+      "cell": "stage_k2",
+      "psnr_rho_020": 32.04588255497069,
+      "steps": 504,
+      "elapsed_seconds": 64.51716082636267
+    },
+    {
+      "k": 3,
+      "n_trainable": 12,
+      "block_size": 8,
+      "cell": "stage_k3",
+      "psnr_rho_020": 32.260386212868596,
+      "steps": 504,
+      "elapsed_seconds": 95.58112820703536
+    },
+    {
+      "k": 4,
+      "n_trainable": 20,
+      "block_size": 16,
+      "cell": "stage_k4",
+      "psnr_rho_020": 31.890870679209137,
+      "steps": 504,
+      "elapsed_seconds": 127.425182483159
+    },
+    {
+      "k": 5,
+      "n_trainable": 30,
+      "block_size": 32,
+      "cell": "stage_k5",
+      "psnr_rho_020": 31.588067910220925,
+      "steps": 504,
+      "elapsed_seconds": 161.01490830257535
+    },
+    {
+      "k": 6,
+      "n_trainable": 42,
+      "block_size": 64,
+      "cell": "stage_k6",
+      "psnr_rho_020": 31.5094286556115,
+      "steps": 504,
+      "elapsed_seconds": 197.24433473777026
+    },
+    {
+      "k": 7,
+      "n_trainable": 56,
+      "block_size": 128,
+      "cell": "stage_k7",
+      "psnr_rho_020": 31.517154395387237,
+      "steps": 504,
+      "elapsed_seconds": 232.57637328933924
+    },
+    {
+      "k": 8,
+      "n_trainable": 72,
+      "block_size": 256,
+      "cell": "stage_k8",
+      "psnr_rho_020": 31.50918479952309,
+      "steps": 504,
+      "elapsed_seconds": 271.1751468461007
+    }
+  ],
+  "anchors": {
+    "qft": 31.29,
+    "qft_identity": 31.66,
+    "blocked_8": 32.26
+  },
+  "git_sha": "172209b86e6c0e01056f7c562bdaa8354b8196bf"
+}
