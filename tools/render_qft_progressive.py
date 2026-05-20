@@ -88,15 +88,14 @@ def main() -> int:
     fig, ax_loss = plt.subplots(figsize=(8.0, 4.5))
     ax_psnr = ax_loss.twinx()
 
-    ax_loss.plot(x_val, y_val, color=COLOR_VAL_LOSS, linewidth=1.5,
-                 label="validation loss")
+    ax_loss.plot(x_val, y_val, color=COLOR_VAL_LOSS, linewidth=1.5)
     ax_loss.set_xlabel("training step (cumulative across stages)")
     ax_loss.set_ylabel("validation loss", color=COLOR_VAL_LOSS)
     ax_loss.tick_params(axis="y", labelcolor=COLOR_VAL_LOSS)
     ax_loss.set_xlim(0, total_steps)
 
     ax_psnr.plot(x_psnr, y_psnr, color=COLOR_PSNR, marker="o",
-                 markersize=5, linewidth=1.2, label="test PSNR @ ρ=0.20")
+                 markersize=5, linewidth=1.2)
     ax_psnr.set_ylabel("test PSNR @ ρ=0.20 (dB)", color=COLOR_PSNR)
     ax_psnr.tick_params(axis="y", labelcolor=COLOR_PSNR)
 
@@ -135,7 +134,10 @@ def main() -> int:
     for spine in ("top", "right"):
         inset.spines[spine].set_visible(False)
 
-    fig.tight_layout()
+    # `rect` leaves room on the right edge so the manually-placed inset
+    # doesn't clash with auto-expanded main axes; also silences the
+    # UserWarning about tight_layout+add_axes incompatibility.
+    fig.tight_layout(rect=[0, 0, 0.90, 1])
     pdf_out = out_dir / "training_dynamics.pdf"
     svg_out = out_dir / "training_dynamics.svg"
     fig.savefig(pdf_out)
