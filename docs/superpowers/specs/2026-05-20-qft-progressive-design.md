@@ -1,5 +1,9 @@
 # Design: QFT(8,8) progressive-unfreeze training sweep (k=1→8)
 
+**Short-name:** `qft_progressive` (used for the experiment script,
+results directory, per-stage basis IDs, trained-tensor filenames, and
+figure/writeup paths — see §8 for the full naming table).
+
 **Status:** spec — awaiting user review
 **Author:** Claude Opus 4.7 (1M context), with sweynan
 **Date:** 2026-05-20
@@ -108,9 +112,9 @@ parity. (Decision deferred to results.)
 | Per-stage budget | **Default: 56 epochs / stage** × 8 stages = 448 epochs total = 4032 steps total ≈ 4× headline. CLI-overridable via `--epochs-per-stage`. Reasoning: each stage needs enough budget to converge to the new degrees of freedom; the full headline budget per stage (112 ep × 8 = 896 ep = 8064 steps) is overkill for stages 1-2 where there are 2 or 6 trainable gates. 56/stage is a uniform compromise. Non-uniform schedules are a follow-up if the dynamics suggest one tier needs more budget. |
 | Other hyperparams | Frozen at the headline preset: batch 50, Adam, cosine LR (`lr_peak=0.01`, `lr_final=0.001`, `warmup_frac=0.05` *per stage*), val_split=0.15, seed=42, `--no-early-stop`. The cosine warmup re-warms at each stage boundary — flagged in §4.2 as expected behaviour, not a bug. |
 | Metric of interest | Test PSNR at ρ ∈ {0.05, 0.10, 0.15, 0.20} *at the end of each stage*; headline curve at ρ=0.20. Validation loss recorded **every minibatch** (already done by pdft) for the dynamics plot. |
-| Where results live | `results/qft_progressive_unfreeze/div2k_8q/_runs/stage_k<k>/` — one cell per stage, standard `metrics.json` + `env.json` + `trained_<basis>.json` + `loss_history.json` layout. |
-| Figures | `results/qft_progressive_unfreeze/figures/training_dynamics.{pdf,svg}` — single axes, all 8 stages concatenated; §3.4. |
-| Writeup | `results/qft_progressive_unfreeze/writeup.{typ,pdf}` — 1-page; framing language pre-committed in §1.2. |
+| Where results live | `results/qft_progressive/div2k_8q/_runs/stage_k<k>/` — one cell per stage, standard `metrics.json` + `env.json` + `trained_<basis>.json` + `loss_history.json` layout. |
+| Figures | `results/qft_progressive/figures/training_dynamics.{pdf,svg}` — single axes, all 8 stages concatenated; §3.4. |
+| Writeup | `results/qft_progressive/writeup.{typ,pdf}` — 1-page; framing language pre-committed in §1.2. |
 | Upstream pdft changes | **None.** Everything lives in `pdft_benchmarks`. |
 
 ## 3. Architecture
@@ -152,7 +156,7 @@ is determined by the gate's qubit set being a subset of $\{1..k\} \cup
 \{m+1..m+k\}$ (1-indexed, with $m$ being the inner-axis size of the
 parent).
 
-### 3.2 Driver `experiments/qft_progressive_unfreeze.py`
+### 3.2 Driver `experiments/qft_progressive.py`
 
 Self-contained, mirrors the structure of
 `experiments/qft_warmstart_blocked.py`. Does NOT use
@@ -189,9 +193,9 @@ SHA-256), `trained_qft_progressive_k<k>.json`, `loss_history.json`.
 CLI:
 
 ```bash
-python experiments/qft_progressive_unfreeze.py --gpu 0 \
+python experiments/qft_progressive.py --gpu 0 \
     [--epochs-per-stage 56] \
-    [--out-base results/qft_progressive_unfreeze/div2k_8q]
+    [--out-base results/qft_progressive/div2k_8q]
 ```
 
 Sequential stages on one GPU; no need to split across GPUs since total
@@ -199,7 +203,7 @@ wall time is ~80 min.
 
 ### 3.3 Persisted artefacts
 
-Per-stage cell at `results/qft_progressive_unfreeze/div2k_8q/_runs/stage_k<k>/`:
+Per-stage cell at `results/qft_progressive/div2k_8q/_runs/stage_k<k>/`:
 
 ```
 metrics.json                                      # standard cell schema
@@ -209,11 +213,11 @@ loss_history.json                                 # per-minibatch + per-epoch
 ```
 
 Aggregate manifest at
-`results/qft_progressive_unfreeze/div2k_8q/manifest.json`:
+`results/qft_progressive/div2k_8q/manifest.json`:
 
 ```json
 {
-  "experiment": "qft_progressive_unfreeze",
+  "experiment": "qft_progressive",
   "dataset": "div2k_8q",
   "stages": [
     {"k": 1, "trainable_gates": 2, "block_size": 2, "cell": "stage_k1", "psnr_rho_020": <...>},
@@ -228,7 +232,7 @@ Aggregate manifest at
 }
 ```
 
-### 3.4 Figure: `tools/render_qft_progressive_unfreeze.py`
+### 3.4 Figure: `tools/render_qft_progressive.py`
 
 **Single axes, one continuous curve.** No subplots, no panels.
 
@@ -254,7 +258,7 @@ Aggregate manifest at
 
 Emit PDF + SVG. **No fig.suptitle**, per repo convention.
 
-### 3.5 Writeup `results/qft_progressive_unfreeze/writeup.{typ,pdf}`
+### 3.5 Writeup `results/qft_progressive/writeup.{typ,pdf}`
 
 One page, three short sections (working artefact, not paper-final):
 
@@ -426,7 +430,35 @@ new run.
 6. **Demote regulariser experiment in the paper?** Decided in §1.3:
    yes, contingent on a clean signature from this curriculum.
 
+## 8. Naming summary
+
+All artefacts use the short-name `qft_progressive` for paths and the
+script entry-point; the descriptive long-form ("progressive-unfreeze
+training schedule") is reserved for prose in the writeup and paper.
+Per-stage artefacts are suffixed with the stage index `_k<k>`.
+
+| Artefact | Canonical name |
+|---|---|
+| Experiment short-name | `qft_progressive` |
+| Spec | `docs/superpowers/specs/2026-05-20-qft-progressive-design.md` |
+| Implementation plan | `docs/superpowers/plans/2026-05-20-qft-progressive.md` |
+| Driver script | `experiments/qft_progressive.py` |
+| Renderer | `tools/render_qft_progressive.py` |
+| Inter-stage warm-start helper | `pdft_benchmarks.bases.qft_warm_from_smaller_qft` |
+| Results parent | `results/qft_progressive/div2k_8q/` |
+| Aggregate manifest | `results/qft_progressive/div2k_8q/manifest.json` |
+| Per-stage cell directory | `results/qft_progressive/div2k_8q/_runs/stage_k<k>/` (k ∈ 1..8) |
+| Per-stage basis ID (metrics keys, table columns) | `qft_progressive_k<k>` (e.g. `qft_progressive_k3`) |
+| Per-stage trained tensors | `trained_qft_progressive_k<k>.json` |
+| Per-stage cell standard files | `metrics.json`, `env.json`, `loss_history.json` (unchanged from existing cell schema) |
+| Figure | `results/qft_progressive/figures/training_dynamics.{pdf,svg}` |
+| Writeup | `results/qft_progressive/writeup.{typ,pdf}` |
+
+Comparison anchors that will appear by name in the figure and
+metrics tables (already in repo, unchanged): `qft`, `qft_identity`,
+`blocked_8`.
+
 ---
 
 *Open for review.* On approval, the next artefact is an implementation
-plan at `docs/superpowers/plans/2026-05-20-qft-progressive-unfreeze.md`.
+plan at `docs/superpowers/plans/2026-05-20-qft-progressive.md`.
