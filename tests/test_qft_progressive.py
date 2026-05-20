@@ -2,7 +2,6 @@
 and stage-boundary operator preservation."""
 import jax.numpy as jnp
 import numpy as np
-import pytest
 
 import pdft
 from pdft.circuit.builder import controlled_phase_diag

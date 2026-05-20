@@ -322,6 +322,7 @@ def qft_warm_from_trained_blocked(trained_blocked: pdft.BlockedBasis) -> pdft.QF
     sorted_tensors = [jnp.asarray(t, dtype=jnp.complex128) for t in sorted_tensors]
     return pdft.QFTBasis(m=m_outer, n=n_outer, tensors=sorted_tensors)
 
+
 def qft_warm_from_smaller_qft(
     trained_smaller: "pdft.QFTBasis",
 ) -> "pdft.QFTBasis":
@@ -333,8 +334,9 @@ def qft_warm_from_smaller_qft(
     (k+1)-th qubit per axis pinned at identity. The induced operator on
     the inner (k+1)-qubit space is QFT(k) ⊗ I_2; when wrapped in
     BlockedBasis(..., 8-k-1, 8-k-1) at stage k+1, the global image operator
-    is bit-exactly identical to stage k's operator. Verified by the
-    stage-boundary operator-preservation test in tests/test_qft_progressive.py.
+    is bit-exactly identical to stage k's operator. The operator-preservation
+    property (QFT(k) ⊗ I_2) is verified by
+    test_operator_preservation_at_stage_boundary_k2_to_k3 (added in Task 2).
 
     Construction:
       - For each gate in QFT(k+1, k+1)'s emission order:
