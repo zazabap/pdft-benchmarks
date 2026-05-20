@@ -415,5 +415,55 @@ def qft_warm_from_smaller_qft(
     return pdft.QFTBasis(m=new_k, n=new_k, tensors=sorted_tensors)
 
 
+def qft_inner_outer_indices(
+    m: int, n: int, inner_m: int, inner_n: int,
+) -> tuple[list[int], list[int]]:
+    """Return (inner_indices, outer_indices) for QFTBasis(m, n) given an
+    (inner_m, inner_n) inner-block boundary.
+
+    A gate is "inner" iff every qubit it touches is in the inner qubit set:
+    axis-1 qubits {1..inner_m}, axis-2 qubits {m+1..m+inner_n}. Indices are
+    into the H-first canonical order that QFTBasis(m, n).tensors stores —
+    same order used by qft_identity_basis() and qft_warm_from_trained_blocked().
+
+    For m=n=8, inner_m=inner_n=3: returns 12 inner indices (6 H + 6 CP)
+    and 60 outer indices.
+    """
+    from pdft.bases.circuit.qft import _qft_gates_1d
+
+    if inner_m > m or inner_n > n or inner_m < 0 or inner_n < 0:
+        raise ValueError(
+            f"qft_inner_outer_indices: invalid inner (inner_m={inner_m}, "
+            f"inner_n={inner_n}) for m={m}, n={n}"
+        )
+    if inner_m == 0 and inner_n == 0:
+        # No inner qubits — every gate is outer.
+        gates_emit = _qft_gates_1d(m, offset=0) + _qft_gates_1d(n, offset=m)
+        return [], list(range(len(gates_emit)))
+
+    def _is_inner_q(q_1ix: int) -> bool:
+        if 1 <= q_1ix <= m:
+            return q_1ix <= inner_m
+        # axis-2: q in [m+1..m+n]
+        return (q_1ix - m) <= inner_n
+
+    gates_emit = _qft_gates_1d(m, offset=0) + _qft_gates_1d(n, offset=m)
+    # H-first canonical sort, matching QFTBasis storage.
+    emit_perm = sorted(
+        range(len(gates_emit)),
+        key=lambda i: gates_emit[i]["kind"] != "H",
+    )
+    inner: list[int] = []
+    outer: list[int] = []
+    for sorted_idx, emit_idx in enumerate(emit_perm):
+        g = gates_emit[emit_idx]
+        if all(_is_inner_q(q) for q in g["qubits"]):
+            inner.append(sorted_idx)
+        else:
+            outer.append(sorted_idx)
+    return inner, outer
+
+
 __all__ = ["BASIS_FACTORIES", "BasisFactory", "qft_identity_basis",
-           "identity_basis_for", "qft_warm_from_smaller_qft"]
+           "identity_basis_for", "qft_warm_from_smaller_qft",
+           "qft_inner_outer_indices"]

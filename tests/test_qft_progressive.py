@@ -95,6 +95,37 @@ def test_qft_warm_from_smaller_qft_k3_to_k4_gate_counts_and_identity_init():
     assert n_inherited + n_new_identity == 20
 
 
+def test_qft_inner_outer_indices_m8_n8_inner3_3():
+    """For QFT(8, 8) with (inner_m=3, inner_n=3): exactly 12 inner indices
+    (6 H + 6 CP) and 60 outer indices, partitioning {0..71}."""
+    from pdft_benchmarks.bases import qft_inner_outer_indices
+
+    inner, outer = qft_inner_outer_indices(m=8, n=8, inner_m=3, inner_n=3)
+
+    assert len(inner) == 12, f"expected 12 inner indices, got {len(inner)}"
+    assert len(outer) == 60, f"expected 60 outer indices, got {len(outer)}"
+    # Partition: union covers {0..71}, no overlap.
+    assert sorted(inner + outer) == list(range(72)), \
+        "inner + outer must partition the 72-tensor index space"
+    assert set(inner).isdisjoint(set(outer)), "inner/outer must be disjoint"
+    # 6 H + 6 CP: first 16 indices are H slots; inner H indices must be
+    # in that range and have exactly 6 entries.
+    inner_h = [i for i in inner if i < 16]
+    inner_cp = [i for i in inner if i >= 16]
+    assert len(inner_h) == 6, f"expected 6 inner H indices, got {len(inner_h)}"
+    assert len(inner_cp) == 6, f"expected 6 inner CP indices, got {len(inner_cp)}"
+
+
+def test_qft_inner_outer_indices_degenerate_inner_zero():
+    """inner_m=inner_n=0: every gate is outer."""
+    from pdft_benchmarks.bases import qft_inner_outer_indices
+
+    inner, outer = qft_inner_outer_indices(m=4, n=4, inner_m=0, inner_n=0)
+    assert inner == []
+    # QFT(4, 4) has 4+4 H + 6+6 CP = 20 gates.
+    assert outer == list(range(20))
+
+
 def test_operator_preservation_at_stage_boundary_k2_to_k3():
     """BlockedBasis(QFT(2, 2), 6, 6).forward_transform(x) ==
     BlockedBasis(QFT(3, 3) lifted via qft_warm_from_smaller_qft, 5, 5).forward_transform(x)
