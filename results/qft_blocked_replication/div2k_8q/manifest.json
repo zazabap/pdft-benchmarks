@@ -1,0 +1,25 @@
+{
+  "experiment": "qft_freeze_sweep",
+  "dataset": "div2k_8q",
+  "epochs": 112,
+  "inner_m": 3,
+  "inner_n": 3,
+  "cells": [
+    {
+      "cell": "freeze_outer",
+      "basis_name": "qft_freeze_outer",
+      "trainable_count": 12,
+      "frozen_count": 60,
+      "psnr_rho_020": 32.260744887277404,
+      "val_mse_final": 129.3221350496957,
+      "steps": 1008,
+      "elapsed_seconds": 464.92921663075686
+    }
+  ],
+  "anchors": {
+    "qft": 31.29,
+    "qft_identity": 31.66,
+    "blocked_8": 32.26
+  },
+  "git_sha": "20f30f4d81f4df0a1fe4addfd35fbd72199817af"
+}
