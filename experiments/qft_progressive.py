@@ -80,6 +80,22 @@ def main() -> int:
     from pdft_benchmarks.evaluation import evaluate_basis_shared
     from pdft_benchmarks.presets import get_preset
 
+    # GPU fail-fast: when --gpu N was passed, refuse to silently fall back
+    # to CPU (CLAUDE.md notes NVML init failures can cause this).
+    devices = jax.devices()
+    chosen = devices[0]
+    print(f"[qft_progressive] JAX devices: {devices}")
+    print(f"[qft_progressive] chosen device: {chosen} (platform={chosen.platform!r})")
+    if args.gpu is not None and chosen.platform not in ("gpu", "cuda"):
+        print(
+            f"[qft_progressive] FATAL: --gpu {args.gpu} was requested but JAX "
+            f"sees only platform={chosen.platform!r}. This typically means NVML "
+            f"failed to initialise (see CLAUDE.md 'When something goes wrong'). "
+            f"Aborting to avoid a silent CPU run.",
+            file=sys.stderr,
+        )
+        return 2
+
     preset = get_preset(args.dataset, args.preset)
     preset = replace(preset, epochs=args.epochs_per_stage,
                      early_stopping_patience=10**9)
