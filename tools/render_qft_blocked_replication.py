@@ -54,7 +54,7 @@ LOSS_HISTORY = {
     "qft": "results/div2k_8q_pca_vs_block_dct/by_basis/qft/loss_history/qft_loss.json",
     "qft_identity": "results/qft_identity_init/div2k_8q/_runs/run1/loss_history/qft_identity_loss.json",
     "blocked_8": "results/div2k_8q_pca_vs_block_dct/by_basis/blocked_8/loss_history/blocked_8_loss.json",
-    "qft_frozen_outer": "results/qft_blocked_replication/div2k_8q/_runs/freeze_outer/loss_history/qft_freeze_outer_loss.json",
+    "qft_frozen_outer": "results/qft_progressive/blocked_replication/div2k_8q/_runs/freeze_outer/loss_history/qft_freeze_outer_loss.json",
 }
 
 # Phase-staggered (period, offset) per cell — relatively-prime so adjacent
@@ -79,7 +79,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out-dir", type=str,
-                        default="results/qft_blocked_replication/div2k_8q/figures",
+                        default="results/qft_progressive/blocked_replication/div2k_8q/figures",
                         help="Where to write reproduction_comparison.{pdf,svg}.")
     parser.add_argument("--ymin", type=float, default=120.0)
     parser.add_argument("--ymax", type=float, default=320.0)
