@@ -1,0 +1,95 @@
+{
+  "experiment": "qft_progressive_frozen",
+  "replication_of": "qft_progressive",
+  "dataset": "div2k_8q",
+  "epochs_per_stage": 112,
+  "total_epochs": 896,
+  "stages": [
+    {
+      "k": 1,
+      "n_trainable": 2,
+      "n_frozen": 70,
+      "block_size": 2,
+      "cell": "stage_k1",
+      "psnr_rho_020": 21.13893958816086,
+      "steps": 1008,
+      "elapsed_seconds": 449.7123365662992
+    },
+    {
+      "k": 2,
+      "n_trainable": 6,
+      "n_frozen": 66,
+      "block_size": 4,
+      "cell": "stage_k2",
+      "psnr_rho_020": 32.04590160388226,
+      "steps": 1008,
+      "elapsed_seconds": 459.8713938193396
+    },
+    {
+      "k": 3,
+      "n_trainable": 12,
+      "n_frozen": 60,
+      "block_size": 8,
+      "cell": "stage_k3",
+      "psnr_rho_020": 32.260744887277404,
+      "steps": 1008,
+      "elapsed_seconds": 466.6365502420813
+    },
+    {
+      "k": 4,
+      "n_trainable": 20,
+      "n_frozen": 52,
+      "block_size": 16,
+      "cell": "stage_k4",
+      "psnr_rho_020": 31.9701868935894,
+      "steps": 1008,
+      "elapsed_seconds": 485.6751361787319
+    },
+    {
+      "k": 5,
+      "n_trainable": 30,
+      "n_frozen": 42,
+      "block_size": 32,
+      "cell": "stage_k5",
+      "psnr_rho_020": 31.659530212857202,
+      "steps": 1008,
+      "elapsed_seconds": 500.3696856899187
+    },
+    {
+      "k": 6,
+      "n_trainable": 42,
+      "n_frozen": 30,
+      "block_size": 64,
+      "cell": "stage_k6",
+      "psnr_rho_020": 31.65955132712411,
+      "steps": 1008,
+      "elapsed_seconds": 518.4499829085544
+    },
+    {
+      "k": 7,
+      "n_trainable": 56,
+      "n_frozen": 16,
+      "block_size": 128,
+      "cell": "stage_k7",
+      "psnr_rho_020": 31.65953941320618,
+      "steps": 1008,
+      "elapsed_seconds": 539.5580484420061
+    },
+    {
+      "k": 8,
+      "n_trainable": 72,
+      "n_frozen": 0,
+      "block_size": 256,
+      "cell": "stage_k8",
+      "psnr_rho_020": 31.6594903345831,
+      "steps": 1008,
+      "elapsed_seconds": 538.6905827866867
+    }
+  ],
+  "anchors": {
+    "qft": 31.29,
+    "qft_identity": 31.66,
+    "blocked_8": 32.26
+  },
+  "git_sha": "b09b0f77a72a599d07fa09405cd551020b93c5f5"
+}
