@@ -322,5 +322,96 @@ def qft_warm_from_trained_blocked(trained_blocked: pdft.BlockedBasis) -> pdft.QF
     sorted_tensors = [jnp.asarray(t, dtype=jnp.complex128) for t in sorted_tensors]
     return pdft.QFTBasis(m=m_outer, n=n_outer, tensors=sorted_tensors)
 
+def qft_warm_from_smaller_qft(
+    trained_smaller: "pdft.QFTBasis",
+) -> "pdft.QFTBasis":
+    """Embed a trained `QFTBasis(k, k)` into `QFTBasis(k+1, k+1)` with the
+    newly introduced gates at their identity element.
+
+    Used by the qft_progressive curriculum: stage k+1's init carries forward
+    the trained gates of stage k, with the gates that touch the new
+    (k+1)-th qubit per axis pinned at identity. The induced operator on
+    the inner (k+1)-qubit space is QFT(k) ⊗ I_2; when wrapped in
+    BlockedBasis(..., 8-k-1, 8-k-1) at stage k+1, the global image operator
+    is bit-exactly identical to stage k's operator. Verified by the
+    stage-boundary operator-preservation test in tests/test_qft_progressive.py.
+
+    Construction:
+      - For each gate in QFT(k+1, k+1)'s emission order:
+        * If the gate's qubits are a subset of QFT(k, k)'s inner qubit set
+          (axis-1: {1..k}; axis-2: {k+2..2k+1} after the axis-2 offset shifts
+          from k to k+1), copy the trained tensor from `trained_smaller`.
+        * Else (the gate touches the newly introduced qubit per axis: axis-1
+          qubit k+1, axis-2 qubit 2k+2), set to H -> I_2; CP -> phase 0.
+      - Hadamard-first canonical sort to match QFTBasis storage convention.
+    """
+    import jax.numpy as jnp
+    from pdft.bases.circuit.qft import _qft_gates_1d
+    from pdft.circuit.builder import controlled_phase_diag
+
+    if trained_smaller.m != trained_smaller.n:
+        raise ValueError(
+            f"qft_warm_from_smaller_qft: requires m == n, "
+            f"got m={trained_smaller.m}, n={trained_smaller.n}"
+        )
+    k = trained_smaller.m
+    new_k = k + 1
+
+    smaller_gates_emit = (
+        _qft_gates_1d(k, offset=0) + _qft_gates_1d(k, offset=k)
+    )
+    if len(smaller_gates_emit) != len(trained_smaller.tensors):
+        raise AssertionError(
+            f"smaller gate count mismatch: {len(smaller_gates_emit)} emitted "
+            f"vs {len(trained_smaller.tensors)} stored tensors"
+        )
+    smaller_emit_perm = sorted(
+        range(len(smaller_gates_emit)),
+        key=lambda i: smaller_gates_emit[i]["kind"] != "H",
+    )
+    smaller_emit_to_sorted = [0] * len(smaller_emit_perm)
+    for sorted_idx, emit_idx in enumerate(smaller_emit_perm):
+        smaller_emit_to_sorted[emit_idx] = sorted_idx
+    smaller_in_emit_order = [
+        trained_smaller.tensors[smaller_emit_to_sorted[j]]
+        for j in range(len(smaller_gates_emit))
+    ]
+
+    def _smaller_q_to_larger_q(q_smaller_1ix: int) -> int:
+        return q_smaller_1ix if q_smaller_1ix <= k else q_smaller_1ix + 1
+
+    smaller_lookup: dict = {}
+    for j, g in enumerate(smaller_gates_emit):
+        larger_qs = tuple(_smaller_q_to_larger_q(q) for q in g["qubits"])
+        smaller_lookup[(g["kind"], larger_qs)] = smaller_in_emit_order[j]
+
+    larger_gates_emit = (
+        _qft_gates_1d(new_k, offset=0) + _qft_gates_1d(new_k, offset=new_k)
+    )
+
+    eye2 = jnp.eye(2, dtype=jnp.complex128)
+    cp_identity = controlled_phase_diag(0.0)
+
+    new_temporal: list = []
+    for g in larger_gates_emit:
+        key = (g["kind"], g["qubits"])
+        if key in smaller_lookup:
+            new_temporal.append(smaller_lookup[key])
+        elif g["kind"] == "H":
+            new_temporal.append(eye2)
+        elif g["kind"] == "CP":
+            new_temporal.append(cp_identity)
+        else:
+            raise AssertionError(f"unexpected QFT gate kind {g['kind']}")
+
+    larger_emit_perm = sorted(
+        range(len(larger_gates_emit)),
+        key=lambda i: larger_gates_emit[i]["kind"] != "H",
+    )
+    sorted_tensors = [new_temporal[i] for i in larger_emit_perm]
+    sorted_tensors = [jnp.asarray(t, dtype=jnp.complex128) for t in sorted_tensors]
+    return pdft.QFTBasis(m=new_k, n=new_k, tensors=sorted_tensors)
+
+
 __all__ = ["BASIS_FACTORIES", "BasisFactory", "qft_identity_basis",
-           "identity_basis_for"]
+           "identity_basis_for", "qft_warm_from_smaller_qft"]
