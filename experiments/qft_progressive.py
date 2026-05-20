@@ -55,7 +55,7 @@ def main() -> int:
     parser.add_argument("--epochs-per-stage", type=int, default=56,
                         help="Per-stage epoch budget. Default 56 -> 448 total epochs across 8 stages.")
     parser.add_argument("--out-base", type=str, default=None,
-                        help="Parent for per-stage cells. Default results/qft_progressive/div2k_8q.")
+                        help="Parent for per-stage cells. Default results/qft_progressive/<dataset>/_runs.")
     parser.add_argument("--dataset", type=str, default="div2k_8q",
                         choices=["div2k_8q"],
                         help="Dataset + qubit config. div2k_8q only for now (spec scope).")
@@ -69,7 +69,6 @@ def main() -> int:
     # IMPORTANT: imports after env var so JAX picks up the device.
     import numpy as np
     import jax
-    import jax.numpy as jnp
     import pdft
     import pdft.io  # noqa: F401 — needed by evaluate_basis_shared
     from pdft_benchmarks.bases import (
