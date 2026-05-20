@@ -77,11 +77,11 @@ def main() -> int:
     parser.add_argument("--out-dir", type=str,
                         default="results/qft_progressive/figures",
                         help="Where to write training_dynamics.{pdf,svg}.")
-    parser.add_argument("--mode", type=str, default="normalized",
+    parser.add_argument("--mode", type=str, default="absolute",
                         choices=["normalized", "absolute"],
-                        help="normalized: y = val_loss / first_val_loss "
-                             "(each curve starts at 1.0). "
-                             "absolute: y = val MSE.")
+                        help="absolute (default): y = val MSE. "
+                             "normalized: y = val_loss / first_val_loss "
+                             "(each curve starts at 1.0).")
     args = parser.parse_args()
 
     import matplotlib
@@ -93,8 +93,15 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Collect per-stage curves for k=1..7.
+    # Plot k=2..7. k=1 is dropped from the headline figure: with only 2
+    # H gates (QFT(1, 1) has no CPs), the operator capacity is too small
+    # to escape the high-loss plateau (~5436), which dominates the linear-y
+    # range and squashes the converged-floor region where the k=2..7
+    # final-value differences live. The k=1 cell remains on disk for
+    # reference; its data is not pretty on the same axes as the rest.
     curves = []
-    for k in range(1, 8):
+    k_range = range(2, 8) if args.mode == "absolute" else range(1, 8)
+    for k in k_range:
         lh = _load_stage_loss_history(results_base, k)
         step_losses = np.asarray(lh["step_losses"], dtype=np.float64)
         val_losses = np.asarray(lh["val_losses"], dtype=np.float64)
@@ -156,6 +163,12 @@ def main() -> int:
     ax.set_xlabel("training step (within stage)", fontsize=8)
     if args.mode == "absolute":
         ax.set_ylabel("absolute val MSE", fontsize=8)
+        # Zoom to the convergence-floor region so per-stage final values
+        # are visually distinguishable (matches the [~95, 280] window of
+        # render_loss_curves.py). With identity init at every k, the
+        # first val checkpoint is around L_0 ≈ 13440 for all stages —
+        # auto-scale would squash everything into the lower decile.
+        ax.set_ylim(90, 300)
     else:
         ax.set_ylabel(r"val loss / $L_0$", fontsize=8)
         ax.axhline(1.0, color="#888888", linewidth=0.7, zorder=0)
