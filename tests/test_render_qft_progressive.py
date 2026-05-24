@@ -1,7 +1,9 @@
-"""Smoke test the qft_progressive renderer with synthesized cells."""
+"""Smoke test the progressive renderer with synthesized cells, per family."""
 import json
 import subprocess
 from pathlib import Path
+
+import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -9,7 +11,7 @@ PYTHON = "/opt/conda/envs/pdft/bin/python"
 RENDERER = REPO_ROOT / "tools" / "render_qft_progressive.py"
 
 
-def _synthesize_cells(results_base: Path) -> None:
+def _synthesize_cells(results_base: Path, family: str) -> None:
     """Populate results_base with a manifest + 8 fake stage cells."""
     runs = results_base / "_runs"
     runs.mkdir(parents=True, exist_ok=True)
@@ -24,7 +26,7 @@ def _synthesize_cells(results_base: Path) -> None:
         (cell / "loss_history").mkdir(parents=True, exist_ok=True)
         step_losses = [100.0 - 0.5 * i for i in range(steps_per_stage)]
         val_losses = [step_losses[-1] + 1.0]
-        (cell / "loss_history" / f"qft_progressive_k{k}_loss.json").write_text(json.dumps({
+        (cell / "loss_history" / f"{family}_progressive_k{k}_loss.json").write_text(json.dumps({
             "step_losses": step_losses,
             "val_losses": val_losses,
             "epochs_completed": 1,
@@ -37,22 +39,25 @@ def _synthesize_cells(results_base: Path) -> None:
             "steps": steps_per_stage, "elapsed_seconds": 1.0,
         })
     (results_base / "manifest.json").write_text(json.dumps({
-        "experiment": "qft_progressive",
+        "experiment": f"{family}_progressive",
+        "family": family,
         "dataset": "div2k_8q",
         "epochs_per_stage": 1,
         "total_epochs": 8,
         "stages": stages,
-        "anchors": {"qft": 31.29, "qft_identity": 31.66, "blocked_8": 32.26},
+        "anchors": {"qft": 31.29, "blocked_8": 32.26},
         "git_sha": "synthetic",
     }))
 
 
-def test_renderer_produces_pdf_and_svg(tmp_path):
+@pytest.mark.parametrize("family", ["qft", "rich", "real_rich"])
+def test_renderer_produces_pdf_and_svg(tmp_path, family):
     results_base = tmp_path / "results"
-    _synthesize_cells(results_base)
+    _synthesize_cells(results_base, family)
     out_dir = tmp_path / "figures"
     cmd = [
         PYTHON, str(RENDERER),
+        "--family", family,
         "--results-base", str(results_base),
         "--out-dir", str(out_dir),
     ]

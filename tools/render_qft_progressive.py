@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""Render qft_progressive per-stage training-dynamics curves.
+"""Render <family>_progressive per-stage training-dynamics curves.
 
-Reads results/qft_progressive/<dataset>/_runs/stage_k<k>/loss_history/
-qft_progressive_k<k>_loss.json for k=1..7 and emits training_dynamics.{pdf,svg}
-at results/qft_progressive/figures/.
+Reads results/<family>_progressive/<dataset>/_runs/stage_k<k>/loss_history/
+<family>_progressive_k<k>_loss.json for k=1..7 and emits
+training_dynamics.{pdf,svg} at results/<family>_progressive/figures/.
+
+`--family` selects the circuit family (qft / rich / real_rich); it only
+changes the loss-file basename and the default input/output paths. Style
+is identical across families.
 
 Style follows tools/render_loss_curves.py: one curve per stage on a
 single panel with per-stage colour + phase-staggered markers; legend
@@ -16,10 +20,12 @@ is dropped is covered in the writeup as a follow-up note, not in the
 headline figure).
 
 Usage:
+    python tools/render_qft_progressive.py --family qft
+    python tools/render_qft_progressive.py --family rich
     python tools/render_qft_progressive.py \\
-        [--results-base results/qft_progressive/div2k_8q] \\
-        [--out-dir results/qft_progressive/figures] \\
-        [--mode {normalized,absolute}]   (default: normalized)
+        --results-base results/rich_progressive/div2k_8q \\
+        --out-dir results/rich_progressive/figures \\
+        [--mode {normalized,absolute}]   (default: absolute)
 """
 from __future__ import annotations
 
@@ -61,48 +67,76 @@ MARKER_BY_K = {
 # render_loss_curves.py SCHEDULE.
 SCHEDULE = [(7, 2), (9, 4), (11, 6), (13, 8), (8, 3), (10, 5), (12, 7)]
 
+# Per-family default y-window for absolute-MSE mode. The converged val-MSE
+# floor differs by family (richer manifolds reach a lower floor), so each
+# gets a window that keeps the per-stage final-value spread visible without
+# the high-loss plateau squashing it. Override with --ymin / --ymax.
+ABS_YLIM = {
+    # All three families descend from L_0 ~ 1.3e4 (identity init) to a
+    # converged floor in the low hundreds (qft finals ~95-280; rich /
+    # real_rich finals ~101-148). The shared [90, 300] window zooms into
+    # that floor so per-stage final-value differences stay visible without
+    # the high-loss plateau squashing them. Override with --ymin / --ymax.
+    "qft": (90.0, 300.0),
+    "rich": (90.0, 300.0),
+    "real_rich": (90.0, 300.0),
+}
 
-def _load_stage_loss_history(results_base: Path, k: int) -> dict:
+
+def _load_stage_loss_history(results_base: Path, family: str, k: int) -> dict:
     cell = results_base / "_runs" / f"stage_k{k}"
-    lh_path = cell / "loss_history" / f"qft_progressive_k{k}_loss.json"
+    lh_path = cell / "loss_history" / f"{family}_progressive_k{k}_loss.json"
     return json.loads(lh_path.read_text())
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--results-base", type=str,
-                        default="results/qft_progressive/div2k_8q",
-                        help="Parent dir holding _runs/stage_k<k>/.")
-    parser.add_argument("--out-dir", type=str,
-                        default="results/qft_progressive/figures",
-                        help="Where to write training_dynamics.{pdf,svg}.")
+    parser.add_argument("--family", type=str, default="qft",
+                        choices=["qft", "rich", "real_rich"],
+                        help="Circuit family. Selects the loss-file basename and "
+                             "the default input/output paths. Default qft.")
+    parser.add_argument("--dataset", type=str, default="div2k_8q",
+                        help="Dataset tag used in the default --results-base path.")
+    parser.add_argument("--results-base", type=str, default=None,
+                        help="Parent dir holding _runs/stage_k<k>/. "
+                             "Default results/<family>_progressive/<dataset>.")
+    parser.add_argument("--out-dir", type=str, default=None,
+                        help="Where to write training_dynamics.{pdf,svg}. "
+                             "Default results/<family>_progressive/figures.")
     parser.add_argument("--mode", type=str, default="absolute",
                         choices=["normalized", "absolute"],
                         help="absolute (default): y = val MSE. "
                              "normalized: y = val_loss / first_val_loss "
                              "(each curve starts at 1.0).")
+    parser.add_argument("--ymin", type=float, default=None,
+                        help="Override lower y-limit (absolute mode).")
+    parser.add_argument("--ymax", type=float, default=None,
+                        help="Override upper y-limit (absolute mode).")
     args = parser.parse_args()
 
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    results_base = Path(args.results_base)
-    out_dir = Path(args.out_dir)
+    family = args.family
+    results_base = Path(args.results_base) if args.results_base else \
+        Path(f"results/{family}_progressive/{args.dataset}")
+    out_dir = Path(args.out_dir) if args.out_dir else \
+        Path(f"results/{family}_progressive/figures")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Collect per-stage curves for k=1..7.
     # Plot k=2..7. k=1 is dropped from the headline figure: with only 2
     # H gates (QFT(1, 1) has no CPs), the operator capacity is too small
-    # to escape the high-loss plateau (~5436), which dominates the linear-y
-    # range and squashes the converged-floor region where the k=2..7
-    # final-value differences live. The k=1 cell remains on disk for
-    # reference; its data is not pretty on the same axes as the rest.
+    # to escape the high-loss plateau, which dominates the linear-y range
+    # and squashes the converged-floor region where the k=2..7 final-value
+    # differences live. The k=1 cell remains on disk for reference; its data
+    # is not pretty on the same axes as the rest.
     curves = []
     k_range = range(2, 8) if args.mode == "absolute" else range(1, 8)
     for k in k_range:
-        lh = _load_stage_loss_history(results_base, k)
+        lh = _load_stage_loss_history(results_base, family, k)
         step_losses = np.asarray(lh["step_losses"], dtype=np.float64)
         val_losses = np.asarray(lh["val_losses"], dtype=np.float64)
         if len(val_losses) == 0:
@@ -122,7 +156,8 @@ def main() -> int:
         })
 
     if not curves:
-        print("[render_qft_progressive] no stage curves found.", file=sys.stderr)
+        print(f"[render_progressive] no stage curves found under {results_base}.",
+              file=sys.stderr)
         return 2
 
     fig, ax = plt.subplots(figsize=(8.0, 4.6))
@@ -164,11 +199,15 @@ def main() -> int:
     if args.mode == "absolute":
         ax.set_ylabel("absolute val MSE", fontsize=8)
         # Zoom to the convergence-floor region so per-stage final values
-        # are visually distinguishable (matches the [~95, 280] window of
-        # render_loss_curves.py). With identity init at every k, the
-        # first val checkpoint is around L_0 ≈ 13440 for all stages —
-        # auto-scale would squash everything into the lower decile.
-        ax.set_ylim(90, 300)
+        # are visually distinguishable. With identity init at every k, the
+        # first val checkpoint is identical across stages — auto-scale would
+        # squash everything into the lower decile. Per-family default window;
+        # --ymin / --ymax override.
+        default_lo, default_hi = ABS_YLIM.get(family, (None, None))
+        ymin = args.ymin if args.ymin is not None else default_lo
+        ymax = args.ymax if args.ymax is not None else default_hi
+        if ymin is not None or ymax is not None:
+            ax.set_ylim(ymin, ymax)
     else:
         ax.set_ylabel(r"val loss / $L_0$", fontsize=8)
         ax.axhline(1.0, color="#888888", linewidth=0.7, zorder=0)
@@ -193,7 +232,7 @@ def main() -> int:
     fig.savefig(pdf_out, bbox_inches="tight")
     fig.savefig(svg_out, bbox_inches="tight")
     plt.close(fig)
-    print(f"[render_qft_progressive] wrote {pdf_out} and {svg_out}")
+    print(f"[render_progressive] wrote {pdf_out} and {svg_out}")
     return 0
 
 

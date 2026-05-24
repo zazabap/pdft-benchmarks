@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
-"""Drive the 8-stage qft_progressive block-size sweep on DIV2K-8q.
+"""Drive the 8-stage progressive block-size sweep on DIV2K-8q.
+
+Supports three circuit families via --family: `qft` (default), `rich`,
+`real_rich`. The curriculum is identical across families; only the
+per-stage inner basis changes.
 
 For each stage k=1..8, train INDEPENDENTLY from identity init:
-  - basis = BlockedBasis(QFTBasis(k, k), 8-k, 8-k)  for k < 8
-          = bare QFTBasis(8, 8)                      for k = 8
-  - inner init = qft_identity_basis(m=k, n=k)  (all gates at H -> I_2, CP -> phase 0)
+  - basis = BlockedBasis(<family>(k, k), 8-k, 8-k)  for k < 8
+          = bare <family>(8, 8)                     for k = 8
+  - inner init = <family>_identity_basis(m=k, n=k)
+        qft       : H -> I_2, CP -> phase 0
+        rich      : H -> I_2, U4 -> I_4 (complex U(2)/U(4) manifolds)
+        real_rich : H -> I_2, U4 -> I_4 (real SO(2)/SO(4) manifolds)
   - train under the headline preset for --epochs-per-stage epochs
 
 Stages do NOT share any state — there is no warm-start chain. Each k's
@@ -12,12 +19,14 @@ training trajectory is recorded independently; the resulting per-stage
 training dynamics + end-state PSNRs constitute the sweep.
 
 Standalone driver: does NOT use pdft_benchmarks.run_experiment. Cells
-land at results/qft_progressive/div2k_8q/_runs/stage_k<k>/ with the
+land at results/<family>_progressive/<dataset>/_runs/stage_k<k>/ with the
 standard cell schema. An aggregate manifest is written at
-results/qft_progressive/div2k_8q/manifest.json.
+results/<family>_progressive/<dataset>/manifest.json.
 
 Usage:
-    python experiments/qft_progressive.py --gpu 0 [--epochs-per-stage 56]
+    python experiments/qft_progressive.py --gpu 0 [--family qft] [--epochs-per-stage 56]
+    python experiments/qft_progressive.py --gpu 0 --family rich --epochs-per-stage 112
+    python experiments/qft_progressive.py --gpu 1 --family real_rich --epochs-per-stage 112
 """
 from __future__ import annotations
 
@@ -30,6 +39,17 @@ import sys
 import time
 from dataclasses import replace
 from pathlib import Path
+
+
+# Per-family reference anchors (PSNR @ rho=0.20, dB) recorded in the
+# manifest for context. The `*_8` values are the trained
+# BlockedBasis(<family>(3, 3), 5, 5) cells from div2k_8q_pca_vs_block_dct;
+# qft / blocked_8 are kept as cross-family reference points.
+ANCHORS = {
+    "qft": {"qft": 31.29, "qft_identity": 31.66, "blocked_8": 32.26},
+    "rich": {"rich_8": 33.70, "blocked_8": 32.26, "qft": 31.29},
+    "real_rich": {"real_rich_8": 33.70, "blocked_8": 32.26, "qft": 31.29},
+}
 
 
 def _git_sha() -> str:
@@ -49,17 +69,18 @@ def _sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def _load_trained_qftbasis_checkpoint(path: "Path", expected_k: int):
-    """Reconstruct a `pdft.QFTBasis(k, k)` from a trained_qft_progressive_k<k>.json
-    checkpoint file written by an earlier stage. Used by the resume-from-checkpoint
-    path in main().
+def _load_trained_checkpoint(path: "Path", expected_k: int, basis_cls):
+    """Reconstruct a `basis_cls(k, k)` from a trained_<exp>_k<k>.json checkpoint
+    written by an earlier stage. Used by the resume-from-checkpoint path in
+    main(). `basis_cls` is the family's full-circuit class (QFTBasis /
+    RichBasis / RealRichBasis); its `code` / `inv_code` are rebuilt from
+    (m, n) by the constructor.
 
     The on-disk schema is:
-      {"stage_k": k, "m": k, "n": k, "tensors": [{"real": [[...]], "imag": [[...]]}, ...]}
+      {"stage_k": k, "m": k, "n": k, "tensors": [{"real": [...], "imag": [...]}, ...]}
     """
     import jax.numpy as jnp
     import numpy as np
-    import pdft
 
     data = json.loads(path.read_text())
     m, n = int(data["m"]), int(data["n"])
@@ -77,7 +98,7 @@ def _load_trained_qftbasis_checkpoint(path: "Path", expected_k: int):
         )
         for t in data["tensors"]
     ]
-    return pdft.QFTBasis(m=m, n=n, tensors=tensors)
+    return basis_cls(m=m, n=n, tensors=tensors)
 
 
 def main() -> int:
@@ -87,10 +108,14 @@ def main() -> int:
     )
     parser.add_argument("--gpu", type=int, default=None,
                         help="GPU index. Sets CUDA_VISIBLE_DEVICES before any pdft/jax import.")
+    parser.add_argument("--family", type=str, default="qft",
+                        choices=["qft", "rich", "real_rich"],
+                        help="Circuit family for the per-stage inner basis. "
+                             "Default qft.")
     parser.add_argument("--epochs-per-stage", type=int, default=56,
                         help="Per-stage epoch budget. Default 56 -> 448 total epochs across 8 stages.")
     parser.add_argument("--out-base", type=str, default=None,
-                        help="Parent for per-stage cells. Default results/qft_progressive/<dataset>/_runs.")
+                        help="Parent for per-stage cells. Default results/<family>_progressive/<dataset>/_runs.")
     parser.add_argument("--dataset", type=str, default="div2k_8q",
                         choices=["div2k_8q"],
                         help="Dataset + qubit config. div2k_8q only for now (spec scope).")
@@ -109,20 +134,37 @@ def main() -> int:
     import jax
     import pdft
     import pdft.io  # noqa: F401 — needed by evaluate_basis_shared
-    from pdft_benchmarks.bases import qft_identity_basis
+    from pdft_benchmarks.bases import (
+        qft_identity_basis,
+        rich_identity_basis,
+        real_rich_identity_basis,
+    )
     from pdft_benchmarks.datasets import load_div2k
     from pdft_benchmarks.evaluation import evaluate_basis_shared
     from pdft_benchmarks.presets import get_preset
+
+    family = args.family
+    exp = f"{family}_progressive"
+    identity_builder = {
+        "qft": qft_identity_basis,
+        "rich": rich_identity_basis,
+        "real_rich": real_rich_identity_basis,
+    }[family]
+    basis_cls = {
+        "qft": pdft.QFTBasis,
+        "rich": pdft.RichBasis,
+        "real_rich": pdft.RealRichBasis,
+    }[family]
 
     # GPU fail-fast: when --gpu N was passed, refuse to silently fall back
     # to CPU (CLAUDE.md notes NVML init failures can cause this).
     devices = jax.devices()
     chosen = devices[0]
-    print(f"[qft_progressive] JAX devices: {devices}")
-    print(f"[qft_progressive] chosen device: {chosen} (platform={chosen.platform!r})")
+    print(f"[{exp}] JAX devices: {devices}")
+    print(f"[{exp}] chosen device: {chosen} (platform={chosen.platform!r})")
     if args.gpu is not None and chosen.platform not in ("gpu", "cuda"):
         print(
-            f"[qft_progressive] FATAL: --gpu {args.gpu} was requested but JAX "
+            f"[{exp}] FATAL: --gpu {args.gpu} was requested but JAX "
             f"sees only platform={chosen.platform!r}. This typically means NVML "
             f"failed to initialise (see CLAUDE.md 'When something goes wrong'). "
             f"Aborting to avoid a silent CPU run.",
@@ -133,8 +175,9 @@ def main() -> int:
     preset = get_preset(args.dataset, args.preset)
     preset = replace(preset, epochs=args.epochs_per_stage,
                      early_stopping_patience=10**9)
-    print(f"[qft_progressive] dataset={args.dataset}, preset.epochs={preset.epochs} "
-          f"per stage, early_stopping disabled, seed={preset.seed}")
+    print(f"[{exp}] family={family}, dataset={args.dataset}, "
+          f"preset.epochs={preset.epochs} per stage, early_stopping disabled, "
+          f"seed={preset.seed}")
 
     m = n = 8
     train_imgs_np, test_imgs_np = load_div2k(
@@ -142,11 +185,11 @@ def main() -> int:
         seed=preset.seed, size=2**m,
     )
     k_train = max(1, round(2 ** (m + n) * 0.1))
-    print(f"[qft_progressive] m=n={m}, k_train={k_train}, "
+    print(f"[{exp}] m=n={m}, k_train={k_train}, "
           f"{len(train_imgs_np)} train images, {len(test_imgs_np)} test images")
 
     out_base = Path(args.out_base) if args.out_base else \
-        Path(f"results/qft_progressive/{args.dataset}/_runs")
+        Path(f"results/{exp}/{args.dataset}/_runs")
     out_base.mkdir(parents=True, exist_ok=True)
 
     # Each stage is independent; no carry-forward state needed.
@@ -154,7 +197,7 @@ def main() -> int:
 
     for k in range(1, 9):
         stage_tag = f"stage_k{k}"
-        basis_name = f"qft_progressive_k{k}"
+        basis_name = f"{exp}_k{k}"
         out_dir = out_base / stage_tag
         out_dir.mkdir(parents=True, exist_ok=True)
         (out_dir / "loss_history").mkdir(parents=True, exist_ok=True)
@@ -164,7 +207,8 @@ def main() -> int:
 
         if trained_path.exists() and metrics_path.exists() and not args.force:
             # Resume path: load existing trained inner tensors and existing metrics.
-            inner_k = _load_trained_qftbasis_checkpoint(trained_path, expected_k=k)
+            inner_k = _load_trained_checkpoint(trained_path, expected_k=k,
+                                               basis_cls=basis_cls)
             n_trainable = len(inner_k.tensors)
             existing_metrics = json.loads(metrics_path.read_text())
             if basis_name not in existing_metrics:
@@ -177,9 +221,9 @@ def main() -> int:
             elapsed = float(cell_data["time"])
             steps = int(cell_data["_pdft_py"]["steps"])
             epochs_completed = int(cell_data["_pdft_py"]["epochs_completed"])
-            print(f"\n[qft_progressive] === stage k={k}: RESUMED from existing cell "
+            print(f"\n[{exp}] === stage k={k}: RESUMED from existing cell "
                   f"({n_trainable} trainable gates, block size {2**k}x{2**k}) ===")
-            print(f"[qft_progressive]   PSNR @ rho=0.20: {psnr20:.3f} dB "
+            print(f"[{exp}]   PSNR @ rho=0.20: {psnr20:.3f} dB "
                   f"(from existing metrics.json)")
             inner_trained = inner_k
             # Do NOT rewrite trained_*.json, metrics.json, env.json, or loss_history
@@ -190,7 +234,7 @@ def main() -> int:
             # Each stage trains INDEPENDENTLY from identity init — no warm-start
             # chain. The block-size sweep over k captures per-block-size training
             # dynamics with a fixed identity-init policy across all k.
-            inner_k = qft_identity_basis(m=k, n=k)
+            inner_k = identity_builder(m=k, n=k)
             if k < 8:
                 basis = pdft.BlockedBasis(inner=inner_k,
                                           block_log_m=8 - k,
@@ -199,7 +243,7 @@ def main() -> int:
                 basis = inner_k
 
             n_trainable = len(inner_k.tensors)
-            print(f"\n[qft_progressive] === stage k={k} ({n_trainable} trainable gates, "
+            print(f"\n[{exp}] === stage k={k} ({n_trainable} trainable gates, "
                   f"block size {2**k}x{2**k}) -> {out_dir} ===")
 
             t0 = time.perf_counter()
@@ -222,7 +266,7 @@ def main() -> int:
             elapsed = time.perf_counter() - t0
             steps = int(result.steps)
             epochs_completed = int(result.epochs_completed)
-            print(f"[qft_progressive]   trained in {elapsed:.1f}s, "
+            print(f"[{exp}]   trained in {elapsed:.1f}s, "
                   f"steps={steps}, epochs={epochs_completed}")
 
             eval_metrics, _ = evaluate_basis_shared(
@@ -230,7 +274,7 @@ def main() -> int:
                 keep_ratios=(0.05, 0.10, 0.15, 0.20),
             )
             psnr20 = float(eval_metrics["0.2"]["mean_psnr"])
-            print(f"[qft_progressive]   PSNR @ rho=0.20: {psnr20:.3f} dB")
+            print(f"[{exp}]   PSNR @ rho=0.20: {psnr20:.3f} dB")
 
             # Persist trained tensors FIRST so that even if subsequent JSON
             # writes fail, the durable checkpoint exists.
@@ -252,6 +296,7 @@ def main() -> int:
                     "metrics": eval_metrics,
                     "time": elapsed,
                     "_pdft_py": {
+                        "family": family,
                         "stage_k": k,
                         "n_trainable": int(n_trainable),
                         "block_size": int(2**k),
@@ -271,7 +316,8 @@ def main() -> int:
             }, indent=2))
 
             (out_dir / "env.json").write_text(json.dumps({
-                "experiment": "qft_progressive",
+                "experiment": exp,
+                "family": family,
                 "stage_k": k,
                 "epochs_used": epochs_completed,
                 "steps_used": steps,
@@ -299,17 +345,18 @@ def main() -> int:
 
     manifest_path = out_base.parent / "manifest.json"
     manifest_path.write_text(json.dumps({
-        "experiment": "qft_progressive",
+        "experiment": exp,
+        "family": family,
         "dataset": args.dataset,
         "epochs_per_stage": int(args.epochs_per_stage),
         "total_epochs": int(args.epochs_per_stage * 8),
         "stages": stage_summaries,
-        "anchors": {"qft": 31.29, "qft_identity": 31.66, "blocked_8": 32.26},
+        "anchors": ANCHORS[family],
         "git_sha": _git_sha(),
     }, indent=2))
 
-    print(f"\n[qft_progressive] sweep complete. Manifest: {manifest_path}")
-    print("[qft_progressive] PSNR @ rho=0.20 by stage:")
+    print(f"\n[{exp}] sweep complete. Manifest: {manifest_path}")
+    print(f"[{exp}] PSNR @ rho=0.20 by stage:")
     for s in stage_summaries:
         print(f"  k={s['k']} ({s['n_trainable']:>2d} gates): {s['psnr_rho_020']:.3f} dB")
     return 0

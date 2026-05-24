@@ -57,8 +57,7 @@ BASIS_FACTORIES: dict[str, BasisFactory] = {
     "qft":           lambda m, n, seed=0: pdft.QFTBasis(m=m, n=n),
     # Identity-initialized QFT: same topology as `qft`, but every gate
     # starts at the QFT-family identity (H -> I_2, CP -> phase 0). Used as
-    # the per-stage init in the qft_progressive curriculum and as the
-    # source basis for the qft_freeze_sweep cells.
+    # the per-stage init in the qft_progressive curriculum.
     "qft_identity": lambda m, n, seed=0: qft_identity_basis(m=m, n=n),
     "entangled_qft": lambda m, n, seed=0: pdft.EntangledQFTBasis(m=m, n=n, seed=seed),
     "tebd":          lambda m, n, seed=0: pdft.TEBDBasis(m=m, n=n, seed=seed),
@@ -133,152 +132,73 @@ def qft_identity_basis(m: int, n: int) -> pdft.QFTBasis:
     return pdft.QFTBasis(m=m, n=n, tensors=sorted_tensors)
 
 
-def qft_warm_from_smaller_qft(
-    trained_smaller: "pdft.QFTBasis",
-) -> "pdft.QFTBasis":
-    """Embed a trained `QFTBasis(k, k)` into `QFTBasis(k+1, k+1)` with the
-    newly introduced gates at their identity element.
+def _circuit_identity_basis(inner_cls, m: int, n: int):
+    """Construct an `inner_cls(m, n)` whose every gate is the identity element
+    of its manifold, so the basis is the identity operator at init.
 
-    Used by the qft_progressive curriculum: stage k+1's init carries forward
-    the trained gates of stage k, with the gates that touch the new
-    (k+1)-th qubit per axis pinned at identity. The induced operator on
-    the inner (k+1)-qubit space is QFT(k) ⊗ I_2; when wrapped in
-    BlockedBasis(..., 8-k-1, 8-k-1) at stage k+1, the global image operator
-    is bit-exactly identical to stage k's operator. Verified by the
-    stage-boundary operator-preservation test in
-    tests/test_qft_progressive.py.
+    Works for any circuit-family basis built from H (2x2) and U(4)
+    (2x2x2x2) gates — i.e. `RichBasis` (complex U(4)) and `RealRichBasis`
+    (real-orthogonal SO(4)). Each gate tensor is replaced, in storage order,
+    by the identity of its shape:
+      - H  (2, 2)       -> 2x2 identity.
+      - U4 (2, 2, 2, 2) -> 4x4 identity reshaped to (2, 2, 2, 2).
 
-    Construction:
-      - For each gate in QFT(k+1, k+1)'s emission order:
-        * If the gate's qubits are a subset of QFT(k, k)'s inner qubit set
-          (axis-1: {1..k}; axis-2: {k+2..2k+1} after the axis-2 offset shifts
-          from k to k+1), copy the trained tensor from `trained_smaller`.
-        * Else (the gate touches the newly introduced qubit per axis: axis-1
-          qubit k+1, axis-2 qubit 2k+2), set to H -> I_2; CP -> phase 0.
-      - Hadamard-first canonical sort to match QFTBasis storage convention.
+    Replacing tensors positionally against the freshly-built basis's own
+    `code` / `inv_code` (reused as-is) sidesteps any Hadamard-first
+    re-ordering assumptions: each operand keeps the qubits the compiled code
+    assigned it. Verified: the resulting `forward_transform` is bit-exactly
+    the identity. All gate parameters stay trainable on their Riemannian
+    manifolds (identity is a valid point of U(2)/U(4) and SO(2)/SO(4)).
     """
     import jax.numpy as jnp
-    from pdft.bases.circuit.qft import _qft_gates_1d
-    from pdft.circuit.builder import controlled_phase_diag
 
-    if trained_smaller.m != trained_smaller.n:
-        raise ValueError(
-            f"qft_warm_from_smaller_qft: requires m == n, "
-            f"got m={trained_smaller.m}, n={trained_smaller.n}"
-        )
-    k = trained_smaller.m
-    new_k = k + 1
-
-    smaller_gates_emit = (
-        _qft_gates_1d(k, offset=0) + _qft_gates_1d(k, offset=k)
-    )
-    if len(smaller_gates_emit) != len(trained_smaller.tensors):
-        raise AssertionError(
-            f"smaller gate count mismatch: {len(smaller_gates_emit)} emitted "
-            f"vs {len(trained_smaller.tensors)} stored tensors"
-        )
-    smaller_emit_perm = sorted(
-        range(len(smaller_gates_emit)),
-        key=lambda i: smaller_gates_emit[i]["kind"] != "H",
-    )
-    smaller_emit_to_sorted = [0] * len(smaller_emit_perm)
-    for sorted_idx, emit_idx in enumerate(smaller_emit_perm):
-        smaller_emit_to_sorted[emit_idx] = sorted_idx
-    smaller_in_emit_order = [
-        trained_smaller.tensors[smaller_emit_to_sorted[j]]
-        for j in range(len(smaller_gates_emit))
-    ]
-
-    def _smaller_q_to_larger_q(q_smaller_1ix: int) -> int:
-        return q_smaller_1ix if q_smaller_1ix <= k else q_smaller_1ix + 1
-
-    smaller_lookup: dict = {}
-    for j, g in enumerate(smaller_gates_emit):
-        larger_qs = tuple(_smaller_q_to_larger_q(q) for q in g["qubits"])
-        smaller_lookup[(g["kind"], larger_qs)] = smaller_in_emit_order[j]
-
-    larger_gates_emit = (
-        _qft_gates_1d(new_k, offset=0) + _qft_gates_1d(new_k, offset=new_k)
-    )
-
+    base = inner_cls(m=m, n=n)
     eye2 = jnp.eye(2, dtype=jnp.complex128)
-    cp_identity = controlled_phase_diag(0.0)
-
-    new_temporal: list = []
-    for g in larger_gates_emit:
-        key = (g["kind"], g["qubits"])
-        if key in smaller_lookup:
-            new_temporal.append(smaller_lookup[key])
-        elif g["kind"] == "H":
-            new_temporal.append(eye2)
-        elif g["kind"] == "CP":
-            new_temporal.append(cp_identity)
+    eye4 = jnp.eye(4, dtype=jnp.complex128).reshape(2, 2, 2, 2)
+    new_tensors = []
+    for t in base.tensors:
+        if t.shape == (2, 2):
+            new_tensors.append(eye2)
+        elif t.shape == (2, 2, 2, 2):
+            new_tensors.append(eye4)
         else:
-            raise AssertionError(f"unexpected QFT gate kind {g['kind']}")
-
-    larger_emit_perm = sorted(
-        range(len(larger_gates_emit)),
-        key=lambda i: larger_gates_emit[i]["kind"] != "H",
-    )
-    sorted_tensors = [new_temporal[i] for i in larger_emit_perm]
-    sorted_tensors = [jnp.asarray(t, dtype=jnp.complex128) for t in sorted_tensors]
-    return pdft.QFTBasis(m=new_k, n=new_k, tensors=sorted_tensors)
+            raise AssertionError(
+                f"{inner_cls.__name__}: unexpected gate tensor shape {t.shape}; "
+                "_circuit_identity_basis only handles H (2,2) and U4 (2,2,2,2)"
+            )
+    return inner_cls(m=m, n=n, tensors=new_tensors,
+                     code=base.code, inv_code=base.inv_code)
 
 
-def qft_inner_outer_indices(
-    m: int, n: int, inner_m: int, inner_n: int,
-) -> tuple[list[int], list[int]]:
-    """Return (inner_indices, outer_indices) for QFTBasis(m, n) given an
-    (inner_m, inner_n) inner-block boundary.
+def rich_identity_basis(m: int, n: int) -> "pdft.RichBasis":
+    """`RichBasis(m, n)` initialized to the identity operator.
 
-    A gate is "inner" iff every qubit it touches is in the inner qubit set:
-    axis-1 qubits {1..inner_m}, axis-2 qubits {m+1..m+inner_n}. Indices are
-    into the H-first canonical order that QFTBasis(m, n).tensors stores —
-    same order used by qft_identity_basis().
-
-    For m=n=8, inner_m=inner_n=3: returns 12 inner indices (6 H + 6 CP)
-    and 60 outer indices. Used by qft_freeze_sweep to build frozen_indices
-    masks for the freeze-outer / freeze-inner cells.
+    Same QFT-topology H + U(4) gate layout as `pdft.RichBasis(m, n)`, but
+    every gate starts at identity (H -> I_2, U4 -> I_4) instead of the QFT
+    phase values. Used as the per-stage init in the rich_progressive
+    curriculum, mirroring `qft_identity_basis` for the QFT family. All gates
+    remain trainable on the complex U(2)/U(4) manifolds.
     """
-    from pdft.bases.circuit.qft import _qft_gates_1d
+    return _circuit_identity_basis(pdft.RichBasis, m, n)
 
-    if inner_m > m or inner_n > n or inner_m < 0 or inner_n < 0:
-        raise ValueError(
-            f"qft_inner_outer_indices: invalid inner (inner_m={inner_m}, "
-            f"inner_n={inner_n}) for m={m}, n={n}"
-        )
-    if inner_m == 0 and inner_n == 0:
-        # No inner qubits — every gate is outer.
-        gates_emit = _qft_gates_1d(m, offset=0) + _qft_gates_1d(n, offset=m)
-        return [], list(range(len(gates_emit)))
 
-    def _is_inner_q(q_1ix: int) -> bool:
-        if 1 <= q_1ix <= m:
-            return q_1ix <= inner_m
-        # axis-2: q in [m+1..m+n]
-        return (q_1ix - m) <= inner_n
+def real_rich_identity_basis(m: int, n: int) -> "pdft.RealRichBasis":
+    """`RealRichBasis(m, n)` initialized to the identity operator.
 
-    gates_emit = _qft_gates_1d(m, offset=0) + _qft_gates_1d(n, offset=m)
-    # H-first canonical sort, matching QFTBasis storage.
-    emit_perm = sorted(
-        range(len(gates_emit)),
-        key=lambda i: gates_emit[i]["kind"] != "H",
-    )
-    inner: list[int] = []
-    outer: list[int] = []
-    for sorted_idx, emit_idx in enumerate(emit_perm):
-        g = gates_emit[emit_idx]
-        if all(_is_inner_q(q) for q in g["qubits"]):
-            inner.append(sorted_idx)
-        else:
-            outer.append(sorted_idx)
-    return inner, outer
+    Same QFT-topology H + U(4) gate layout as `pdft.RealRichBasis(m, n)`.
+    The default RealRichBasis already starts its U(4) gates at identity but
+    its H gates at the Hadamard matrix (a Walsh-Hadamard transform); here the
+    H gates are pinned to I_2 as well so the init is the literal identity
+    operator, matching `qft_identity_basis` / `rich_identity_basis`. Gates
+    stay trainable on the real-orthogonal SO(2)/SO(4) manifolds.
+    """
+    return _circuit_identity_basis(pdft.RealRichBasis, m, n)
 
 
 __all__ = [
     "BASIS_FACTORIES",
     "BasisFactory",
     "qft_identity_basis",
-    "qft_warm_from_smaller_qft",
-    "qft_inner_outer_indices",
+    "rich_identity_basis",
+    "real_rich_identity_basis",
 ]
