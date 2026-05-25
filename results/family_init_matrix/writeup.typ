@@ -153,12 +153,27 @@ therefore report two compression rates.
   caption: [TU-Berlin, $rho=0.05$. `rich` (identity) leads and edges *above*
     block-DCT-8 at $k=3,4$; the per-$k$ curve flattens.])
 
+== Very heavy compression: $rho = 0.01$ (100#sym.times)
+#results_table(tb.at("rho001"))
+#v(2pt)
+#figure(image("tuberlin_8q/report/comparison_rho001.svg", width: 74%),
+  caption: [TU-Berlin, $rho=0.01$. block-DCT-8 *collapses* to $approx 4.8$ dB
+    while the learned circuits plateau $approx 23$ dB — clearing it by
+    $approx 18$ dB. An even sharper version of the heavy-compression crossover
+    seen on DIV2K.])
+
 *Findings.*
-- *The block-size curve inverts.* Small blocks win — each blank tile costs almost
-  no coefficients — the opposite of DIV2K's flat curve.
+- *The block-size curve inverts at the light rate.* Small blocks win — each blank
+  tile costs almost no coefficients — the opposite of DIV2K's flat curve. (At the
+  heavy rates the curves instead rise then plateau in $k$.)
 - *The family ranking flips with the rate.* At $rho=0.20$ the QFT-derived families
   peak $approx 88$ dB at $k=3$, above `rich` ($approx 79$); at $rho=0.05$ `rich`
-  (identity) leads ($approx 37$ dB) and edges above block-DCT-8 ($approx 36$).
+  (identity) leads ($approx 37$ dB); at $rho=0.01$ the QFT-derived families edge
+  back ahead ($approx 23.2$ vs `rich` $22.9$).
+- *The heavy-compression crossover is extreme here.* block-DCT-8 falls
+  $100.7 arrow.r 36.5 arrow.r 4.8$ dB across $rho = 0.20\/0.05\/0.01$: it is
+  near-lossless at the light rate but the learned circuits beat it by
+  $approx 1$ dB at $rho=0.05$ and by $approx 18$ dB at $rho=0.01$.
 - *Identity #sym.gt.tri random* — the gap reaches $approx 25$--$30$ dB at large $k$, far
   wider than on DIV2K. The QFT-family identity equivalence partly survives:
   `qft` $equiv$ `entangled_qft` at all $k$, and all four QFT-derived families
@@ -172,9 +187,9 @@ therefore report two compression rates.
   inset: 5pt,
   [], [*DIV2K (natural)*], [*TU-Berlin (sketch)*],
   [block-size curve], [flat in $k$], [falls with $k$ (small blocks win)],
-  [best learned family], [`rich` (everywhere)], [QFT-family \@ $rho$=0.2; `rich` \@ $rho$=0.05],
+  [best learned family], [`rich` (everywhere)], [QFT-family \@ $rho$=0.2 & 0.01; `rich` \@ $rho$=0.05],
   [vs classical block-DCT], [block-DCT wins \@ $rho$=0.2; learned overtakes by $rho$=0.01],
-    [block-DCT wins \@ $rho$=0.2; `rich` edges it \@ $rho$=0.05],
+    [block-DCT wins \@ $rho$=0.2; learned overtakes \@ $rho$=0.05 ($+1$ dB) & 0.01 ($+18$ dB)],
   [identity vs random], [identity $gt.eq$ random ($<1$ dB)], [identity #sym.gt.tri random (up to 25--30 dB)],
   [absolute PSNR \@ $rho$=0.2], [$approx 31$--$34$ dB], [$approx 60$--$88$ dB],
 )

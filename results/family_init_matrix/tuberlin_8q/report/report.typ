@@ -89,6 +89,18 @@ tebd\/entangled_qft\/mera native seed). Families run $k=2..8$ except `mera`
     become *competitive with* block-DCT-8 (grey) — rich (identity) edges above it
     at $k=3,4$. The per-$k$ curve also flattens.])
 
+#pagebreak()
+
+= Very heavy compression: $rho = 0.01$ (100#sym.times)
+
+#results_table("rho001")
+#v(4pt)
+#figure(image("comparison_rho001.svg", width: 88%),
+  caption: [PSNR \@ $rho=0.01$. block-DCT-8 *collapses* to $approx 4.8$ dB; the
+    learned circuits plateau $approx 23$ dB, clearing it by $approx 18$ dB. The
+    QFT-derived families edge `rich` here. $k=2$ degenerates (too few coefficients
+    survive $100 times$ pooling on a $4 times 4$ block).])
+
 = Observations
 
 - *Block sparsity dominates the light-compression regime, and the curve
