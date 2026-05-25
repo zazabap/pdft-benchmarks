@@ -54,13 +54,15 @@
 *Summary.* We train five quantum-circuit transform families — `rich` (complex
 $U(4)$ gates), `qft`, `tebd`, `entangled_qft`, `mera` — under a block-size
 curriculum, from two initialisations (identity-operator and random), on two
-datasets (natural images and sketches). The headline is that *the dataset
-decides almost everything*: on natural images (DIV2K) only the complex-$U(4)$
-`rich` family clears the classical block-DCT reference and the block-size curve
-is flat; on block-sparse sketches (TU-Berlin) the curve inverts (small blocks
-win), the family ranking flips with the compression rate, and classical
-block-DCT is near-lossless. Across both, *identity init is never worse than
-random* — often dramatically better.
+datasets (natural images and sketches). Two themes emerge. *The dataset sets
+the regime*: on DIV2K the block-size curve is flat and `rich` leads, while on
+block-sparse TU-Berlin the curve inverts (small blocks win), the family ranking
+flips with the rate, and classical block-DCT is near-lossless. *And a common
+rate-crossover holds on both*: classical block-DCT dominates the learned
+circuits at light compression but the learned circuits overtake it as
+compression tightens. Throughout, `rich` (complex $U(4)$) leads the learned
+families, and *identity init is never worse than random* — often dramatically
+better.
 
 = Setup
 
@@ -95,20 +97,35 @@ coefficients by magnitude.
 
 #results_table(div2k)
 #v(3pt)
-#figure(image("div2k_8q/report/comparison.svg", width: 78%),
-  caption: [DIV2K, $rho=0.20$. Only `rich` (blue) clears the block-8 reference;
-    the four QFT-derived families coincide under identity init.])
+#figure(image("div2k_8q/report/comparison_rho020.svg", width: 88%),
+  caption: [DIV2K, $rho=0.20$ (5#sym.times). One colour per family,
+    solid = identity / dashed = random init; grey dashed = classical block-DCT-8
+    reference. `rich` leads the learned families but sits just below block-DCT.])
+#figure(image("div2k_8q/report/comparison_rho005.svg", width: 88%),
+  caption: [DIV2K, $rho=0.05$ (20#sym.times). The families bunch near block-DCT-8;
+    `rich` draws level with it.])
+#figure(image("div2k_8q/report/comparison_rho001.svg", width: 88%),
+  caption: [DIV2K, $rho=0.01$ (100#sym.times). Every learned family clears
+    block-DCT-8 by $approx 6$--$7$ dB — the learned transforms win at aggressive
+    compression.])
 
 *Findings.*
-- *Only `rich` clears the classical block-8 reference* ($32.26$ dB): it reaches
-  $33.4$--$33.7$ dB, $approx 1.5$--$2$ dB above every other family. The complex
-  $U(4)$ gates are the one thing that buys reconstruction quality here.
+- *`rich` leads the learned families but classical block-DCT wins at the light
+  rate.* At $rho=0.20$ `rich` peaks at $33.7$ dB, $approx 1.5$ dB above every
+  other family — yet still just below the classical block-DCT-8 reference
+  ($34.0$ dB). Complex $U(4)$ is the one architectural feature that helps, but it
+  does not beat the fixed block transform here.
+- *The learned circuits overtake block-DCT as compression tightens.* block-DCT-8
+  falls faster with the rate ($34.0 arrow.r 26.1 arrow.r 14.9$ dB at
+  $rho = 0.20\/0.05\/0.01$) than the learned circuits do: `rich` draws level at
+  $rho=0.05$ ($26.4$ vs $26.1$) and *every* family clears block-DCT by
+  $approx 6$--$7$ dB at $rho=0.01$ ($approx 21$ vs $14.9$).
 - *Under identity init the four QFT-derived families are bit-identical* at every
   $k$ despite very different gate counts ($k=8$: qft 72, tebd 32, entangled_qft
   80, mera 44). From an identity start they all converge to the same QFT
   operator — the extra gates train to no-ops.
 - *Identity init $gt.eq$ random* for every family; the curve is essentially flat
-  in $k$ ($approx 33$ dB for `rich`, $approx 31.7$ for the rest).
+  in $k$ ($approx 33$ dB for `rich`, $approx 31.7$ for the rest) at $rho=0.20$.
 
 #pagebreak()
 
@@ -156,7 +173,8 @@ therefore report two compression rates.
   [], [*DIV2K (natural)*], [*TU-Berlin (sketch)*],
   [block-size curve], [flat in $k$], [falls with $k$ (small blocks win)],
   [best learned family], [`rich` (everywhere)], [QFT-family \@ $rho$=0.2; `rich` \@ $rho$=0.05],
-  [vs classical block-DCT], [`rich` beats it], [trails \@ $rho$=0.2; `rich` edges it \@ $rho$=0.05],
+  [vs classical block-DCT], [block-DCT wins \@ $rho$=0.2; learned overtakes by $rho$=0.01],
+    [block-DCT wins \@ $rho$=0.2; `rich` edges it \@ $rho$=0.05],
   [identity vs random], [identity $gt.eq$ random ($<1$ dB)], [identity #sym.gt.tri random (up to 25--30 dB)],
   [absolute PSNR \@ $rho$=0.2], [$approx 31$--$34$ dB], [$approx 60$--$88$ dB],
 )
@@ -165,16 +183,20 @@ The contrast is governed by *energy compaction relative to the data's sparsity
 structure*. Natural-image energy is spread across scales, so a global / large
 circuit and the complex-$U(4)$ richness of `rich` help, and the curve is flat;
 sketches are block-sparse, so a small per-block transform already captures almost
-everything and a fixed block-DCT is near-lossless — learning only pays off once
-the rate is aggressive enough ($rho=0.05$) that even block-DCT degrades.
+everything and a fixed block-DCT is near-lossless. On both datasets the fixed
+block transform degrades faster than the learned circuits as the rate tightens,
+so learning only pays off at aggressive compression.
 
 = Conclusions
 
 + *The dataset sets the regime.* Conclusions about "which circuit family is best"
   do not transfer between natural images and sketches; even the sign of the
   block-size trend flips.
++ *Learned circuits beat classical block-DCT only at aggressive compression.* At
+  the light rate block-DCT wins on both datasets; the learned transforms overtake
+  it as $rho$ shrinks (by $rho=0.01$ on DIV2K, $rho=0.05$ on sketches for `rich`).
 + *Complex $U(4)$ (`rich`) is the only architectural feature that consistently
-  helps* — it wins outright on DIV2K and at heavy compression on sketches.
+  helps* — it leads the learned families on both datasets.
 + *Identity initialisation dominates random* everywhere, decisively so on
   sketches; the structured identity start is a strong, cheap prior.
 
