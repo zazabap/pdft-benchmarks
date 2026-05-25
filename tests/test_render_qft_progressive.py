@@ -50,7 +50,7 @@ def _synthesize_cells(results_base: Path, family: str) -> None:
     }))
 
 
-@pytest.mark.parametrize("family", ["qft", "rich", "real_rich"])
+@pytest.mark.parametrize("family", ["qft", "rich", "real_rich", "tebd"])
 def test_renderer_produces_pdf_and_svg(tmp_path, family):
     results_base = tmp_path / "results"
     _synthesize_cells(results_base, family)

@@ -80,6 +80,9 @@ ABS_YLIM = {
     "qft": (90.0, 300.0),
     "rich": (90.0, 300.0),
     "real_rich": (90.0, 300.0),
+    # tebd's converged floor is set after the random-init sweep; start with
+    # the shared window and override with --ymin / --ymax once the run lands.
+    "tebd": (90.0, 300.0),
 }
 
 
@@ -93,7 +96,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--family", type=str, default="qft",
-                        choices=["qft", "rich", "real_rich"],
+                        choices=["qft", "rich", "real_rich", "tebd"],
                         help="Circuit family. Selects the loss-file basename and "
                              "the default input/output paths. Default qft.")
     parser.add_argument("--dataset", type=str, default="div2k_8q",

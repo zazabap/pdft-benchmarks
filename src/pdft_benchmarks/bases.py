@@ -195,10 +195,210 @@ def real_rich_identity_basis(m: int, n: int) -> "pdft.RealRichBasis":
     return _circuit_identity_basis(pdft.RealRichBasis, m, n)
 
 
+def _circuit_identity_by_value(inner_cls, m: int, n: int):
+    """Identity-operator init for the QFT-derived phase families
+    (`QFTBasis`, `EntangledQFTBasis`, `TEBDBasis`, `MERABasis`).
+
+    Unlike `_circuit_identity_basis` (rich/real_rich), these circuits mix two
+    kinds of 2x2 gate: Hadamards (identity element = I_2) and controlled-phase
+    multipliers stored as `controlled_phase_diag(phi)` (identity element =
+    `controlled_phase_diag(0) = [[1,1],[1,1]]`, NOT I_2). Setting every 2x2
+    slot to I_2 does *not* give the identity operator. We instead detect each
+    gate's kind by value against the freshly-built basis — an H slot is exactly
+    the (fixed) Hadamard matrix; everything else 2x2 is a CP phase-diag — and
+    drop it to that kind's identity element. (4x4 U4 slots, if any, -> I_4.)
+    Verified bit-exact identity for all four families. Gates stay trainable.
+    """
+    import jax.numpy as jnp
+    import numpy as np
+    from pdft.circuit.builder import controlled_phase_diag
+
+    hadamard = jnp.asarray(np.array([[1.0, 1.0], [1.0, -1.0]]) / np.sqrt(2.0),
+                           dtype=jnp.complex128)
+    eye4 = jnp.eye(4, dtype=jnp.complex128).reshape(2, 2, 2, 2)
+    cp0 = controlled_phase_diag(0.0)
+
+    base = inner_cls(m=m, n=n)
+    new_tensors = []
+    for t in base.tensors:
+        t = jnp.asarray(t)
+        if t.shape == (2, 2, 2, 2):
+            new_tensors.append(eye4)
+        elif t.shape == (2, 2):
+            if bool(jnp.allclose(t, hadamard, atol=1e-9)):
+                new_tensors.append(jnp.eye(2, dtype=jnp.complex128))
+            else:
+                new_tensors.append(cp0)
+        else:
+            raise AssertionError(
+                f"{inner_cls.__name__}: unexpected gate tensor shape {t.shape}"
+            )
+    return inner_cls(m=m, n=n, tensors=new_tensors,
+                     code=base.code, inv_code=base.inv_code)
+
+
+def entangled_qft_identity_basis(m: int, n: int) -> "pdft.EntangledQFTBasis":
+    """`EntangledQFTBasis(m, n)` initialised to the identity operator
+    (H -> I_2, every controlled-phase gate -> phase 0). See
+    `_circuit_identity_by_value`."""
+    return _circuit_identity_by_value(pdft.EntangledQFTBasis, m, n)
+
+
+def tebd_identity_basis(m: int, n: int) -> "pdft.TEBDBasis":
+    """`TEBDBasis(m, n)` initialised to the identity operator (all H -> I_2,
+    all controlled-phase gates -> phase 0). See `_circuit_identity_by_value`."""
+    return _circuit_identity_by_value(pdft.TEBDBasis, m, n)
+
+
+def mera_identity_basis(m: int, n: int) -> "pdft.MERABasis":
+    """`MERABasis(m, n)` initialised to the identity operator. Only valid where
+    MERA itself is valid: `m` (and `n`) a power of 2 (m in {1, 2, 4, 8, ...}).
+    See `_circuit_identity_by_value`."""
+    return _circuit_identity_by_value(pdft.MERABasis, m, n)
+
+
+def _haar_unitary(dim: int, rng) -> "np.ndarray":  # noqa: F821
+    """Haar-distributed U(dim) via QR of a complex Ginibre matrix (Mezzadri)."""
+    import numpy as np
+
+    z = (rng.standard_normal((dim, dim)) + 1j * rng.standard_normal((dim, dim))) / np.sqrt(2.0)
+    q, r = np.linalg.qr(z)
+    ph = np.diagonal(r)
+    ph = ph / np.abs(ph)
+    return q * ph  # column-phase fix -> exactly Haar
+
+
+def _haar_special_orthogonal(dim: int, rng) -> "np.ndarray":  # noqa: F821
+    """Haar-distributed SO(dim) (real, det = +1) via QR of a real Ginibre
+    matrix, with a sign flip to land in the identity component."""
+    import numpy as np
+
+    z = rng.standard_normal((dim, dim))
+    q, r = np.linalg.qr(z)
+    q = q * np.sign(np.diagonal(r))  # fix signs -> Haar on O(dim)
+    if np.linalg.det(q) < 0:         # restrict to SO(dim) (det +1)
+        q[:, 0] = -q[:, 0]
+    return q
+
+
+def _circuit_random_basis(inner_cls, m: int, n: int, seed: int):
+    """Construct an `inner_cls(m, n)` with each gate drawn at random from its
+    manifold: complex Haar U(2)/U(4) for `RichBasis`, real Haar SO(2)/SO(4)
+    for `RealRichBasis`. Tensors are placed positionally against the
+    freshly-built basis's own `code` / `inv_code` (same approach as
+    `_circuit_identity_basis`). `seed` makes the draw reproducible.
+    """
+    import jax.numpy as jnp
+    import numpy as np
+
+    base = inner_cls(m=m, n=n)
+    is_real = inner_cls is pdft.RealRichBasis
+    rng = np.random.default_rng(seed)
+    new_tensors = []
+    for t in base.tensors:
+        if t.shape == (2, 2):
+            u = _haar_special_orthogonal(2, rng) if is_real else _haar_unitary(2, rng)
+            new_tensors.append(jnp.asarray(u, dtype=jnp.complex128))
+        elif t.shape == (2, 2, 2, 2):
+            u = _haar_special_orthogonal(4, rng) if is_real else _haar_unitary(4, rng)
+            new_tensors.append(jnp.asarray(u.reshape(2, 2, 2, 2), dtype=jnp.complex128))
+        else:
+            raise AssertionError(
+                f"{inner_cls.__name__}: unexpected gate tensor shape {t.shape}; "
+                "_circuit_random_basis only handles H (2,2) and U4 (2,2,2,2)"
+            )
+    return inner_cls(m=m, n=n, tensors=new_tensors,
+                     code=base.code, inv_code=base.inv_code)
+
+
+def rich_random_basis(m: int, n: int, seed: int = 0) -> "pdft.RichBasis":
+    """`RichBasis(m, n)` with every gate a Haar-random complex unitary
+    (U(2) for H, U(4) for the 2-qubit gates), seeded by `seed`.
+
+    Unlike the identity / QFT-phase inits, this starts off the real subspace,
+    so training genuinely explores the complex U(4) manifold (and need not
+    coincide with RealRichBasis). Used by the qft_progressive driver under
+    `--init random`.
+    """
+    return _circuit_random_basis(pdft.RichBasis, m, n, seed)
+
+
+def real_rich_random_basis(m: int, n: int, seed: int = 0) -> "pdft.RealRichBasis":
+    """`RealRichBasis(m, n)` with every gate a Haar-random real-orthogonal
+    matrix (SO(2) for H, SO(4) for the 2-qubit gates), seeded by `seed`."""
+    return _circuit_random_basis(pdft.RealRichBasis, m, n, seed)
+
+
+def tebd_random_basis(m: int, n: int, seed: int = 0) -> "pdft.TEBDBasis":
+    """`TEBDBasis(m, n)` with its native seeded random gate init.
+
+    Unlike rich / real_rich it does not go through `_circuit_random_basis`;
+    the constructor's own `seed` argument already produces a reproducible
+    random brick-wall (Hadamards fixed, controlled-phase angles randomised).
+    Provided as a named builder so the qft_progressive `--init random`
+    dispatch is uniform across families.
+    """
+    return pdft.TEBDBasis(m=m, n=n, seed=seed)
+
+
+def entangled_qft_random_basis(m: int, n: int, seed: int = 0) -> "pdft.EntangledQFTBasis":
+    """`EntangledQFTBasis(m, n)` with its native seeded random init (Hadamards
+    fixed, phase angles randomised by `seed`)."""
+    return pdft.EntangledQFTBasis(m=m, n=n, seed=seed)
+
+
+def mera_random_basis(m: int, n: int, seed: int = 0) -> "pdft.MERABasis":
+    """`MERABasis(m, n)` with its native seeded random init. Only valid where
+    `m` (and `n`) is a power of 2."""
+    return pdft.MERABasis(m=m, n=n, seed=seed)
+
+
+def qft_random_basis(m: int, n: int, seed: int = 0) -> "pdft.QFTBasis":
+    """`QFTBasis(m, n)` with a fully Haar-random gate init.
+
+    QFTBasis has no native random init (it is a fixed transform). This builds
+    the QFT topology but starts every gate at a random point of its manifold:
+    each Hadamard slot is replaced by a Haar-random complex U(2), and each
+    controlled-phase slot by `controlled_phase_diag(phi)` with phi drawn
+    uniformly from [0, 2*pi). Gate kind is detected by value (an H slot is
+    exactly the fixed Hadamard matrix; everything else 2x2 is a CP phase-diag),
+    the same scheme as `_circuit_identity_by_value`. Seeded by `seed`.
+    """
+    import jax.numpy as jnp
+    import numpy as np
+    from pdft.circuit.builder import controlled_phase_diag
+
+    hadamard = jnp.asarray(np.array([[1.0, 1.0], [1.0, -1.0]]) / np.sqrt(2.0),
+                           dtype=jnp.complex128)
+    base = pdft.QFTBasis(m=m, n=n)
+    rng = np.random.default_rng(seed)
+    new_tensors = []
+    for t in base.tensors:
+        t = jnp.asarray(t)
+        if t.shape == (2, 2) and bool(jnp.allclose(t, hadamard, atol=1e-9)):
+            new_tensors.append(jnp.asarray(_haar_unitary(2, rng), dtype=jnp.complex128))
+        elif t.shape == (2, 2):
+            phi = float(rng.uniform(0.0, 2.0 * np.pi))
+            new_tensors.append(jnp.asarray(controlled_phase_diag(phi), dtype=jnp.complex128))
+        else:
+            raise AssertionError(f"QFTBasis: unexpected gate tensor shape {t.shape}")
+    return pdft.QFTBasis(m=m, n=n, tensors=new_tensors,
+                         code=base.code, inv_code=base.inv_code)
+
+
 __all__ = [
     "BASIS_FACTORIES",
     "BasisFactory",
     "qft_identity_basis",
     "rich_identity_basis",
     "real_rich_identity_basis",
+    "entangled_qft_identity_basis",
+    "tebd_identity_basis",
+    "mera_identity_basis",
+    "qft_random_basis",
+    "rich_random_basis",
+    "real_rich_random_basis",
+    "tebd_random_basis",
+    "entangled_qft_random_basis",
+    "mera_random_basis",
 ]

@@ -89,6 +89,9 @@ _BASE_PRESETS: dict[str, Preset] = {
 
 PRESETS_QUICKDRAW: dict[str, Preset] = dict(_BASE_PRESETS)
 PRESETS_DIV2K: dict[str, Preset] = dict(_BASE_PRESETS)
+# TU-Berlin sketches are loaded at the same 256x256 outer size as DIV2K-8q,
+# so the (dataset-agnostic) base presets apply unchanged.
+PRESETS_TUBERLIN: dict[str, Preset] = dict(_BASE_PRESETS)
 
 
 # Helper to clone a Preset with overridden batch_size and (optionally)
@@ -135,6 +138,7 @@ _DATASETS = {
     "div2k_8q": PRESETS_DIV2K,
     "div2k_8q_blocked": PRESETS_DIV2K,  # uses same presets — outer image (256×256) unchanged
     "div2k_10q": PRESETS_DIV2K_10Q,
+    "tuberlin_8q": PRESETS_TUBERLIN,    # 256×256 sketches — same outer size as div2k_8q
 }
 
 

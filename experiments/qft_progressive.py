@@ -1,17 +1,25 @@
 #!/usr/bin/env python3
 """Drive the 8-stage progressive block-size sweep on DIV2K-8q.
 
-Supports three circuit families via --family: `qft` (default), `rich`,
-`real_rich`. The curriculum is identical across families; only the
-per-stage inner basis changes.
+Supports six circuit families via --family: `qft` (default), `rich`,
+`real_rich`, `tebd`, `entangled_qft`, `mera`. Every family supports both
+`--init identity` and `--init random`. The curriculum is identical across
+families; only the per-stage inner basis (and its valid k range) changes:
+`qft`/`rich`/`real_rich` run k=1..8, `tebd`/`entangled_qft` run k=2..8, and
+`mera` runs only k in {2,4,8} (m must be a power of 2).
 
-For each stage k=1..8, train INDEPENDENTLY from identity init:
+For each stage k=1..8, train INDEPENDENTLY from a per-family init:
   - basis = BlockedBasis(<family>(k, k), 8-k, 8-k)  for k < 8
           = bare <family>(8, 8)                     for k = 8
-  - inner init = <family>_identity_basis(m=k, n=k)
+  - inner init (--init identity, the default, for qft/rich/real_rich):
         qft       : H -> I_2, CP -> phase 0
         rich      : H -> I_2, U4 -> I_4 (complex U(2)/U(4) manifolds)
         real_rich : H -> I_2, U4 -> I_4 (real SO(2)/SO(4) manifolds)
+    inner init (--init random):
+        rich      : Haar-random complex U(2)/U(4) gates, seeded by --seed
+        real_rich : Haar-random real SO(2)/SO(4) gates, seeded by --seed
+        tebd      : native seeded random brick-wall (tebd has no identity
+                    init; it REQUIRES --init random)
   - train under the headline preset for --epochs-per-stage epochs
 
 Stages do NOT share any state — there is no warm-start chain. Each k's
@@ -27,6 +35,7 @@ Usage:
     python experiments/qft_progressive.py --gpu 0 [--family qft] [--epochs-per-stage 56]
     python experiments/qft_progressive.py --gpu 0 --family rich --epochs-per-stage 112
     python experiments/qft_progressive.py --gpu 1 --family real_rich --epochs-per-stage 112
+    python experiments/qft_progressive.py --gpu 1 --family tebd --init random --epochs-per-stage 112
 """
 from __future__ import annotations
 
@@ -45,10 +54,21 @@ from pathlib import Path
 # manifest for context. The `*_8` values are the trained
 # BlockedBasis(<family>(3, 3), 5, 5) cells from div2k_8q_pca_vs_block_dct;
 # qft / blocked_8 are kept as cross-family reference points.
+# Per-(dataset, family) reference anchors (PSNR @ rho=0.20, dB) recorded in the
+# manifest for context. The div2k_8q values are the trained full-circuit cells
+# from div2k_8q_pca_vs_block_dct. Other datasets have no reference anchors yet
+# (classical baselines are computed post-hoc for the report); the manifest just
+# records an empty dict for them.
 ANCHORS = {
-    "qft": {"qft": 31.29, "qft_identity": 31.66, "blocked_8": 32.26},
-    "rich": {"rich_8": 33.70, "blocked_8": 32.26, "qft": 31.29},
-    "real_rich": {"real_rich_8": 33.70, "blocked_8": 32.26, "qft": 31.29},
+    "div2k_8q": {
+        "qft": {"qft": 31.29, "qft_identity": 31.66, "blocked_8": 32.26},
+        "rich": {"rich_8": 33.70, "blocked_8": 32.26, "qft": 31.29},
+        "real_rich": {"real_rich_8": 33.70, "blocked_8": 32.26, "qft": 31.29},
+        "tebd": {"tebd": 30.91, "blocked_8": 32.26, "qft": 31.29},
+        "entangled_qft": {"entangled_qft": 31.29, "blocked_8": 32.26, "qft": 31.29},
+        "mera": {"mera": 30.91, "blocked_8": 32.26, "qft": 31.29},
+    },
+    "tuberlin_8q": {},
 }
 
 
@@ -109,16 +129,31 @@ def main() -> int:
     parser.add_argument("--gpu", type=int, default=None,
                         help="GPU index. Sets CUDA_VISIBLE_DEVICES before any pdft/jax import.")
     parser.add_argument("--family", type=str, default="qft",
-                        choices=["qft", "rich", "real_rich"],
+                        choices=["qft", "rich", "real_rich", "tebd",
+                                 "entangled_qft", "mera"],
                         help="Circuit family for the per-stage inner basis. "
-                             "Default qft.")
+                             "Default qft. All families support --init "
+                             "{identity,random}. mera only trains at k in "
+                             "{2,4,8} (m must be a power of 2).")
+    parser.add_argument("--init", type=str, default="identity",
+                        choices=["identity", "random"],
+                        help="Per-stage inner-basis init. 'identity' (default): "
+                             "literal identity operator (qft/rich/real_rich). "
+                             "'random': Haar-random gates (rich/real_rich) or the "
+                             "native seeded brick-wall (tebd), seeded by --seed; "
+                             "each stage k uses seed + k. Lets RichBasis leave the "
+                             "real subspace so it can diverge from RealRichBasis. "
+                             "tebd has no identity init and REQUIRES random.")
+    parser.add_argument("--seed", type=int, default=0,
+                        help="Base RNG seed for --init random (stage k uses seed + k).")
     parser.add_argument("--epochs-per-stage", type=int, default=56,
                         help="Per-stage epoch budget. Default 56 -> 448 total epochs across 8 stages.")
     parser.add_argument("--out-base", type=str, default=None,
                         help="Parent for per-stage cells. Default results/<family>_progressive/<dataset>/_runs.")
     parser.add_argument("--dataset", type=str, default="div2k_8q",
-                        choices=["div2k_8q"],
-                        help="Dataset + qubit config. div2k_8q only for now (spec scope).")
+                        choices=["div2k_8q", "tuberlin_8q"],
+                        help="Dataset + qubit config (both m=n=8, 256x256): "
+                             "div2k_8q (natural images) or tuberlin_8q (sketches).")
     parser.add_argument("--preset", type=str, default="generalized",
                         choices=["smoke", "moderate", "generalized"])
     parser.add_argument("--force", action="store_true", default=False,
@@ -135,26 +170,68 @@ def main() -> int:
     import pdft
     import pdft.io  # noqa: F401 — needed by evaluate_basis_shared
     from pdft_benchmarks.bases import (
+        entangled_qft_identity_basis,
+        entangled_qft_random_basis,
+        mera_identity_basis,
+        mera_random_basis,
         qft_identity_basis,
-        rich_identity_basis,
+        qft_random_basis,
         real_rich_identity_basis,
+        real_rich_random_basis,
+        rich_identity_basis,
+        rich_random_basis,
+        tebd_identity_basis,
+        tebd_random_basis,
     )
-    from pdft_benchmarks.datasets import load_div2k
+    from pdft_benchmarks.datasets import load_div2k, load_tuberlin
     from pdft_benchmarks.evaluation import evaluate_basis_shared
     from pdft_benchmarks.presets import get_preset
 
     family = args.family
     exp = f"{family}_progressive"
-    identity_builder = {
-        "qft": qft_identity_basis,
-        "rich": rich_identity_basis,
-        "real_rich": real_rich_identity_basis,
-    }[family]
     basis_cls = {
         "qft": pdft.QFTBasis,
         "rich": pdft.RichBasis,
         "real_rich": pdft.RealRichBasis,
+        "tebd": pdft.TEBDBasis,
+        "entangled_qft": pdft.EntangledQFTBasis,
+        "mera": pdft.MERABasis,
     }[family]
+
+    # Per-stage inner-basis builder, dispatched by (family, init). Every family
+    # supports both inits: identity-operator init (drop all gates to their
+    # manifold identity) and random init (Haar/native-seed). qft random is a
+    # custom Haar build; tebd/entangled_qft/mera random use their native seed.
+    if args.init == "identity":
+        identity_builder = {
+            "qft": qft_identity_basis,
+            "rich": rich_identity_basis,
+            "real_rich": real_rich_identity_basis,
+            "tebd": tebd_identity_basis,
+            "entangled_qft": entangled_qft_identity_basis,
+            "mera": mera_identity_basis,
+        }.get(family)
+        if identity_builder is None:
+            print(f"[{exp}] FATAL: no identity-init builder for {family!r}.",
+                  file=sys.stderr)
+            return 2
+        def make_inner(k):
+            return identity_builder(m=k, n=k)
+    else:  # random
+        random_builder = {
+            "qft": qft_random_basis,
+            "rich": rich_random_basis,
+            "real_rich": real_rich_random_basis,
+            "tebd": tebd_random_basis,
+            "entangled_qft": entangled_qft_random_basis,
+            "mera": mera_random_basis,
+        }.get(family)
+        if random_builder is None:
+            print(f"[{exp}] FATAL: no random-init builder for {family!r}.",
+                  file=sys.stderr)
+            return 2
+        def make_inner(k):
+            return random_builder(m=k, n=k, seed=args.seed + k)
 
     # GPU fail-fast: when --gpu N was passed, refuse to silently fall back
     # to CPU (CLAUDE.md notes NVML init failures can cause this).
@@ -180,7 +257,11 @@ def main() -> int:
           f"seed={preset.seed}")
 
     m = n = 8
-    train_imgs_np, test_imgs_np = load_div2k(
+    dataset_loader = {
+        "div2k_8q": load_div2k,
+        "tuberlin_8q": load_tuberlin,
+    }[args.dataset]
+    train_imgs_np, test_imgs_np = dataset_loader(
         n_train=preset.n_train, n_test=preset.n_test,
         seed=preset.seed, size=2**m,
     )
@@ -195,7 +276,22 @@ def main() -> int:
     # Each stage is independent; no carry-forward state needed.
     stage_summaries: list[dict] = []
 
-    for k in range(1, 9):
+    # Per-family valid stage list. qft/rich/real_rich span the full k=1..8.
+    # tebd & entangled_qft are undefined at k=1 (their 2-site gates need >= 2
+    # qubits per axis), so they run block sizes 4..256 (k=2..8). MERA requires
+    # m a power of 2, so it only trains at k in {2,4,8} (block sizes 4/16/256).
+    K_VALUES = {
+        "qft":           [1, 2, 3, 4, 5, 6, 7, 8],
+        "rich":          [1, 2, 3, 4, 5, 6, 7, 8],
+        "real_rich":     [1, 2, 3, 4, 5, 6, 7, 8],
+        "tebd":          [2, 3, 4, 5, 6, 7, 8],
+        "entangled_qft": [2, 3, 4, 5, 6, 7, 8],
+        "mera":          [2, 4, 8],
+    }
+    k_values = K_VALUES[family]
+    n_stages = len(k_values)
+
+    for k in k_values:
         stage_tag = f"stage_k{k}"
         basis_name = f"{exp}_k{k}"
         out_dir = out_base / stage_tag
@@ -231,10 +327,10 @@ def main() -> int:
             # below from the on-disk file, so consistency is preserved.
         else:
             # Train path: build basis, train, evaluate, persist.
-            # Each stage trains INDEPENDENTLY from identity init — no warm-start
-            # chain. The block-size sweep over k captures per-block-size training
-            # dynamics with a fixed identity-init policy across all k.
-            inner_k = identity_builder(m=k, n=k)
+            # Each stage trains INDEPENDENTLY from its --init policy — no
+            # warm-start chain. The block-size sweep over k captures per-block-
+            # size training dynamics with a fixed init policy across all k.
+            inner_k = make_inner(k)
             if k < 8:
                 basis = pdft.BlockedBasis(inner=inner_k,
                                           block_log_m=8 - k,
@@ -323,7 +419,8 @@ def main() -> int:
                 "steps_used": steps,
                 "n_trainable": int(n_trainable),
                 "block_size": int(2**k),
-                "init_policy": "identity",
+                "init_policy": args.init,
+                "init_seed": (args.seed + k) if args.init == "random" else None,
                 "preset_name": args.preset,
                 "preset_epochs_per_stage": int(args.epochs_per_stage),
                 "device": str(jax.devices()[0]),
@@ -347,11 +444,15 @@ def main() -> int:
     manifest_path.write_text(json.dumps({
         "experiment": exp,
         "family": family,
+        "init_policy": args.init,
+        "init_seed": args.seed if args.init == "random" else None,
         "dataset": args.dataset,
         "epochs_per_stage": int(args.epochs_per_stage),
-        "total_epochs": int(args.epochs_per_stage * 8),
+        "n_stages": int(n_stages),
+        "k_values": list(k_values),
+        "total_epochs": int(args.epochs_per_stage * n_stages),
         "stages": stage_summaries,
-        "anchors": ANCHORS[family],
+        "anchors": ANCHORS.get(args.dataset, {}).get(family, {}),
         "git_sha": _git_sha(),
     }, indent=2))
 
