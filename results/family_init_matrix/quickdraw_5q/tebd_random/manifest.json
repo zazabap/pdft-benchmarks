@@ -1,0 +1,56 @@
+{
+  "experiment": "tebd_progressive",
+  "family": "tebd",
+  "init_policy": "random",
+  "init_seed": 0,
+  "dataset": "quickdraw_5q",
+  "epochs_per_stage": 112,
+  "n_stages": 4,
+  "k_values": [
+    2,
+    3,
+    4,
+    5
+  ],
+  "total_epochs": 448,
+  "stages": [
+    {
+      "k": 2,
+      "n_trainable": 8,
+      "block_size": 4,
+      "cell": "stage_k2",
+      "psnr_rho_020": 30.045918547396532,
+      "steps": 1008,
+      "elapsed_seconds": 10.049543905071914
+    },
+    {
+      "k": 3,
+      "n_trainable": 12,
+      "block_size": 8,
+      "cell": "stage_k3",
+      "psnr_rho_020": 30.047751383726325,
+      "steps": 1008,
+      "elapsed_seconds": 13.997858694754541
+    },
+    {
+      "k": 4,
+      "n_trainable": 16,
+      "block_size": 16,
+      "cell": "stage_k4",
+      "psnr_rho_020": 30.04756454124527,
+      "steps": 1008,
+      "elapsed_seconds": 15.862103831022978
+    },
+    {
+      "k": 5,
+      "n_trainable": 20,
+      "block_size": 32,
+      "cell": "stage_k5",
+      "psnr_rho_020": 24.35554753050309,
+      "steps": 1008,
+      "elapsed_seconds": 16.788404333405197
+    }
+  ],
+  "anchors": {},
+  "git_sha": "7d3738394eee2d92acf973967777b1bf2615afab"
+}

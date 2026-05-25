@@ -7,6 +7,7 @@
 
 #let div2k = json("div2k_8q/report/data.json")
 #let tb = json("tuberlin_8q/report/data.json")
+#let qd = json("quickdraw_5q/report/data.json")
 
 #let combos = (
   ("rich", "identity"), ("rich", "random"),
@@ -25,18 +26,18 @@
   else if str(k) in d { [#fmt(d.at(str(k)))] }
   else { text(fill: rgb("#c33"))[\u{2014}] }
 }
-#let results_table(tabledata) = align(center)[
+#let results_table(tabledata, kmax: 8) = align(center)[
   #table(
-    columns: (auto, auto) + (auto,) * 7,
-    align: (left, center) + (right,) * 7,
+    columns: (auto, auto) + (auto,) * (kmax - 1),
+    align: (left, center) + (right,) * (kmax - 1),
     stroke: 0.4pt + luma(180),
     inset: (x: 5.5pt, y: 3.5pt),
     table.header([*family*], [*init*],
-      ..range(2, 9).map(k => [*$k$=#str(k)*\ #text(size: 6.5pt)[(#str(calc.pow(2, k)))]])),
+      ..range(2, kmax + 1).map(k => [*$k$=#str(k)*\ #text(size: 6.5pt)[(#str(calc.pow(2, k)))]])),
     ..combos.map(((fam, init)) => (
       text(fill: rgb(if init == "identity" { "#0a0a0a" } else { "#666" }))[#fam_short.at(fam)],
       text(size: 8pt)[#init],
-      ..range(2, 9).map(k => cell(tabledata, fam, init, k)),
+      ..range(2, kmax + 1).map(k => cell(tabledata, fam, init, k)),
     )).flatten()
   )
 ]
@@ -44,7 +45,7 @@
 #align(center)[
   #text(size: 15pt, weight: "bold")[Circuit family $times$ initialisation $times$ dataset]
   #v(2pt)
-  #text(size: 11pt)[A progressive block-size study on DIV2K and TU-Berlin ($m=n=8$, $256 times 256$)]
+  #text(size: 11pt)[A progressive block-size study on DIV2K, TU-Berlin and QuickDraw]
   #v(3pt)
   #text(size: 9pt, fill: rgb("#555"))[Generated #datetime.today().display("[year]-[month]-[day]") · mean test PSNR over the test split]
 ]
@@ -53,16 +54,17 @@
 
 *Summary.* We train five quantum-circuit transform families — `rich` (complex
 $U(4)$ gates), `qft`, `tebd`, `entangled_qft`, `mera` — under a block-size
-curriculum, from two initialisations (identity-operator and random), on two
-datasets (natural images and sketches). Two themes emerge. *The dataset sets
-the regime*: on DIV2K the block-size curve is flat and `rich` leads, while on
-block-sparse TU-Berlin the curve inverts (small blocks win), the family ranking
-flips with the rate, and classical block-DCT is near-lossless. *And a common
-rate-crossover holds on both*: classical block-DCT dominates the learned
-circuits at light compression but the learned circuits overtake it as
-compression tightens. Throughout, `rich` (complex $U(4)$) leads the learned
-families, and *identity init is never worse than random* — often dramatically
-better.
+curriculum, from two initialisations (identity-operator and random), on three
+datasets: DIV2K (natural images, $256²$), TU-Berlin (high-res sketches, $256²$),
+and QuickDraw (low-res drawings, $32²$). *The dataset sets the regime*: on DIV2K
+the block-size curve is flat and `rich` leads; on block-sparse TU-Berlin it falls
+(small blocks win) and classical block-DCT is near-lossless; on coarse QuickDraw
+the global QFT-family wins outright and block-DCT is weak. *A common rate-
+crossover holds*: classical block-DCT dominates the learned circuits at light
+compression but they overtake it as compression tightens (and on QuickDraw the
+learned circuits win at every rate). `rich` leads on DIV2K, the QFT-family on
+the two drawing sets; *identity init is never worse than random* — often
+dramatically better.
 
 = Setup
 
@@ -179,45 +181,95 @@ therefore report two compression rates.
   `qft` $equiv$ `entangled_qft` at all $k$, and all four QFT-derived families
   coincide at $rho=0.05$.
 
+= QuickDraw: low-resolution drawings
+
+QuickDraw is $32 times 32$ ($m=n=5$), so the curriculum spans only $k=1..5$
+(block sizes $2..32$; tables show $k=2..5$, `mera` at $k in {2,4}$). The drawings
+are sparse strokes on a *dark* background (mean pixel $approx 0.12$), but at this
+low resolution they are far less block-compressible than the high-res TU-Berlin
+sketches: classical block-DCT-8 reaches only
+#str(qd.at("_refs").at("block_dct_8@0.2").at("mean")) dB at $rho=0.20$ (vs
+$approx 100$ on TU-Berlin).
+
+== Light compression: $rho = 0.20$ (5#sym.times)
+#results_table(qd.at("rho020"), kmax: 5)
+#v(2pt)
+#figure(image("quickdraw_5q/report/comparison_rho020.svg", width: 72%),
+  caption: [QuickDraw, $rho=0.20$. The QFT-derived families (identity, all four
+    bit-identical at $approx 39.5$ dB) *dominate* — above `rich` ($approx 35$) and
+    well above block-DCT-8 ($26.6$). The curve is flat in $k$.])
+
+== Heavy compression: $rho = 0.05$ (20#sym.times)
+#results_table(qd.at("rho005"), kmax: 5)
+#v(2pt)
+#figure(image("quickdraw_5q/report/comparison_rho005.svg", width: 72%),
+  caption: [QuickDraw, $rho=0.05$. All families bunch near block-DCT-8
+    ($approx 17$ dB); the identity advantage vanishes and random init even edges
+    ahead at some $k$.])
+
+== Very heavy compression: $rho = 0.01$ (100#sym.times)
+#results_table(qd.at("rho001"), kmax: 5)
+#v(2pt)
+#figure(image("quickdraw_5q/report/comparison_rho001.svg", width: 72%),
+  caption: [QuickDraw, $rho=0.01$. Everything collapses toward block-DCT-8
+    ($approx 12.9$ dB); families are within $approx 2$ dB of each other.])
+
+*Findings.*
+- *Learned circuits beat block-DCT at the light rate.* Unlike DIV2K/TU-Berlin,
+  block-DCT-8 is weak on $32 times 32$ drawings ($26.6$ dB), so at $rho=0.20$ the
+  QFT-derived families ($approx 39.5$) and even `rich` ($approx 35$) clear it.
+- *The QFT-derived families lead and are bit-identical under identity init,*
+  beating `rich` by $approx 4$ dB at $rho=0.20$ — the global QFT solution suits
+  these coarse drawings better than `rich`'s complex gates. The curve is flat in
+  $k$ (like DIV2K, unlike TU-Berlin's falling curve).
+- *At heavy compression the families converge* to block-DCT ($approx 17$ dB at
+  $rho=0.05$, $approx 12$ at $rho=0.01$) and the identity advantage erodes —
+  random init even edges ahead at some $k$.
+
 = Cross-dataset discussion
 
 #table(
-  columns: (auto, 1fr, 1fr),
+  columns: (auto, 1fr, 1fr, 1fr),
   stroke: 0.4pt + luma(180),
-  inset: 5pt,
-  [], [*DIV2K (natural)*], [*TU-Berlin (sketch)*],
-  [block-size curve], [flat in $k$], [falls with $k$ (small blocks win)],
-  [best learned family], [`rich` (everywhere)], [QFT-family \@ $rho$=0.2 & 0.01; `rich` \@ $rho$=0.05],
-  [vs classical block-DCT], [block-DCT wins \@ $rho$=0.2; learned overtakes by $rho$=0.01],
-    [block-DCT wins \@ $rho$=0.2; learned overtakes \@ $rho$=0.05 ($+1$ dB) & 0.01 ($+18$ dB)],
-  [identity vs random], [identity $gt.eq$ random ($<1$ dB)], [identity #sym.gt.tri random (up to 25--30 dB)],
-  [absolute PSNR \@ $rho$=0.2], [$approx 31$--$34$ dB], [$approx 60$--$88$ dB],
+  inset: 4.5pt,
+  [], [*DIV2K (natural, 256²)*], [*TU-Berlin (sketch, 256²)*], [*QuickDraw (drawing, 32²)*],
+  [block-size curve], [flat in $k$], [falls with $k$ (small blocks win)], [flat in $k$],
+  [best learned family], [`rich`], [QFT-family \@ 0.2 & 0.01; `rich` \@ 0.05], [QFT-family],
+  [block-DCT \@ $rho$=0.2], [$34$ dB (beats all)], [$94$ dB (beats all)], [$27$ dB (learned beat it)],
+  [vs block-DCT], [learned overtake by $rho$=0.01], [learned overtake \@ 0.05 & 0.01], [learned win at all $rho$ \@ 0.2; converge \@ 0.01],
+  [identity vs random], [identity $gt.eq$ random ($<1$ dB)], [identity #sym.gt.tri random (25--30 dB)], [identity wins \@ 0.2; ties \@ 0.05/0.01],
+  [PSNR \@ $rho$=0.2], [$approx 31$--$34$], [$approx 60$--$88$], [$approx 35$--$40$],
 )
 
 The contrast is governed by *energy compaction relative to the data's sparsity
-structure*. Natural-image energy is spread across scales, so a global / large
-circuit and the complex-$U(4)$ richness of `rich` help, and the curve is flat;
-sketches are block-sparse, so a small per-block transform already captures almost
-everything and a fixed block-DCT is near-lossless. On both datasets the fixed
-block transform degrades faster than the learned circuits as the rate tightens,
-so learning only pays off at aggressive compression.
+structure and resolution*. Natural-image energy is spread across scales, so a
+large circuit and the complex-$U(4)$ richness of `rich` help; high-res sketches
+are block-sparse, so a small per-block transform is near-lossless and the curve
+falls with $k$; low-res QuickDraw drawings are too coarse for $8 times 8$ blocks
+to exploit, so the global QFT-family solution wins outright and block-DCT is
+weak. A common thread: the fixed block transform degrades faster than the
+learned circuits as the rate tightens, so learning pays off most at aggressive
+compression (and, on coarse QuickDraw, at every rate).
 
 = Conclusions
 
-+ *The dataset sets the regime.* Conclusions about "which circuit family is best"
-  do not transfer between natural images and sketches; even the sign of the
-  block-size trend flips.
-+ *Learned circuits beat classical block-DCT only at aggressive compression.* At
-  the light rate block-DCT wins on both datasets; the learned transforms overtake
-  it as $rho$ shrinks (by $rho=0.01$ on DIV2K, $rho=0.05$ on sketches for `rich`).
-+ *Complex $U(4)$ (`rich`) is the only architectural feature that consistently
-  helps* — it leads the learned families on both datasets.
-+ *Identity initialisation dominates random* everywhere, decisively so on
-  sketches; the structured identity start is a strong, cheap prior.
++ *The dataset sets the regime.* "Which circuit family is best" does not transfer
+  across natural images, high-res sketches and low-res drawings; even the sign of
+  the block-size trend and the leading family change.
++ *Learned circuits beat classical block-DCT at aggressive compression* (and at
+  every rate on coarse QuickDraw, where block-DCT is weak); on the $256²$ sets
+  block-DCT wins at the light rate but the learned transforms overtake it as
+  $rho$ shrinks.
++ *Architectural richness is dataset-dependent:* complex $U(4)$ (`rich`) leads on
+  natural images, but the plain QFT-family solution leads on both drawing sets.
++ *Identity initialisation dominates random* on the $256²$ sets (decisively on
+  sketches); on coarse QuickDraw the advantage holds only at the light rate and
+  ties under heavy compression. The structured identity start is a strong, cheap
+  prior.
 
 #v(4pt)
 #text(size: 8pt, fill: gray)[
-  Data: `results/family_init_matrix/{div2k_8q,tuberlin_8q}/<family>_<init>/`.
+  Data: `results/family_init_matrix/{div2k_8q,tuberlin_8q,quickdraw_5q}/<family>_<init>/`.
   Reproduce a sweep with `experiments/qft_progressive.py --dataset <d> --family <f>
-  --init <i>`; regenerate figures with each report's `render_fig.py`.
+  --init <i>`; regenerate figures with each report's `render_fig*.py`.
 ]

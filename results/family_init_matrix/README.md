@@ -38,9 +38,20 @@ gitignored (kept on disk, not tracked); `env.json` / `metrics.json` /
 - **tuberlin_8q** — COMPLETE. All 10 combos saved. Sketches are block-sparse, so
   the story inverts vs DIV2K: PSNR *falls* with block size, and classical
   block-DCT-8 is near-lossless at the light rate (median ~94 dB @ rho=0.20) but
-  drops to ~36 dB @ rho=0.05, where learned `rich` (identity) edges above it.
-  Family ranking flips between rates (QFT-derived families lead at rho=0.20,
-  `rich` at rho=0.05). Dual-rate report under `tuberlin_8q/report/`.
+  drops to ~36 dB @ rho=0.05 and ~4.8 dB @ rho=0.01, where the learned circuits
+  beat it by ~18 dB. Family ranking flips between rates. Tri-rate report under
+  `tuberlin_8q/report/` (rho=0.20/0.05/0.01).
+- **quickdraw_5q** — COMPLETE (m=n=5, 32×32; k=1..5, mera at {2,4}). All 10
+  combos. Low-res drawings: 8×8-block DCT is weak (~27 dB @ rho=0.20), so the
+  learned circuits beat it at every rate. The QFT-family (identity, all four
+  bit-identical) leads at ~39.5 dB, above `rich` (~35); curve flat in k. At
+  heavy rates everything converges to block-DCT and the identity advantage
+  erodes. Tri-rate report under `quickdraw_5q/report/`.
+
+Both the writeup and the per-dataset reports report mean test PSNR at
+rho in {0.20, 0.05, 0.01}; rho=0.01 (and, for quickdraw, the figures) are
+re-evaluated from checkpoints (multirho_data.json) since the training cells
+only scored rho=0.05..0.20.
 
 The report metric is mean test PSNR over 50 sketches at two rates:
 `rho=0.20` (5x) and `rho=0.05` (20x). On these block-sparse sketches a classical

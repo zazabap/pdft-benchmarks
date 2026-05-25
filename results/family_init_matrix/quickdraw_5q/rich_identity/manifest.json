@@ -1,0 +1,66 @@
+{
+  "experiment": "rich_progressive",
+  "family": "rich",
+  "init_policy": "identity",
+  "init_seed": null,
+  "dataset": "quickdraw_5q",
+  "epochs_per_stage": 112,
+  "n_stages": 5,
+  "k_values": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "total_epochs": 560,
+  "stages": [
+    {
+      "k": 1,
+      "n_trainable": 2,
+      "block_size": 2,
+      "cell": "stage_k1",
+      "psnr_rho_020": 49.61787334845697,
+      "steps": 1008,
+      "elapsed_seconds": 7.415161601267755
+    },
+    {
+      "k": 2,
+      "n_trainable": 6,
+      "block_size": 4,
+      "cell": "stage_k2",
+      "psnr_rho_020": 35.21016403456429,
+      "steps": 1008,
+      "elapsed_seconds": 10.91308511607349
+    },
+    {
+      "k": 3,
+      "n_trainable": 12,
+      "block_size": 8,
+      "cell": "stage_k3",
+      "psnr_rho_020": 35.456172308724106,
+      "steps": 1008,
+      "elapsed_seconds": 14.692659691907465
+    },
+    {
+      "k": 4,
+      "n_trainable": 20,
+      "block_size": 16,
+      "cell": "stage_k4",
+      "psnr_rho_020": 35.095700091404645,
+      "steps": 1008,
+      "elapsed_seconds": 21.159722677432
+    },
+    {
+      "k": 5,
+      "n_trainable": 30,
+      "block_size": 32,
+      "cell": "stage_k5",
+      "psnr_rho_020": 34.9860292999395,
+      "steps": 1008,
+      "elapsed_seconds": 26.317482406273484
+    }
+  ],
+  "anchors": {},
+  "git_sha": "7d3738394eee2d92acf973967777b1bf2615afab"
+}

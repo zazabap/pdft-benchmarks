@@ -1,0 +1,56 @@
+{
+  "experiment": "entangled_qft_progressive",
+  "family": "entangled_qft",
+  "init_policy": "random",
+  "init_seed": 0,
+  "dataset": "quickdraw_5q",
+  "epochs_per_stage": 112,
+  "n_stages": 4,
+  "k_values": [
+    2,
+    3,
+    4,
+    5
+  ],
+  "total_epochs": 448,
+  "stages": [
+    {
+      "k": 2,
+      "n_trainable": 8,
+      "block_size": 4,
+      "cell": "stage_k2",
+      "psnr_rho_020": 30.046717966400248,
+      "steps": 1008,
+      "elapsed_seconds": 10.057106686756015
+    },
+    {
+      "k": 3,
+      "n_trainable": 15,
+      "block_size": 8,
+      "cell": "stage_k3",
+      "psnr_rho_020": 30.051403382919393,
+      "steps": 1008,
+      "elapsed_seconds": 13.16293079406023
+    },
+    {
+      "k": 4,
+      "n_trainable": 24,
+      "block_size": 16,
+      "cell": "stage_k4",
+      "psnr_rho_020": 30.050894065917067,
+      "steps": 1008,
+      "elapsed_seconds": 16.334422072395682
+    },
+    {
+      "k": 5,
+      "n_trainable": 35,
+      "block_size": 32,
+      "cell": "stage_k5",
+      "psnr_rho_020": 24.35449074216192,
+      "steps": 1008,
+      "elapsed_seconds": 18.637391349300742
+    }
+  ],
+  "anchors": {},
+  "git_sha": "7d3738394eee2d92acf973967777b1bf2615afab"
+}
