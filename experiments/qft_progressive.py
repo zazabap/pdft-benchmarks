@@ -3,14 +3,15 @@
 
 Supports six circuit families via --family: `qft` (default), `rich`,
 `real_rich`, `tebd`, `entangled_qft`, `mera`. Every family supports both
-`--init identity` and `--init random`. The curriculum is identical across
-families; only the per-stage inner basis (and its valid k range) changes:
-`qft`/`rich`/`real_rich` run k=1..8, `tebd`/`entangled_qft` run k=2..8, and
-`mera` runs only k in {2,4,8} (m must be a power of 2).
+`--init identity` and `--init random`, and three datasets via --dataset:
+div2k_8q / tuberlin_8q (m=n=8) and quickdraw_5q (m=n=5). The curriculum is
+identical across families; only the per-stage inner basis and its valid k range
+change: `qft`/`rich`/`real_rich` run k=1..m, `tebd`/`entangled_qft` run k=2..m,
+and `mera` runs only k a power of 2 in [2, m].
 
-For each stage k=1..8, train INDEPENDENTLY from a per-family init:
-  - basis = BlockedBasis(<family>(k, k), 8-k, 8-k)  for k < 8
-          = bare <family>(8, 8)                     for k = 8
+For each stage k, train INDEPENDENTLY from a per-family init:
+  - basis = BlockedBasis(<family>(k, k), m-k, m-k)  for k < m
+          = bare <family>(m, m)                     for k = m
   - inner init (--init identity, the default, for qft/rich/real_rich):
         qft       : H -> I_2, CP -> phase 0
         rich      : H -> I_2, U4 -> I_4 (complex U(2)/U(4) manifolds)
@@ -69,6 +70,7 @@ ANCHORS = {
         "mera": {"mera": 30.91, "blocked_8": 32.26, "qft": 31.29},
     },
     "tuberlin_8q": {},
+    "quickdraw_5q": {},
 }
 
 
@@ -151,9 +153,9 @@ def main() -> int:
     parser.add_argument("--out-base", type=str, default=None,
                         help="Parent for per-stage cells. Default results/<family>_progressive/<dataset>/_runs.")
     parser.add_argument("--dataset", type=str, default="div2k_8q",
-                        choices=["div2k_8q", "tuberlin_8q"],
-                        help="Dataset + qubit config (both m=n=8, 256x256): "
-                             "div2k_8q (natural images) or tuberlin_8q (sketches).")
+                        choices=["div2k_8q", "tuberlin_8q", "quickdraw_5q"],
+                        help="Dataset + qubit config: div2k_8q / tuberlin_8q "
+                             "(m=n=8, 256x256) or quickdraw_5q (m=n=5, 32x32).")
     parser.add_argument("--preset", type=str, default="generalized",
                         choices=["smoke", "moderate", "generalized"])
     parser.add_argument("--force", action="store_true", default=False,
@@ -183,7 +185,7 @@ def main() -> int:
         tebd_identity_basis,
         tebd_random_basis,
     )
-    from pdft_benchmarks.datasets import load_div2k, load_tuberlin
+    from pdft_benchmarks.datasets import load_div2k, load_quickdraw, load_tuberlin
     from pdft_benchmarks.evaluation import evaluate_basis_shared
     from pdft_benchmarks.presets import get_preset
 
@@ -256,14 +258,18 @@ def main() -> int:
           f"preset.epochs={preset.epochs} per stage, early_stopping disabled, "
           f"seed={preset.seed}")
 
-    m = n = 8
-    dataset_loader = {
-        "div2k_8q": load_div2k,
-        "tuberlin_8q": load_tuberlin,
-    }[args.dataset]
+    # Per-dataset (qubit count m, loader, image-size kwarg name). Outer image is
+    # 2**m x 2**m: div2k/tuberlin are m=8 (256x256), quickdraw is m=5 (32x32).
+    DATASET_CFG = {
+        "div2k_8q":     (8, load_div2k, "size"),
+        "tuberlin_8q":  (8, load_tuberlin, "size"),
+        "quickdraw_5q": (5, load_quickdraw, "img_size"),
+    }
+    m_qubits, dataset_loader, size_kw = DATASET_CFG[args.dataset]
+    m = n = m_qubits
     train_imgs_np, test_imgs_np = dataset_loader(
         n_train=preset.n_train, n_test=preset.n_test,
-        seed=preset.seed, size=2**m,
+        seed=preset.seed, **{size_kw: 2 ** m},
     )
     k_train = max(1, round(2 ** (m + n) * 0.1))
     print(f"[{exp}] m=n={m}, k_train={k_train}, "
@@ -276,19 +282,18 @@ def main() -> int:
     # Each stage is independent; no carry-forward state needed.
     stage_summaries: list[dict] = []
 
-    # Per-family valid stage list. qft/rich/real_rich span the full k=1..8.
-    # tebd & entangled_qft are undefined at k=1 (their 2-site gates need >= 2
-    # qubits per axis), so they run block sizes 4..256 (k=2..8). MERA requires
-    # m a power of 2, so it only trains at k in {2,4,8} (block sizes 4/16/256).
-    K_VALUES = {
-        "qft":           [1, 2, 3, 4, 5, 6, 7, 8],
-        "rich":          [1, 2, 3, 4, 5, 6, 7, 8],
-        "real_rich":     [1, 2, 3, 4, 5, 6, 7, 8],
-        "tebd":          [2, 3, 4, 5, 6, 7, 8],
-        "entangled_qft": [2, 3, 4, 5, 6, 7, 8],
-        "mera":          [2, 4, 8],
-    }
-    k_values = K_VALUES[family]
+    # Per-family valid stage list, as a function of the dataset's qubit count m.
+    # qft/rich/real_rich span k=1..m. tebd & entangled_qft are undefined at k=1
+    # (their 2-site gates need >= 2 qubits per axis), so they run k=2..m. MERA
+    # requires the inner qubit count k to be a power of 2, so it trains only at
+    # k in {2,4,8,...} <= m (block sizes 4/16/256/...).
+    def _k_values(fam: str, mq: int) -> list[int]:
+        if fam == "mera":
+            return [k for k in (2, 4, 8, 16, 32) if k <= mq]
+        if fam in ("tebd", "entangled_qft"):
+            return list(range(2, mq + 1))
+        return list(range(1, mq + 1))
+    k_values = _k_values(family, m)
     n_stages = len(k_values)
 
     for k in k_values:
@@ -331,10 +336,10 @@ def main() -> int:
             # warm-start chain. The block-size sweep over k captures per-block-
             # size training dynamics with a fixed init policy across all k.
             inner_k = make_inner(k)
-            if k < 8:
+            if k < m:
                 basis = pdft.BlockedBasis(inner=inner_k,
-                                          block_log_m=8 - k,
-                                          block_log_n=8 - k)
+                                          block_log_m=m - k,
+                                          block_log_n=m - k)
             else:
                 basis = inner_k
 
@@ -374,7 +379,7 @@ def main() -> int:
 
             # Persist trained tensors FIRST so that even if subsequent JSON
             # writes fail, the durable checkpoint exists.
-            if k < 8:
+            if k < m:
                 inner_trained = result.basis.inner
             else:
                 inner_trained = result.basis

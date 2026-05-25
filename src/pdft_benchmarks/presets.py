@@ -139,6 +139,7 @@ _DATASETS = {
     "div2k_8q_blocked": PRESETS_DIV2K,  # uses same presets — outer image (256×256) unchanged
     "div2k_10q": PRESETS_DIV2K_10Q,
     "tuberlin_8q": PRESETS_TUBERLIN,    # 256×256 sketches — same outer size as div2k_8q
+    "quickdraw_5q": PRESETS_QUICKDRAW,  # 32×32 drawings (m=n=5)
 }
 
 
