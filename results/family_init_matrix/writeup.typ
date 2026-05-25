@@ -41,6 +41,19 @@
     )).flatten()
   )
 ]
+#let rate_tables(var, kmax: 8) = {
+  let rows = (
+    ([$rho = 0.20$ — 5#sym.times], "rho020"),
+    ([$rho = 0.10$ — 10#sym.times], "rho010"),
+    ([$rho = 0.05$ — 20#sym.times], "rho005"),
+    ([$rho = 0.01$ — 100#sym.times], "rho001"),
+  )
+  for (lab, rk) in rows {
+    text(weight: "bold", size: 9.5pt)[#lab]
+    results_table(var.at(rk), kmax: kmax)
+    v(3pt)
+  }
+}
 
 #align(center)[
   #text(size: 15pt, weight: "bold")[Circuit family $times$ initialisation $times$ dataset]
@@ -97,37 +110,30 @@ coefficients by magnitude.
 
 = DIV2K-8q: natural images
 
-#results_table(div2k)
-#v(3pt)
-#figure(image("div2k_8q/report/comparison_rho020.svg", width: 88%),
-  caption: [DIV2K, $rho=0.20$ (5#sym.times). One colour per family,
-    solid = identity / dashed = random init; grey dashed = classical block-DCT-8
-    reference. `rich` leads the learned families but sits just below block-DCT.])
-#figure(image("div2k_8q/report/comparison_rho005.svg", width: 88%),
-  caption: [DIV2K, $rho=0.05$ (20#sym.times). The families bunch near block-DCT-8;
-    `rich` draws level with it.])
-#figure(image("div2k_8q/report/comparison_rho001.svg", width: 88%),
-  caption: [DIV2K, $rho=0.01$ (100#sym.times). Every learned family clears
-    block-DCT-8 by $approx 6$--$7$ dB — the learned transforms win at aggressive
-    compression.])
+DIV2K is 500 natural images, centre-crop + LANCZOS to $256 times 256$ ($m=n=8$).
+Block-DCT-8 is strong here ($34.0$ dB \@ $rho=0.20$).
+
+#figure(image("div2k_8q/report/comparison_grid.svg", width: 100%),
+  caption: [DIV2K: family$times$init PSNR vs block size $k$ at four keep ratios.
+    One colour per family, solid = identity / dashed = random init; grey dashed =
+    classical block-DCT-8 (value per panel).])
 
 *Findings.*
-- *`rich` leads the learned families but classical block-DCT wins at the light
-  rate.* At $rho=0.20$ `rich` peaks at $33.7$ dB, $approx 1.5$ dB above every
-  other family — yet still just below the classical block-DCT-8 reference
-  ($34.0$ dB). Complex $U(4)$ is the one architectural feature that helps, but it
-  does not beat the fixed block transform here.
+- *`rich` leads the learned families but block-DCT wins at the light rate.* At
+  $rho=0.20$ `rich` peaks at $33.7$ dB, $approx 1.5$ dB above every other family,
+  yet just below block-DCT-8 ($34.0$ dB).
 - *The learned circuits overtake block-DCT as compression tightens.* block-DCT-8
-  falls faster with the rate ($34.0 arrow.r 26.1 arrow.r 14.9$ dB at
-  $rho = 0.20\/0.05\/0.01$) than the learned circuits do: `rich` draws level at
-  $rho=0.05$ ($26.4$ vs $26.1$) and *every* family clears block-DCT by
-  $approx 6$--$7$ dB at $rho=0.01$ ($approx 21$ vs $14.9$).
+  falls $34.0 arrow.r 29.4 arrow.r 26.1 arrow.r 14.9$ dB across
+  $rho=0.20\/0.10\/0.05\/0.01$; `rich` draws level by $rho=0.05$ and every family
+  clears it by $approx 6$--$7$ dB at $rho=0.01$.
 - *Under identity init the four QFT-derived families are bit-identical* at every
-  $k$ despite very different gate counts ($k=8$: qft 72, tebd 32, entangled_qft
-  80, mera 44). From an identity start they all converge to the same QFT
-  operator — the extra gates train to no-ops.
-- *Identity init $gt.eq$ random* for every family; the curve is essentially flat
-  in $k$ ($approx 33$ dB for `rich`, $approx 31.7$ for the rest) at $rho=0.20$.
+  $k$ (gate counts at $k=8$: qft 72, tebd 32, entangled_qft 80, mera 44) — they
+  all converge to the same QFT operator.
+- *Identity init $gt.eq$ random*; the curve is flat in $k$ ($approx 33$ dB `rich`,
+  $approx 31.7$ rest) at $rho=0.20$.
+
+*Per-rate tables (mean test PSNR, dB).*
+#rate_tables(div2k, kmax: 8)
 
 #pagebreak()
 
@@ -137,94 +143,59 @@ Sketches are *block-sparse* — most $8 times 8$ tiles are blank — so a classi
 block transform is near-lossless: block-DCT-8 reaches
 #fmt(tb.at("_refs").at("block_dct_8@0.2").at("mean")) dB mean /
 #fmt(tb.at("_refs").at("block_dct_8@0.2").at("median")) median at $rho=0.20$
-(versus $approx 32$ on DIV2K), but only
-#fmt(tb.at("_refs").at("block_dct_8@0.05").at("mean")) dB at $rho=0.05$. We
-therefore report two compression rates.
+(versus $approx 32$ on DIV2K), but collapses to $approx 4.8$ dB at $rho=0.01$.
 
-== Light compression: $rho = 0.20$ (5#sym.times)
-#results_table(tb.at("rho020"))
-#v(2pt)
-#figure(image("tuberlin_8q/report/comparison_rho020.svg", width: 74%),
-  caption: [TU-Berlin, $rho=0.20$. The curve *falls* with block size; the
-    QFT-derived families peak above `rich` at $k=3$; all trail block-DCT-8 (grey).])
-
-== Heavy compression: $rho = 0.05$ (20#sym.times)
-#results_table(tb.at("rho005"))
-#v(2pt)
-#figure(image("tuberlin_8q/report/comparison_rho005.svg", width: 74%),
-  caption: [TU-Berlin, $rho=0.05$. `rich` (identity) leads and edges *above*
-    block-DCT-8 at $k=3,4$; the per-$k$ curve flattens.])
-
-== Very heavy compression: $rho = 0.01$ (100#sym.times)
-#results_table(tb.at("rho001"))
-#v(2pt)
-#figure(image("tuberlin_8q/report/comparison_rho001.svg", width: 74%),
-  caption: [TU-Berlin, $rho=0.01$. block-DCT-8 *collapses* to $approx 4.8$ dB
-    while the learned circuits plateau $approx 23$ dB — clearing it by
-    $approx 18$ dB. An even sharper version of the heavy-compression crossover
-    seen on DIV2K.])
+#figure(image("tuberlin_8q/report/comparison_grid.svg", width: 100%),
+  caption: [TU-Berlin: family$times$init PSNR vs block size $k$ at four keep
+    ratios. Note the *falling* curve (small blocks win) and the very high
+    absolute PSNR; grey dashed = block-DCT-8 (value per panel).])
 
 *Findings.*
 - *The block-size curve inverts at the light rate.* Small blocks win — each blank
-  tile costs almost no coefficients — the opposite of DIV2K's flat curve. (At the
-  heavy rates the curves instead rise then plateau in $k$.)
+  tile costs almost no coefficients — the opposite of DIV2K's flat curve.
 - *The family ranking flips with the rate.* At $rho=0.20$ the QFT-derived families
   peak $approx 88$ dB at $k=3$, above `rich` ($approx 79$); at $rho=0.05$ `rich`
   (identity) leads ($approx 37$ dB); at $rho=0.01$ the QFT-derived families edge
   back ahead ($approx 23.2$ vs `rich` $22.9$).
 - *The heavy-compression crossover is extreme here.* block-DCT-8 falls
-  $100.7 arrow.r 36.5 arrow.r 4.8$ dB across $rho = 0.20\/0.05\/0.01$: it is
-  near-lossless at the light rate but the learned circuits beat it by
-  $approx 1$ dB at $rho=0.05$ and by $approx 18$ dB at $rho=0.01$.
+  $100.7 arrow.r 55.7 arrow.r 36.5 arrow.r 4.8$ dB across
+  $rho=0.20\/0.10\/0.05\/0.01$: near-lossless at the light rate, but the learned
+  circuits beat it by $approx 18$ dB at $rho=0.01$.
 - *Identity #sym.gt.tri random* — the gap reaches $approx 25$--$30$ dB at large $k$, far
-  wider than on DIV2K. The QFT-family identity equivalence partly survives:
-  `qft` $equiv$ `entangled_qft` at all $k$, and all four QFT-derived families
-  coincide at $rho=0.05$.
+  wider than on DIV2K. `qft` $equiv$ `entangled_qft` at all $k$ under identity init.
+
+*Per-rate tables (mean test PSNR, dB).*
+#rate_tables(tb, kmax: 8)
 
 = QuickDraw: low-resolution drawings
 
 QuickDraw is $32 times 32$ ($m=n=5$), so the curriculum spans only $k=1..5$
 (block sizes $2..32$; tables show $k=2..5$, `mera` at $k in {2,4}$). The drawings
-are sparse strokes on a *dark* background (mean pixel $approx 0.12$), but at this
-low resolution they are far less block-compressible than the high-res TU-Berlin
-sketches: classical block-DCT-8 reaches only
+are sparse strokes on a *dark* background, but at this low resolution they are
+far less block-compressible than the high-res TU-Berlin sketches: classical
+block-DCT-8 reaches only
 #str(qd.at("_refs").at("block_dct_8@0.2").at("mean")) dB at $rho=0.20$ (vs
-$approx 100$ on TU-Berlin).
+$approx 100$ on TU-Berlin), so the learned circuits beat it.
 
-== Light compression: $rho = 0.20$ (5#sym.times)
-#results_table(qd.at("rho020"), kmax: 5)
-#v(2pt)
-#figure(image("quickdraw_5q/report/comparison_rho020.svg", width: 72%),
-  caption: [QuickDraw, $rho=0.20$. The QFT-derived families (identity, all four
-    bit-identical at $approx 39.5$ dB) *dominate* — above `rich` ($approx 35$) and
-    well above block-DCT-8 ($26.6$). The curve is flat in $k$.])
-
-== Heavy compression: $rho = 0.05$ (20#sym.times)
-#results_table(qd.at("rho005"), kmax: 5)
-#v(2pt)
-#figure(image("quickdraw_5q/report/comparison_rho005.svg", width: 72%),
-  caption: [QuickDraw, $rho=0.05$. All families bunch near block-DCT-8
-    ($approx 17$ dB); the identity advantage vanishes and random init even edges
-    ahead at some $k$.])
-
-== Very heavy compression: $rho = 0.01$ (100#sym.times)
-#results_table(qd.at("rho001"), kmax: 5)
-#v(2pt)
-#figure(image("quickdraw_5q/report/comparison_rho001.svg", width: 72%),
-  caption: [QuickDraw, $rho=0.01$. Everything collapses toward block-DCT-8
-    ($approx 12.9$ dB); families are within $approx 2$ dB of each other.])
+#figure(image("quickdraw_5q/report/comparison_grid.svg", width: 100%),
+  caption: [QuickDraw: family$times$init PSNR vs block size $k$ at four keep
+    ratios. The QFT-derived families (identity) dominate and the curve is flat in
+    $k$; grey dashed = block-DCT-8 (value per panel), which the learned circuits
+    clear at every rate.])
 
 *Findings.*
-- *Learned circuits beat block-DCT at the light rate.* Unlike DIV2K/TU-Berlin,
-  block-DCT-8 is weak on $32 times 32$ drawings ($26.6$ dB), so at $rho=0.20$ the
-  QFT-derived families ($approx 39.5$) and even `rich` ($approx 35$) clear it.
+- *Learned circuits beat block-DCT at every rate.* Unlike the $256²$ sets,
+  block-DCT-8 is weak on $32 times 32$ drawings ($26.6$ dB \@ $rho=0.20$), so the
+  QFT-derived families ($approx 39.5$) and `rich` ($approx 35$) both clear it.
 - *The QFT-derived families lead and are bit-identical under identity init,*
-  beating `rich` by $approx 4$ dB at $rho=0.20$ — the global QFT solution suits
-  these coarse drawings better than `rich`'s complex gates. The curve is flat in
-  $k$ (like DIV2K, unlike TU-Berlin's falling curve).
+  beating `rich` by $approx 4$ dB at $rho=0.20$. The curve is flat in $k$ (like
+  DIV2K, unlike TU-Berlin's falling curve).
 - *At heavy compression the families converge* to block-DCT ($approx 17$ dB at
   $rho=0.05$, $approx 12$ at $rho=0.01$) and the identity advantage erodes —
   random init even edges ahead at some $k$.
+
+*Per-rate tables (mean test PSNR, dB).*
+#rate_tables(qd, kmax: 5)
 
 = Cross-dataset discussion
 

@@ -48,10 +48,12 @@ gitignored (kept on disk, not tracked); `env.json` / `metrics.json` /
   heavy rates everything converges to block-DCT and the identity advantage
   erodes. Tri-rate report under `quickdraw_5q/report/`.
 
-Both the writeup and the per-dataset reports report mean test PSNR at
-rho in {0.20, 0.05, 0.01}; rho=0.01 (and, for quickdraw, the figures) are
-re-evaluated from checkpoints (multirho_data.json) since the training cells
-only scored rho=0.05..0.20.
+Both the writeup and the per-dataset reports show, per dataset, a single 2x2
+**grid figure** (`comparison_grid.svg`, one panel per keep ratio
+rho in {0.20, 0.10, 0.05, 0.01}, via `render_grid.py`) followed by the per-rate
+tables. rho=0.01 is re-evaluated from checkpoints (multirho_data.json) since the
+training cells only scored rho=0.05..0.20; rho=0.10 is spliced in from the cells.
+Mean test PSNR (dB) over the seed=42 / 50-image test split.
 
 The report metric is mean test PSNR over 50 sketches at two rates:
 `rho=0.20` (5x) and `rho=0.05` (20x). On these block-sparse sketches a classical
