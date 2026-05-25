@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
 
 REPO = Path("/home/claude-user/pdft-benchmarks")
-OUT = Path("/tmp/random_init_report")
+OUT = Path(__file__).resolve().parent
 
 # Wong colourblind-safe palette, one colour per family.
 FAM_COLOR = {
@@ -86,8 +86,10 @@ for (fam, init), (d, exp) in COMBOS.items():
             alpha=0.9, markerfacecolor=(FAM_COLOR[fam] if init == "identity" else "none"),
             markeredgecolor=FAM_COLOR[fam])
 
-ax.axhline(32.26, color="#888888", linewidth=0.8, linestyle=(0, (1, 1)), zorder=0)
-ax.text(8.04, 32.26, "block-8 ref", fontsize=6.5, color="#666666", va="center", ha="left")
+# classical block-DCT-8 reference on DIV2K @ rho=0.20 (relabelled from the old
+# mislabelled "block-8 ref" 32.26, which was the trained blocked-QFT anchor).
+_BLOCK_DCT8_RHO20 = 34.007
+ax.axhline(_BLOCK_DCT8_RHO20, color="#888888", linewidth=1.0, linestyle=(0, (4, 3)), zorder=0)
 
 ax.set_xlabel("stage $k$  (inner block size $2^k\\times2^k$)", fontsize=9)
 ax.set_ylabel("test PSNR @ $\\rho=0.20$  (dB)", fontsize=9)
@@ -102,16 +104,20 @@ ax.grid(True, which="minor", alpha=0.12, linewidth=0.3, color="#bbbbbb", zorder=
 ax.spines["top"].set_visible(False)
 ax.spines["right"].set_visible(False)
 
+# Single combined legend ON the panel; loc="upper center" + top headroom keep
+# it clear of the curves.
 fam_handles = [Line2D([], [], color=FAM_COLOR[f], marker=FAM_MARKER[f], linestyle="-",
                       markersize=5, label=FAM_LABEL[f]) for f in FAMILY_ORDER]
 init_handles = [Line2D([], [], color="#333333", linestyle="-", label="identity init"),
-                Line2D([], [], color="#333333", linestyle="--", label="random init")]
-leg1 = ax.legend(handles=fam_handles, fontsize=7.5, loc="lower left", title="family",
-                 title_fontsize=7.5, framealpha=0.9, ncol=1)
-ax.add_artist(leg1)
-ax.legend(handles=init_handles, fontsize=7.5, loc="lower right", framealpha=0.9)
+                Line2D([], [], color="#333333", linestyle="--", label="random init"),
+                Line2D([], [], color="#888", linestyle=(0, (4, 3)),
+                       label=f"block-DCT-8 ({_BLOCK_DCT8_RHO20:.1f} dB)")]
+_ylo, _yhi = ax.get_ylim()
+ax.set_ylim(_ylo, _yhi + 0.26 * (_yhi - _ylo))
+ax.legend(handles=fam_handles + init_handles, fontsize=7.5, loc="upper center",
+          ncol=4, framealpha=0.92, borderaxespad=0.6)
 
-fig.subplots_adjust(left=0.10, right=0.90, top=0.97, bottom=0.13)
+fig.subplots_adjust(left=0.10, right=0.98, top=0.97, bottom=0.13)
 for ext in ("pdf", "svg"):
     fig.savefig(OUT / f"comparison.{ext}", bbox_inches="tight")
 plt.close(fig)

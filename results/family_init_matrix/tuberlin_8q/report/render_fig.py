@@ -18,8 +18,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
 
-OUT = Path("/tmp/tuberlin_report")
-TB = Path("/tmp/tuberlin")
+HERE = Path(__file__).resolve().parent
+OUT = HERE
+# Prefer the committed cells next to this script (regenerable from the repo);
+# fall back to the /tmp scratch dirs.
+TB = HERE.parent if (HERE.parent / "rich_identity" / "_runs").is_dir() else Path("/tmp/tuberlin")
 
 FAM_COLOR = {"rich": "#0072B2", "qft": "#E69F00", "tebd": "#009E73",
              "entangled_qft": "#CC79A7", "mera": "#D55E00"}
@@ -74,9 +77,6 @@ def render(rho: str, fname: str) -> None:
     ref = REFS.get(f"block_dct_8@{rho}", REFS.get(f"block_dct_8@{float(rho)}"))
     if ref:
         ax.axhline(ref["mean"], color="#888888", linewidth=0.9, linestyle=(0, (4, 3)), zorder=0)
-        ax.text(0.99, ref["mean"], f"  block-DCT-8 (mean {ref['mean']:.0f}, med {ref['median']:.0f})",
-                transform=ax.get_yaxis_transform(), fontsize=6.5, color="#555",
-                va="bottom", ha="right")
     comp = f"{1/float(rho):.0f}x"
     ax.set_xlabel("stage $k$  (inner block size $2^k\\times2^k$)", fontsize=9)
     ax.set_ylabel(f"test PSNR @ $\\rho={rho}$  (dB)", fontsize=9)
@@ -89,14 +89,19 @@ def render(rho: str, fname: str) -> None:
     ax.grid(True, which="minor", alpha=0.12, linewidth=0.3, color="#bbbbbb", zorder=0)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
+    # Single combined legend ON the panel; loc="upper center" + top headroom
+    # keep it clear of the curves.
     fam_handles = [Line2D([], [], color=FAM_COLOR[f], marker=FAM_MARKER[f], linestyle="-",
                           markersize=5, label=FAM_LABEL[f]) for f in FAMILY_ORDER]
     init_handles = [Line2D([], [], color="#333", linestyle="-", label="identity init"),
                     Line2D([], [], color="#333", linestyle="--", label="random init")]
-    leg1 = ax.legend(handles=fam_handles, fontsize=7.5, loc="best", title=f"family  ({comp} compression)",
-                     title_fontsize=7.5, framealpha=0.9)
-    ax.add_artist(leg1)
-    ax.legend(handles=init_handles, fontsize=7.5, loc="lower right", framealpha=0.9)
+    if ref:
+        init_handles.append(Line2D([], [], color="#888", linestyle=(0, (4, 3)),
+                                   label=f"block-DCT-8 (med {ref['median']:.0f})"))
+    ylo, yhi = ax.get_ylim()
+    ax.set_ylim(ylo, yhi + 0.26 * (yhi - ylo))
+    ax.legend(handles=fam_handles + init_handles, fontsize=7.5, loc="upper center",
+              ncol=4, framealpha=0.92, borderaxespad=0.6)
     fig.subplots_adjust(left=0.10, right=0.97, top=0.97, bottom=0.13)
     for ext in ("pdf", "svg"):
         fig.savefig(OUT / f"{fname}.{ext}", bbox_inches="tight")

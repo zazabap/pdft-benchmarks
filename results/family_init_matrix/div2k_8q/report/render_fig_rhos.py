@@ -50,9 +50,6 @@ def render(rkey: str, rho: float, comp: str) -> None:
     ref = DATA["_refs"].get(f"block_dct_8@{rho}")
     if ref is not None:
         ax.axhline(ref, color="#888888", linewidth=1.0, linestyle=(0, (4, 3)), zorder=0)
-        ax.text(0.5, ref, f"Block DCT reference ({ref:.1f} dB)",
-                transform=ax.get_yaxis_transform(), fontsize=7.5, color="#555",
-                va="bottom", ha="center")
     ax.set_xlabel("stage $k$  (inner block size $2^k\\times2^k$)", fontsize=9)
     ax.set_ylabel(f"test PSNR @ $\\rho={rho}$  ({comp} compression)  (dB)", fontsize=9)
     ax.set_xticks(range(2, 9))
@@ -64,14 +61,19 @@ def render(rkey: str, rho: float, comp: str) -> None:
     ax.grid(True, which="minor", alpha=0.12, linewidth=0.3, color="#bbbbbb", zorder=0)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
+    # Single combined legend ON the panel; loc="best" + top headroom keep it
+    # clear of the curves.
     fam_handles = [Line2D([], [], color=FAM_COLOR[f], marker=FAM_MARKER[f], linestyle="-",
                           markersize=5, label=FAM_LABEL[f]) for f in FAMILY_ORDER]
     style_handles = [Line2D([], [], color="#333", linestyle="-", label="identity init"),
                      Line2D([], [], color="#333", linestyle="--", label="random init")]
-    leg1 = ax.legend(handles=fam_handles, fontsize=7.5, loc="best", title="family",
-                     title_fontsize=7.5, framealpha=0.9)
-    ax.add_artist(leg1)
-    ax.legend(handles=style_handles, fontsize=7.5, loc="lower right", framealpha=0.9)
+    if ref is not None:
+        style_handles.append(Line2D([], [], color="#888", linestyle=(0, (4, 3)),
+                                    label=f"block-DCT-8 ({ref:.1f} dB)"))
+    ylo, yhi = ax.get_ylim()
+    ax.set_ylim(ylo, yhi + 0.26 * (yhi - ylo))
+    ax.legend(handles=fam_handles + style_handles, fontsize=7.5, loc="upper center",
+              ncol=4, framealpha=0.92, borderaxespad=0.6)
     fig.subplots_adjust(left=0.09, right=0.98, top=0.97, bottom=0.13)
     fname = f"comparison_{rkey}"
     for ext in ("pdf", "svg"):
