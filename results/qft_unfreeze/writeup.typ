@@ -93,6 +93,45 @@ triggers (grad-norm / loss-$Delta$ / step-cap):
   #v(2pt)
 ]
 
+= Comparison: block-size progressive baseline
+
+The `qft_progressive` experiment reaches the *same* full QFT$(8,8)$ operator on
+DIV2K by a different curriculum — a *block-size* schedule that trains the entire
+$2^k times 2^k$ QFT (all $k(k+1)$ gates at once, 1008 steps) at each stage
+$k = 1..8$, instead of thawing one gate at a time. It is the natural reference
+for the question *does the curriculum/order matter for the final operator, or
+only for the path?*
+
+#let qp = json("reference/qft_progressive_div2k_8q.json")
+#align(center)[
+  #table(
+    columns: (auto, auto, auto, auto),
+    align: (center, center, center, right),
+    stroke: 0.4pt + luma(180), inset: (x: 5.5pt, y: 3pt),
+    table.header([*stage $k$*], [*block*], [*\# gates*], [$rho{=}.20$ PSNR]),
+    ..qp.stages.map(s => (str(s.k), str(s.block_size) + $times$ + str(s.block_size),
+        str(s.n_trainable), f1(s.psnr_rho_020) + " dB")).flatten()
+  )
+]
+
+The block-size curriculum *saturates by $k = 2$* and the full QFT$(8,8)$ endpoint
+is *#f1(qp.stages.last().psnr_rho_020) dB* (= the all-gates-at-once `qft_identity`
+result). Read this against the *DIV2K* rows of the gate-unfreeze table above: if
+the identity-init sweep also lands at $approx$ #f1(qp.stages.last().psnr_rho_020)
+dB, the QFT$(8,8)$ optimum is *schedule-independent* — neither the unfreeze order
+nor the one-gate-at-a-time vs whole-block curriculum changes the destination,
+only the trajectory (exactly what the QuickDraw panels show, where all three
+orderings converge). A gate-unfreeze endpoint *below* the block-size baseline
+would instead say the per-gate schedule gets trapped short of the joint optimum.
+
+#figure(
+  image("reference/qft_progressive_training_dynamics.svg", width: 80%),
+  caption: [Reference (`qft_progressive`, DIV2K-8q): the block-size curriculum's
+  per-stage validation MSE, $k = 2..7$. Eight whole-block stages here vs the
+  30/72 per-gate stages of the unfreeze staircases above — same endpoint, very
+  different path granularity.],
+)
+
 = Reading
 
 The staircases make the per-gate marginal contribution legible: a tall step is a
