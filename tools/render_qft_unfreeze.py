@@ -67,7 +67,7 @@ def _render_combined(base: Path) -> int:
     for r, (init, init_lab) in enumerate(rows):
         for c, (tag, ds_lab) in enumerate(cols):
             ax = axes[r][c]
-            finals = []  # (color, leg, L/L0_end, psnr) for the corner annotation
+            finals = []  # (color, leg, mse_end, psnr) for the corner annotation
             for name, (color, ls, leg) in STYLE.items():
                 tj = base / tag / init / name / "trace.json"
                 if not tj.exists():
@@ -77,16 +77,14 @@ def _render_combined(base: Path) -> int:
                 if not steps:
                     continue
                 xs = [s["step"] for s in steps]
-                loss = [s["loss"] for s in steps]
-                l0 = loss[0] if loss[0] > 0 else 1.0
-                yend = loss[-1] / l0
-                ax.plot(xs, [v / l0 for v in loss], color=color, ls=ls, lw=1.3, label=leg)
-                ax.plot([xs[-1]], [yend], marker="o", ms=3.5, color=color)  # mark endpoint
-                finals.append((color, leg, yend, _final_psnr(trace)))
+                loss = [s["loss"] for s in steps]  # absolute top-k MSE (not L/L0)
+                ax.plot(xs, loss, color=color, ls=ls, lw=1.3, label=leg)
+                ax.plot([xs[-1]], [loss[-1]], marker="o", ms=3.5, color=color)  # endpoint
+                finals.append((color, leg, loss[-1], _final_psnr(trace)))
                 any_curve = True
-            # Mark the final loss (L/L0) and final PSNR@0.20 per ordering.
-            for i, (color, leg, yend, psnr) in enumerate(finals):
-                txt = f"{yend:.2f}" + (f" · {psnr:.1f} dB" if psnr is not None else "")
+            # Mark the final absolute MSE and final PSNR@0.20 per ordering.
+            for i, (color, leg, mse, psnr) in enumerate(finals):
+                txt = f"MSE {mse:.4g}" + (f" · {psnr:.1f} dB" if psnr is not None else "")
                 ax.text(0.97, 0.96 - 0.085 * i, txt, transform=ax.transAxes,
                         ha="right", va="top", fontsize=6.5, color=color)
             ax.grid(True, alpha=0.25, lw=0.5)
@@ -96,7 +94,7 @@ def _render_combined(base: Path) -> int:
             if r == len(rows) - 1:
                 ax.set_xlabel("cumulative training step", fontsize=8)
             if c == 0:
-                ax.set_ylabel(f"{init_lab}\n" + r"loss $L/L_0$", fontsize=8.5)
+                ax.set_ylabel(f"{init_lab}\ntop-$k$ MSE loss", fontsize=8.5)
             if r == 0 and c == 0:
                 ax.legend(frameon=False, fontsize=7.5)
 
@@ -144,30 +142,29 @@ def main() -> int:
         trace = json.loads(tj.read_text())
         steps = trace["steps"]
         xs = [r["step"] for r in steps]
-        loss = [r["loss"] for r in steps]
+        loss = [r["loss"] for r in steps]  # absolute top-k MSE
         grad = [r["grad_norm"] for r in steps]
-        l0 = loss[0] if loss and loss[0] > 0 else 1.0
-        ax_loss.plot(xs, [v / l0 for v in loss], color=color, ls=ls, lw=1.4, label=label)
+        ax_loss.plot(xs, loss, color=color, ls=ls, lw=1.4, label=label)
         ax_grad.plot(xs, grad, color=color, ls=ls, lw=1.4, label=label)
-        # mark the endpoints (final loss / final grad norm)
-        ax_loss.plot([xs[-1]], [loss[-1] / l0], marker="o", ms=4, color=color)
+        # mark the endpoints (final MSE / final grad norm)
+        ax_loss.plot([xs[-1]], [loss[-1]], marker="o", ms=4, color=color)
         ax_grad.plot([xs[-1]], [grad[-1]], marker="o", ms=4, color=color)
-        finals.append((color, label, loss[-1] / l0, loss[-1], grad[-1], _final_psnr(trace)))
+        finals.append((color, label, loss[-1], grad[-1], _final_psnr(trace)))
         plotted += 1
 
     if plotted == 0:
         print(f"[render] no trace.json under {indir}", file=sys.stderr)
         return 2
 
-    # Final loss (L/L0 and absolute) + PSNR@0.20 per ordering, marked at finish.
-    for i, (color, label, yend, labs, gend, psnr) in enumerate(finals):
-        txt = f"{label}: $L/L_0$={yend:.3f}  ($L$={labs:.3g})" + \
+    # Final absolute MSE + grad norm + PSNR@0.20 per ordering, marked at finish.
+    for i, (color, label, mse, gend, psnr) in enumerate(finals):
+        txt = f"{label}: MSE={mse:.4g}" + \
               (f"  PSNR@.20={psnr:.2f} dB" if psnr is not None else "")
         ax_loss.text(0.985, 0.95 - 0.075 * i, txt, transform=ax_loss.transAxes,
                      ha="right", va="top", fontsize=7, color=color)
 
-    ax_loss.set_ylabel(r"loss  $L / L_0$")
-    ax_loss.legend(frameon=False, fontsize=8, loc="lower left")
+    ax_loss.set_ylabel("top-$k$ MSE loss")
+    ax_loss.legend(frameon=False, fontsize=8, loc="upper right")
     ax_grad.set_yscale("log")
     ax_grad.set_ylabel(r"grad norm  $\|g\|$")
     ax_grad.set_xlabel("cumulative training step")

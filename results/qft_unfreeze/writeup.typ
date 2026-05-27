@@ -5,11 +5,15 @@
 #show heading.where(level: 2): set block(above: 0.7em, below: 0.35em)
 #show raw: set text(size: 8.5pt)
 
-#let datasets = (
+#let datasets_all = (
   ("quickdraw_5q", "QuickDraw (m=n=5, 30 gates)"),
   ("div2k_8q", "DIV2K (m=n=8, 72 gates)"),
   ("tuberlin_8q", "TU-Berlin (m=n=8, 72 gates)"),
 )
+// Only render PSNR tables for datasets whose runs have finished (the m=8 sweeps
+// land later); _available.json is regenerated as cells are merged in.
+#let available = json("_available.json")
+#let datasets = datasets_all.filter(d => d.at(0) in available)
 #let inits = ("identity", "random")
 #let orders = (("bg", "block-growth"), ("lr", "left" + sym.arrow.r + "right"),
                ("rl", "right" + sym.arrow.r + "left"))
@@ -55,12 +59,13 @@ with a seed shared across the three orderings so they start from the same basis.
 
 #figure(
   image("figures/training_dynamics.svg", width: 100%),
-  caption: [Windowed training loss $L / L_0$ versus cumulative optimiser step,
-  one curve per unfreeze ordering. Rows: identity (top) vs Haar-random (bottom)
-  init; columns: datasets. Each curve is a staircase — every downward
-  step-and-plateau is one freshly-thawed gate trained to stationarity. The
-  per-(dataset, init) two-panel staircases (loss *and* Riemannian grad norm)
-  are in `<dataset>/<init>/figures/staircase.{pdf,svg}`.],
+  caption: [*Absolute* top-$k$ MSE loss (not a normalised ratio) versus
+  cumulative optimiser step, one curve per unfreeze ordering. Rows: identity
+  (top) vs Haar-random (bottom) init; columns: datasets. Each curve is a
+  staircase — every downward step-and-plateau is one freshly-thawed gate trained
+  to stationarity; the final MSE and PSNR\@$rho{=}.20$ are marked at each curve's
+  end. The per-(dataset, init) two-panel staircases (MSE *and* Riemannian grad
+  norm) are in `<dataset>/<init>/figures/staircase.{pdf,svg}`.],
 )
 
 = Final reconstruction PSNR
@@ -92,6 +97,40 @@ triggers (grad-norm / loss-$Delta$ / step-cap):
   )
   #v(2pt)
 ]
+
+= Reference: best PSNR from prior experiments
+
+The strongest test-PSNR achieved by *any* prior trained basis on each dataset
+(the `family_init_matrix` sweep: five circuit families $times$ two inits $times$
+block sizes $k = 2..8$), as a ceiling to read the gate-unfreeze numbers against:
+
+#let pastmax = json("reference/past_max_psnr.json")
+#let pm_rows = ("quickdraw_5q", "div2k_8q", "tuberlin_8q")
+#align(center)[
+  #table(
+    columns: (auto, auto, auto, auto),
+    align: (left, right, right, right),
+    stroke: 0.4pt + luma(180), inset: (x: 6pt, y: 3pt),
+    table.header([*dataset*], [$rho{=}.05$], [$rho{=}.10$], [$rho{=}.20$]),
+    ..pm_rows.map(ds => {
+      let e = pastmax.at(ds)
+      (e.label,
+       f1(e.by_rho.at("0.05").psnr) + " dB",
+       f1(e.by_rho.at("0.10").psnr) + " dB",
+       f1(e.by_rho.at("0.20").psnr) + " dB")
+    }).flatten()
+  )
+]
+
+#let pm20(ds) = {
+  let e = pastmax.at(ds).by_rho.at("0.20")
+  [#f1(e.psnr) dB (#raw(e.method), k=#e.k)]
+}
+Best method per cell at $rho{=}.20$: QuickDraw #pm20("quickdraw_5q"); DIV2K
+#pm20("div2k_8q"); TU-Berlin #pm20("tuberlin_8q"). Note these maxima sit at *small block
+sizes* on the two sparse drawing sets (QuickDraw, TU-Berlin) — the near-identity
+small-block basis is already an excellent sparse representation there, which is
+exactly the regime where the gate-unfreeze PSNR peaks *early* (see Reading).
 
 = Comparison: block-size progressive baseline
 
@@ -134,13 +173,24 @@ would instead say the per-gate schedule gets trapped short of the joint optimum.
 
 = Reading
 
-The staircases make the per-gate marginal contribution legible: a tall step is a
-gate that mattered, a flat plateau a gate that the optimiser left near where it
-was thawed. Compare the three orderings within each panel for *path* effects and
-the two rows for *initialisation* effects — if identity and random converge to
-the same final PSNR (right-hand end of each curve and the table's $rho$ columns),
-the unfreeze trajectory is a property of the operator/optimiser, not of the
-starting point; if they differ, the QFT-family identity carries a usable
-inductive bias even under a one-gate-at-a-time schedule. The trigger mix
-(grad-norm vs loss-$Delta$ vs step-cap) reports *how* each stage terminated: a
-high grad-norm count means stages genuinely reached stationarity within the cap.
+The staircases (absolute top-$k$ MSE) make the per-gate marginal contribution
+legible: a tall step is a gate that mattered, a flat plateau a gate the optimiser
+left near where it was thawed. Compare the three orderings within each panel for
+*path* effects and the two init rows for *initialisation* effects. On QuickDraw
+the training MSE converges to the same floor for all three orderings within an
+init (order changes only the path), while identity reaches a *lower* MSE than
+random — the QFT-family identity carries a usable inductive bias even under a
+one-gate-at-a-time schedule. The trigger mix (grad-norm vs loss-$Delta$ vs
+step-cap) reports *how* each stage terminated.
+
+*Training loss $eq.not$ test PSNR on sparse data.* The optimiser minimises the
+top-$k$ MSE in the *transform* domain, which is not the same objective as
+test-image PSNR. On QuickDraw the per-stage test PSNR\@$rho{=}.20$ is *highest
+early* — up to *54.8 dB around stage 5*, near the identity/pixel operator — and
+then *falls to $approx$37.6 dB* as more gates train the operator toward the QFT
+and spread energy away from the sparse-pixel representation. So for sparse
+drawings the PSNR-optimal point is *early in the unfreeze schedule*, not at the
+fully-trained end; this matches the reference table above, where the
+prior-experiment maxima also sit at small block sizes. (Per-stage PSNR is
+recorded in each cell's `trace.json`; on DIV2K, where images are not pixel-sparse,
+training instead *improves* PSNR toward the $approx$31.7 dB block-size baseline.)
