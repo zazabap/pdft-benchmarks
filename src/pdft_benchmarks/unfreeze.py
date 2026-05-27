@@ -47,3 +47,18 @@ def qft_unfreeze_orders(m: int, n: int) -> dict[str, list[int]]:
     rl = list(reversed(lr))
     bg = [emission_to_storage[k[4]] for k in sorted(keys)]
     return {"bg": bg, "lr": lr, "rl": rl}
+
+
+def _plateau_reason(grad_norm, loss, loss_prev, *, step, min_steps, grad_tol, loss_tol):
+    """Return the trigger reason ("grad_norm" | "loss_delta") or None.
+
+    Not evaluated until `step >= min_steps`. Grad-norm stationarity takes
+    precedence; the loss-flatness check needs a previous loss to compare.
+    """
+    if step < min_steps:
+        return None
+    if grad_norm < grad_tol:
+        return "grad_norm"
+    if loss_prev is not None and abs(loss - loss_prev) < loss_tol:
+        return "loss_delta"
+    return None
