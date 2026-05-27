@@ -102,6 +102,11 @@ test PSNR (dB) at four keep ratios $rho$:
   }
   acc
 }
+#let clj = json("reference/classical_div2k.json")
+#let cl = ("block_dct_8", "block_fft_8").map(k => ("classical · " + clj.at(k).label,
+  (clj.at(k).psnr.at("0.05"), clj.at(k).psnr.at("0.1"),
+   clj.at(k).psnr.at("0.15"), clj.at(k).psnr.at("0.2"))))
+#let clmax = range(4).map(j => cmax(cl, j))    // per-ρ best classical transform
 #align(center)[#table(
   columns: (auto, auto, auto, auto, auto),
   align: (left, right, right, right, right),
@@ -112,15 +117,20 @@ test PSNR (dB) at four keep ratios $rho$:
   table.cell(colspan: 5, inset: (y: 1.3pt), stroke: none)[],   // gap -> double rule
   table.hline(stroke: 0.8pt),
   ..cellrows(bs, bmax, rgb("#CC0000")),        // previous = block-size, max in red
+  table.hline(stroke: 0.5pt),
+  ..cellrows(cl, clmax, rgb("#009E73")),       // classical reference, max in green
 )]
 
-Both schemes reach the *same* QFT$(8,8)$ endpoint, $approx$#f1(qp.stages.last().psnr.at("0.2")) dB
-\@$rho{=}.20$: the block-size curriculum saturates by $k = 2$, and the gate-unfreeze
+All learned QFT schemes reach the *same* QFT$(8,8)$ endpoint, $approx$#f1(qp.stages.last().psnr.at("0.2")) dB
+\@$rho{=}.20$: the block-size curriculum saturates by $k = 2$ and the gate-unfreeze
 sweep lands there from either init and any order — *schedule-independent* (`rl`
 trails $approx$1 dB; every gate-unfreeze stage ended on the loss-$Delta$ plateau,
-none at the step cap). The best *any* prior basis reaches on DIV2K is
-#f1(pastmax.div2k_8q.by_rho.at("0.20").psnr) dB (#raw(pastmax.div2k_8q.by_rho.at("0.20").method)),
-$approx$2 dB above the QFT family.
+none at the step cap). For reference, the best *any* prior trained basis reaches
+is #f1(pastmax.div2k_8q.by_rho.at("0.20").psnr) dB (#raw(pastmax.div2k_8q.by_rho.at("0.20").method)).
+The classical *block-DCT 8×8* is in fact the strongest here
+(#f1(cl.at(0).at(1).at(3)) dB \@$rho{=}.20$), ahead of every learned QFT basis;
+*block-FFT 8×8* is weaker (#f1(cl.at(1).at(1).at(3)) dB) — the QFT-family operators
+sit between the two classical block transforms.
 
 = Reading
 
