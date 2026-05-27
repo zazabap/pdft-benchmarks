@@ -144,20 +144,26 @@ only for the path?*
 #let qp = json("reference/qft_progressive_div2k_8q.json")
 #align(center)[
   #table(
-    columns: (auto, auto, auto, auto),
-    align: (center, center, center, right),
+    columns: (auto, auto, auto, auto, auto, auto, auto),
+    align: (center, center, center, right, right, right, right),
     stroke: 0.4pt + luma(180), inset: (x: 5.5pt, y: 3pt),
-    table.header([*stage $k$*], [*block*], [*\# gates*], [$rho{=}.20$ PSNR]),
+    table.header([*stage $k$*], [*block*], [*\# gates*],
+                 [$rho{=}.05$], [$rho{=}.10$], [$rho{=}.15$], [$rho{=}.20$]),
     ..qp.stages.map(s => (str(s.k), str(s.block_size) + $times$ + str(s.block_size),
-        str(s.n_trainable), f1(s.psnr_rho_020) + " dB")).flatten()
+        str(s.n_trainable), f1(s.psnr.at("0.05")), f1(s.psnr.at("0.1")),
+        f1(s.psnr.at("0.15")), f1(s.psnr.at("0.2")))).flatten()
   )
+  #text(size: 8pt, fill: rgb("#555"))[DIV2K test PSNR (dB) per keep ratio $rho$]
 ]
 
 The block-size curriculum *saturates by $k = 2$* and the full QFT$(8,8)$ endpoint
-is *#f1(qp.stages.last().psnr_rho_020) dB* (= the all-gates-at-once `qft_identity`
-result). Read this against the *DIV2K* rows of the gate-unfreeze table above: if
-the identity-init sweep also lands at $approx$ #f1(qp.stages.last().psnr_rho_020)
-dB, the QFT$(8,8)$ optimum is *schedule-independent* — neither the unfreeze order
+is *#f1(qp.stages.last().psnr.at("0.2")) dB* at $rho{=}.20$
+(#f1(qp.stages.last().psnr.at("0.05")) / #f1(qp.stages.last().psnr.at("0.1")) /
+#f1(qp.stages.last().psnr.at("0.15")) dB at $rho = .05, .10, .15$; = the
+all-gates-at-once `qft_identity` result). Read this against the *DIV2K* rows of
+the gate-unfreeze table above: if the identity-init sweep also lands at
+$approx$ #f1(qp.stages.last().psnr.at("0.2")) dB, the QFT$(8,8)$ optimum is
+*schedule-independent* — neither the unfreeze order
 nor the one-gate-at-a-time vs whole-block curriculum changes the destination,
 only the trajectory (exactly what the QuickDraw panels show, where all three
 orderings converge). A gate-unfreeze endpoint *below* the block-size baseline
