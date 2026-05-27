@@ -55,6 +55,20 @@ fixed index sequences into the Hadamard-first gate storage; random init draws a
 Haar $U(2)$ on each H slot and a uniform phase on each controlled-phase slot,
 with a seed shared across the three orderings so they start from the same basis.
 
+#figure(
+  image("reference/qft_unfreeze_ordering.svg", width: 92%),
+  caption: [The three unfreeze orderings on the QFT$(5)$ circuit (paper
+  tensor-network notation; controlled-phase $M$ = box spanning two wires). The
+  *bold badge* on each gate is its unfreeze step for that ordering; the fill
+  colour is the block-stage $k$ (the highest within-axis qubit the gate touches).
+  *(a) block-growth* — stage $k$ completes QFT$(k, k)$; long-range couplings are
+  delayed (the gate-level mirror of the block-size sweep). *(b) left$arrow.r$right*
+  — QFT construction order $1..15$, so $q_1$ couples to all of $q_2..q_5$ before
+  $H_2$ at step 6. *(c) right$arrow.r$left* — reverse construction order, the
+  last-built gate first. The same three index sequences (generalised to $m = 8$)
+  drive every run in this report.],
+) <fig-orderings>
+
 = Training dynamics
 
 #figure(
