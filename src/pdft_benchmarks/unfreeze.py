@@ -99,3 +99,103 @@ def _make_gradnorm_probe(basis, loss):
         return float(loss_val), float(grad_norm)
 
     return probe
+
+
+from dataclasses import dataclass, field
+
+
+@dataclass
+class StageSummary:
+    stage: int
+    n_trainable: int
+    gate_index: int
+    start_step: int
+    end_step: int
+    n_steps: int
+    final_loss: float
+    final_grad_norm: float
+    trigger: str
+    extra: dict = field(default_factory=dict)  # e.g. per-stage PSNR from a callback
+
+
+@dataclass
+class UnfreezeResult:
+    basis: object
+    trace: list  # list[dict]: step, stage, n_trainable, loss, grad_norm
+    stages: list  # list[StageSummary]
+
+
+def train_progressive_unfreeze(
+    basis, dataset, *,
+    unfreeze_order, lr, max_steps_per_stage, loss,
+    grad_tol=1e-5, loss_tol=1e-5, min_steps_per_stage=5,
+    beta1=0.9, beta2=0.999, eps=1e-8, seed=0,
+    stage_callback=None,
+):
+    """Cumulatively unfreeze gates in `unfreeze_order`, training each stage to a
+    plateau on a fixed batch (`dataset`). Returns an `UnfreezeResult`.
+
+    `stage_callback(stage:int, tensors:list) -> dict | None` runs at each stage
+    end; its return is stored on the stage summary's `extra` (used for PSNR).
+    """
+    import jax.numpy as jnp
+    from pdft.manifolds import group_by_manifold, stack_tensors
+    from pdft.training.adam_step import _build_jit_adam_step
+
+    batch = jnp.stack([jnp.asarray(x, dtype=jnp.complex128) for x in dataset], axis=0)
+    all_idx = set(range(len(basis.tensors)))
+    probe = _make_gradnorm_probe(basis, loss)
+    groups = group_by_manifold(list(basis.tensors))  # fixed grouping (by shape)
+
+    current = [jnp.asarray(t) for t in basis.tensors]
+
+    def _zero_adam():
+        m_state, v_state = [], []
+        for _manifold, idxs in groups.items():
+            pb = stack_tensors(current, list(idxs))
+            m_state.append(jnp.zeros_like(pb))
+            v_state.append(jnp.zeros(pb.shape, dtype=jnp.float64))
+        return m_state, v_state
+
+    trace, stages = [], []
+    global_step = 0
+
+    for s in range(1, len(unfreeze_order) + 1):
+        trainable = set(unfreeze_order[:s])
+        frozen = frozenset(all_idx - trainable)
+        step_fn = _build_jit_adam_step(
+            basis, loss, beta1=beta1, beta2=beta2, eps=eps,
+            max_grad_norm=None, frozen_set=frozen if frozen else None)
+        m_state, v_state = _zero_adam()
+
+        start_step = global_step + 1
+        loss_prev = None
+        stage_step = 0
+        trigger = "max_steps"
+        L = gnorm = float("nan")
+
+        while stage_step < max_steps_per_stage:
+            stage_step += 1
+            global_step += 1
+            current, m_state, v_state, _ = step_fn(
+                current, m_state, v_state, batch,
+                jnp.asarray(lr), jnp.asarray(global_step, dtype=jnp.int32))
+            L, gnorm = probe(current, batch, frozen)
+            trace.append({"step": global_step, "stage": s, "n_trainable": s,
+                          "loss": L, "grad_norm": gnorm})
+            reason = _plateau_reason(gnorm, L, loss_prev, step=stage_step,
+                                     min_steps=min_steps_per_stage,
+                                     grad_tol=grad_tol, loss_tol=loss_tol)
+            loss_prev = L
+            if reason is not None:
+                trigger = reason
+                break
+
+        extra = stage_callback(s, current) if stage_callback is not None else {}
+        stages.append(StageSummary(
+            stage=s, n_trainable=s, gate_index=unfreeze_order[s - 1],
+            start_step=start_step, end_step=global_step, n_steps=stage_step,
+            final_loss=L, final_grad_norm=gnorm, trigger=trigger, extra=extra or {}))
+
+    final_basis = type(basis)(m=basis.m, n=basis.n, tensors=current)
+    return UnfreezeResult(basis=final_basis, trace=trace, stages=stages)

@@ -87,3 +87,49 @@ def test_gradnorm_probe_all_frozen_is_zero_and_loss_matches():
     # with nothing frozen the grad norm is a finite, non-negative float
     _, g_open = probe(list(basis.tensors), imgs, frozenset())
     assert np.isfinite(g_open) and g_open >= 0.0
+
+
+from pdft_benchmarks.unfreeze import train_progressive_unfreeze
+
+
+def _tiny_setup():
+    basis = qft_identity_basis(m=2, n=2)
+    rng = np.random.default_rng(1)
+    imgs = jnp.asarray(rng.standard_normal((4, 4, 4)), dtype=jnp.complex128)
+    loss = pdft.MSELoss(k=2)
+    order = qft_unfreeze_orders(2, 2)["lr"]
+    return basis, imgs, loss, order
+
+
+def test_unfreeze_runs_all_stages():
+    basis, imgs, loss, order = _tiny_setup()
+    res = train_progressive_unfreeze(
+        basis, imgs, unfreeze_order=order, lr=0.05,
+        max_steps_per_stage=15, loss=loss,
+        grad_tol=1e-5, loss_tol=1e-5, min_steps_per_stage=2, seed=0)
+    G = len(basis.tensors)
+    assert len(res.stages) == G
+    assert res.stages[-1].n_trainable == G
+    assert len(res.basis.tensors) == G
+    assert res.trace and all(t["loss"] >= 0 for t in res.trace)
+    assert all(s.trigger in ("grad_norm", "loss_delta", "max_steps") for s in res.stages)
+
+
+def test_unfreeze_cap_when_never_triggers():
+    basis, imgs, loss, order = _tiny_setup()
+    res = train_progressive_unfreeze(
+        basis, imgs, unfreeze_order=order, lr=0.05,
+        max_steps_per_stage=4, loss=loss,
+        grad_tol=0.0, loss_tol=0.0, min_steps_per_stage=1, seed=0)  # tols=0 -> never fires
+    G = len(basis.tensors)
+    assert all(s.n_steps == 4 and s.trigger == "max_steps" for s in res.stages)
+    assert len(res.trace) == G * 4
+
+
+def test_unfreeze_immediate_grad_trigger():
+    basis, imgs, loss, order = _tiny_setup()
+    res = train_progressive_unfreeze(
+        basis, imgs, unfreeze_order=order, lr=0.05,
+        max_steps_per_stage=50, loss=loss,
+        grad_tol=1e9, loss_tol=0.0, min_steps_per_stage=3, seed=0)  # grad_tol huge
+    assert all(s.n_steps == 3 and s.trigger == "grad_norm" for s in res.stages)
