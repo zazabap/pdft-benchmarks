@@ -1,0 +1,62 @@
+{
+  "experiment": "qft_unfreeze",
+  "dataset": "div2k_8q",
+  "m": 8,
+  "n": 8,
+  "init": "identity",
+  "init_seed": 42,
+  "git_sha": "b62a3fdae8496ed9d77b0bb8afb66fbb4c704898",
+  "orderings": {
+    "bg": {
+      "n_stages": 72,
+      "total_steps": 7810,
+      "elapsed_seconds": 4612.288762037642,
+      "trigger_counts": {
+        "grad_norm": 0,
+        "loss_delta": 72,
+        "max_steps": 0
+      },
+      "final_loss": 178.17471168615572,
+      "final_psnr": {
+        "0.05": 19.366011998157106,
+        "0.1": 26.92780149986484,
+        "0.15": 29.731357124049463,
+        "0.2": 31.98374609445153
+      }
+    },
+    "lr": {
+      "n_stages": 72,
+      "total_steps": 7635,
+      "elapsed_seconds": 7272.4533008867875,
+      "trigger_counts": {
+        "grad_norm": 0,
+        "loss_delta": 72,
+        "max_steps": 0
+      },
+      "final_loss": 146.62684882245043,
+      "final_psnr": {
+        "0.05": 25.163561541858098,
+        "0.1": 27.860291305532627,
+        "0.15": 29.959315860943857,
+        "0.2": 31.8354650346713
+      }
+    },
+    "rl": {
+      "n_stages": 72,
+      "total_steps": 7709,
+      "elapsed_seconds": 5074.390398363583,
+      "trigger_counts": {
+        "grad_norm": 0,
+        "loss_delta": 72,
+        "max_steps": 0
+      },
+      "final_loss": 167.75965885818553,
+      "final_psnr": {
+        "0.05": 24.84504003965467,
+        "0.1": 27.2270413633739,
+        "0.15": 29.111904682828914,
+        "0.2": 30.807415103221036
+      }
+    }
+  }
+}
