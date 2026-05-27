@@ -47,6 +47,41 @@ def _final_psnr(trace: dict, ratio: str = "0.2"):
     return None
 
 
+def _gate_labels(m: int, n: int):
+    """storage-index -> human gate name (H{q} / CP{c,t}) for QFTBasis(m, n).
+    Pure-Python reconstruction of pdft's Hadamard-first storage (verified to
+    match pdft._qft_gates_1d), so the renderer needs no pdft/JAX import."""
+    gl = []
+    for off, mm in [(0, m), (m, n)]:
+        for i in range(1, mm + 1):
+            gl.append(("H", (i + off,)))
+            for j in range(i + 1, mm + 1):
+                gl.append(("CP", (j + off, i + off)))
+    order = sorted(range(len(gl)), key=lambda k: gl[k][0] != "H")
+    out = [None] * len(gl)
+    for pos, e in enumerate(order):
+        kind, q = gl[e]
+        out[pos] = f"H{q[0]}" if kind == "H" else f"CP{q[0]},{q[1]}"
+    return out
+
+
+def _top_gate_marks(trace: dict, k: int = 4):
+    """The k stages with the largest MSE drop: (start_step, pre-drop loss, gate
+    label) — i.e. which gate, thawed at which step, caused each big improvement."""
+    stages = trace.get("stages", [])
+    m, n = trace.get("m"), trace.get("n")
+    labels = _gate_labels(m, n) if m and n else None
+    marks = []
+    for idx, st in enumerate(stages):
+        pre = stages[idx - 1]["final_loss"] if idx > 0 else st.get("final_loss")
+        drop = pre - st.get("final_loss", pre)
+        gi = st.get("gate_index")
+        lab = labels[gi] if labels and gi is not None and gi < len(labels) else str(gi)
+        marks.append((drop, st["start_step"], pre, lab))
+    marks.sort(reverse=True)
+    return marks[:k]
+
+
 def _render_combined(base: Path, only=None) -> int:
     """Training-dynamics grid: rows = init (identity, random), cols = dataset,
     one absolute-MSE curve per unfreeze ordering. The qft_unfreeze analogue of the
@@ -83,6 +118,13 @@ def _render_combined(base: Path, only=None) -> int:
                 loss = [s["loss"] for s in steps]  # absolute top-k MSE (not L/L0)
                 ax.plot(xs, loss, color=color, ls=ls, lw=1.3, label=leg)
                 ax.plot([xs[-1]], [loss[-1]], marker="o", ms=3.5, color=color)  # endpoint
+                # Mark which gate (thawed at which step) caused each biggest drop.
+                for _drop, xstep, yloss, glab in _top_gate_marks(trace, k=4):
+                    ax.annotate(glab, xy=(xstep, yloss), xytext=(2, 1),
+                                textcoords="offset points", rotation=90,
+                                fontsize=5, color=color, va="bottom", ha="left",
+                                annotation_clip=True)
+                    ax.plot([xstep], [yloss], marker="|", ms=5, color=color, mew=0.8)
                 finals.append((color, leg, loss[-1], _final_psnr(trace)))
                 any_curve = True
             # Mark the final absolute MSE and final PSNR@0.20 per ordering.
