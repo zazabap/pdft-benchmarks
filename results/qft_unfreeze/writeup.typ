@@ -75,51 +75,57 @@ Gate-unfreeze endpoints *together with* the `qft_progressive` block-size baselin
 (train all $k(k+1)$ gates of a $2^k times 2^k$ QFT at once, per stage $k$). DIV2K
 test PSNR (dB) at four keep ratios $rho$:
 
-// gate-unfreeze ("current") and block-size ("previous") rows as (label, (4 raw PSNRs)).
+// rows as (label, (4 raw PSNRs), final-train-MSE-or-none).
 #let gu = {
   let acc = ()
   for init in inits {
     for (ok, _olab) in orders {
-      let p = man("div2k_8q", init).orderings.at(ok).final_psnr
+      let o = man("div2k_8q", init).orderings.at(ok)
+      let p = o.final_psnr
       acc.push(("unfreeze · " + init + " · " + ok,
-                (p.at("0.05"), p.at("0.1"), p.at("0.15"), p.at("0.2"))))
+                (p.at("0.05"), p.at("0.1"), p.at("0.15"), p.at("0.2")), o.final_loss))
     }
   }
   acc
 }
 #let bs = qp.stages.map(s => (
   "block-size · k=" + str(s.k) + " (" + str(s.block_size) + "×" + str(s.block_size) + ")",
-  (s.psnr.at("0.05"), s.psnr.at("0.1"), s.psnr.at("0.15"), s.psnr.at("0.2"))))
+  (s.psnr.at("0.05"), s.psnr.at("0.1"), s.psnr.at("0.15"), s.psnr.at("0.2")), none))
 #let cmax(rows, j) = calc.max(..rows.map(r => r.at(1).at(j)))
 #let gmax = range(4).map(j => cmax(gu, j))     // per-ρ best gate-unfreeze
 #let bmax = range(4).map(j => cmax(bs, j))     // per-ρ best block-size
 #let mk(v, m, c) = if calc.abs(v - m) < 1e-4 { text(fill: c, weight: "bold")[#f1(v)] } else [#f1(v)]
 #let cellrows(rows, maxes, c) = {
   let acc = ()
-  for (lab, vs) in rows {
-    acc.push(lab)
-    for j in range(4) { acc.push(mk(vs.at(j), maxes.at(j), c)) }
+  for row in rows {
+    acc.push(row.at(0))
+    for j in range(4) { acc.push(mk(row.at(1).at(j), maxes.at(j), c)) }
+    acc.push(if row.at(2) == none [#text(fill: luma(150))[—]] else [#f1(row.at(2))])
   }
   acc
 }
 #let clj = json("reference/classical_div2k.json")
 #let cl = ("block_dct_8", "block_fft_8").map(k => ("classical · " + clj.at(k).label,
   (clj.at(k).psnr.at("0.05"), clj.at(k).psnr.at("0.1"),
-   clj.at(k).psnr.at("0.15"), clj.at(k).psnr.at("0.2"))))
+   clj.at(k).psnr.at("0.15"), clj.at(k).psnr.at("0.2")), none))
 #let clmax = range(4).map(j => cmax(cl, j))    // per-ρ best classical transform
 #align(center)[#table(
-  columns: (auto, auto, auto, auto, auto),
-  align: (left, right, right, right, right),
+  columns: (auto, auto, auto, auto, auto, auto),
+  align: (left, right, right, right, right, right),
   stroke: 0.4pt + luma(180), inset: (x: 6pt, y: 3pt),
-  table.header([*configuration*], [$rho{=}.05$], [$rho{=}.10$], [$rho{=}.15$], [$rho{=}.20$]),
+  table.header([*configuration*], [$rho{=}.05$], [$rho{=}.10$], [$rho{=}.15$], [$rho{=}.20$],
+               [*train MSE*]),
   ..cellrows(gu, gmax, rgb("#0072B2")),       // current = gate-unfreeze, max in blue
   table.hline(stroke: 0.8pt),
-  table.cell(colspan: 5, inset: (y: 1.3pt), stroke: none)[],   // gap -> double rule
+  table.cell(colspan: 6, inset: (y: 1.3pt), stroke: none)[],   // gap -> double rule
   table.hline(stroke: 0.8pt),
   ..cellrows(bs, bmax, rgb("#CC0000")),        // previous = block-size, max in red
   table.hline(stroke: 0.5pt),
   ..cellrows(cl, clmax, rgb("#009E73")),       // classical reference, max in green
 )]
+#align(center, text(8pt, fill: luma(90))[*train MSE* = final top-10%-coefficient
+training loss (absolute, train batch) — a different metric from the PSNR columns,
+shown per gate-unfreeze run; not defined for the block-size / classical references.])
 
 All learned QFT schemes reach the *same* QFT$(8,8)$ endpoint, $approx$#f1(qp.stages.last().psnr.at("0.2")) dB
 \@$rho{=}.20$: the block-size curriculum saturates by $k = 2$ and the gate-unfreeze
