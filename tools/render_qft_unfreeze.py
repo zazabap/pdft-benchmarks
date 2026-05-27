@@ -132,8 +132,11 @@ def _render_combined(base: Path, only=None) -> int:
             # Final TRAIN top-k MSE loss and TEST PSNR@0.20 per ordering — two
             # distinct metrics (train transform-domain loss vs test image recon),
             # so labelled separately to avoid implying PSNR derives from this MSE.
+            # Endpoint label shows ONLY test PSNR@.20; the training MSE is the
+            # curve's y-value on the axis (the two are unrelated quantities, so
+            # juxtaposing them invited a false "high MSE yet high PSNR" paradox).
             for i, (color, leg, mse, psnr) in enumerate(finals):
-                txt = f"train {mse:.4g}" + (f" · test {psnr:.1f} dB" if psnr is not None else "")
+                txt = f"test {psnr:.1f} dB" if psnr is not None else f"MSE {mse:.4g}"
                 ax.text(0.97, 0.96 - 0.085 * i, txt, transform=ax.transAxes,
                         ha="right", va="top", fontsize=6.5, color=color)
             ax.grid(True, alpha=0.25, lw=0.5)
@@ -143,7 +146,7 @@ def _render_combined(base: Path, only=None) -> int:
             if r == len(rows) - 1:
                 ax.set_xlabel("cumulative training step", fontsize=8)
             if c == 0:
-                ax.set_ylabel(f"{init_lab}\ntop-$k$ MSE loss", fontsize=8.5)
+                ax.set_ylabel(f"{init_lab}\ntraining top-$k$ MSE loss", fontsize=8.5)
             if r == 0 and c == 0:
                 ax.legend(frameon=False, fontsize=7.5)
 

@@ -57,10 +57,10 @@ seed shared across orderings.
 #figure(image("figures/training_dynamics.svg", width: 100%),
   caption: [Absolute *training* top-$k$ MSE loss vs cumulative step, one curve per
   ordering (rows: identity / random init). Tick labels mark *which gate* (e.g.
-  `H7`, `CP3,1`) was thawed at each of the largest drops. Endpoints report
-  *train MSE* and *test PSNR\@$rho{=}.20$* — note these are *different* metrics
-  (training top-10%-coefficient loss vs test-set image reconstruction keeping
-  20%), so a curve can sit higher in train loss yet score a higher test PSNR.
+  `H7`, `CP3,1`) was thawed at each of the largest drops. The y-axis is the
+  *training* top-10%-coefficient MSE loss; endpoints are annotated with the
+  separate *test PSNR\@$rho{=}.20$* (image reconstruction on held-out data) — the
+  two are different metrics, so the curve's height does not determine the PSNR.
   Per-cell loss+grad-norm staircases: `div2k_8q/<init>/figures/`.])
 
 #figure(image("reference/qft_progressive_training_dynamics.svg", width: 74%),
