@@ -37,6 +37,16 @@ COMBINED_DATASETS = [
 COMBINED_INITS = [("identity", "identity init"), ("random", "random init")]
 
 
+def _final_psnr(trace: dict, ratio: str = "0.2"):
+    """Final-stage test PSNR at `ratio` from a trace dict, or None if absent
+    (the final stage is always evaluated, so it is present once training ends)."""
+    for st in reversed(trace.get("stages", [])):
+        p = (st.get("extra") or {}).get("psnr") or {}
+        if ratio in p:
+            return p[ratio]
+    return None
+
+
 def _render_combined(base: Path) -> int:
     """Training-dynamics grid: rows = init (identity, random), cols = dataset,
     one loss L/L0 curve per unfreeze ordering. The qft_unfreeze analogue of the
@@ -57,18 +67,28 @@ def _render_combined(base: Path) -> int:
     for r, (init, init_lab) in enumerate(rows):
         for c, (tag, ds_lab) in enumerate(cols):
             ax = axes[r][c]
+            finals = []  # (color, leg, L/L0_end, psnr) for the corner annotation
             for name, (color, ls, leg) in STYLE.items():
                 tj = base / tag / init / name / "trace.json"
                 if not tj.exists():
                     continue
-                steps = json.loads(tj.read_text())["steps"]
+                trace = json.loads(tj.read_text())
+                steps = trace["steps"]
                 if not steps:
                     continue
                 xs = [s["step"] for s in steps]
                 loss = [s["loss"] for s in steps]
                 l0 = loss[0] if loss[0] > 0 else 1.0
+                yend = loss[-1] / l0
                 ax.plot(xs, [v / l0 for v in loss], color=color, ls=ls, lw=1.3, label=leg)
+                ax.plot([xs[-1]], [yend], marker="o", ms=3.5, color=color)  # mark endpoint
+                finals.append((color, leg, yend, _final_psnr(trace)))
                 any_curve = True
+            # Mark the final loss (L/L0) and final PSNR@0.20 per ordering.
+            for i, (color, leg, yend, psnr) in enumerate(finals):
+                txt = f"{yend:.2f}" + (f" · {psnr:.1f} dB" if psnr is not None else "")
+                ax.text(0.97, 0.96 - 0.085 * i, txt, transform=ax.transAxes,
+                        ha="right", va="top", fontsize=6.5, color=color)
             ax.grid(True, alpha=0.25, lw=0.5)
             ax.tick_params(labelsize=7)
             if r == 0:
@@ -116,25 +136,38 @@ def main() -> int:
 
     fig, (ax_loss, ax_grad) = plt.subplots(2, 1, figsize=(7.0, 5.4), sharex=True)
     plotted = 0
+    finals = []  # (color, label, L/L0_end, abs_loss_end, grad_end, psnr)
     for name, (color, ls, label) in STYLE.items():
         tj = indir / name / "trace.json"
         if not tj.exists():
             continue
-        steps = json.loads(tj.read_text())["steps"]
+        trace = json.loads(tj.read_text())
+        steps = trace["steps"]
         xs = [r["step"] for r in steps]
         loss = [r["loss"] for r in steps]
         grad = [r["grad_norm"] for r in steps]
         l0 = loss[0] if loss and loss[0] > 0 else 1.0
         ax_loss.plot(xs, [v / l0 for v in loss], color=color, ls=ls, lw=1.4, label=label)
         ax_grad.plot(xs, grad, color=color, ls=ls, lw=1.4, label=label)
+        # mark the endpoints (final loss / final grad norm)
+        ax_loss.plot([xs[-1]], [loss[-1] / l0], marker="o", ms=4, color=color)
+        ax_grad.plot([xs[-1]], [grad[-1]], marker="o", ms=4, color=color)
+        finals.append((color, label, loss[-1] / l0, loss[-1], grad[-1], _final_psnr(trace)))
         plotted += 1
 
     if plotted == 0:
         print(f"[render] no trace.json under {indir}", file=sys.stderr)
         return 2
 
+    # Final loss (L/L0 and absolute) + PSNR@0.20 per ordering, marked at finish.
+    for i, (color, label, yend, labs, gend, psnr) in enumerate(finals):
+        txt = f"{label}: $L/L_0$={yend:.3f}  ($L$={labs:.3g})" + \
+              (f"  PSNR@.20={psnr:.2f} dB" if psnr is not None else "")
+        ax_loss.text(0.985, 0.95 - 0.075 * i, txt, transform=ax_loss.transAxes,
+                     ha="right", va="top", fontsize=7, color=color)
+
     ax_loss.set_ylabel(r"loss  $L / L_0$")
-    ax_loss.legend(frameon=False, fontsize=8)
+    ax_loss.legend(frameon=False, fontsize=8, loc="lower left")
     ax_grad.set_yscale("log")
     ax_grad.set_ylabel(r"grad norm  $\|g\|$")
     ax_grad.set_xlabel("cumulative training step")
