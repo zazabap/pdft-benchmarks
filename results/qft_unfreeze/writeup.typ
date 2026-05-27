@@ -63,61 +63,48 @@ seed shared across orderings.
   20%), so a curve can sit higher in train loss yet score a higher test PSNR.
   Per-cell loss+grad-norm staircases: `div2k_8q/<init>/figures/`.])
 
+#figure(image("reference/qft_progressive_training_dynamics.svg", width: 74%),
+  caption: [*Block-size* curriculum (`qft_progressive`, DIV2K) for comparison:
+  per-stage validation MSE for block sizes $k = 2..7$, each one whole
+  $2^k times 2^k$ QFT trained 1008 steps. Eight whole-block stages here vs the 72
+  one-gate-at-a-time stages above — same $approx$31.7 dB endpoint (table below).])
+
 = Reconstruction PSNR (DIV2K)
 
-Test PSNR (dB) at the final stage, with cumulative steps and plateau-trigger
-counts (grad-norm / loss-$Delta$ / cap):
-
-#for ds in ("div2k_8q",) [
-  #table(
-    columns: (auto, auto, auto, auto, auto, auto, auto),
-    align: (left, left, right, right, right, right, center),
-    stroke: 0.4pt + luma(180), inset: (x: 5pt, y: 3pt),
-    table.header([*init*], [*order*], [$rho{=}.05$], [$rho{=}.10$], [$rho{=}.15$],
-                 [$rho{=}.20$], [*steps (g/$Delta$/cap)*]),
-    ..inits.map(init => {
-      let mo = man(ds, init).orderings
-      orders.map(((ok, olab)) => {
-        let o = mo.at(ok); let p = o.final_psnr; let t = o.trigger_counts
-        (init, olab, f1(p.at("0.05")), f1(p.at("0.1")), f1(p.at("0.15")),
-         f1(p.at("0.2")),
-         [#str(o.total_steps) (#str(t.grad_norm)/#str(t.loss_delta)/#str(t.max_steps))])
-      })
-    }).flatten()
-  )
-]
-
-= Block-size baseline (comparison)
-
-`qft_progressive` reaches the *same* QFT$(8,8)$ on DIV2K via a *block-size*
-curriculum (train all $k(k+1)$ gates of a $2^k times 2^k$ QFT at once, $k = 1..8$):
+Gate-unfreeze endpoints *together with* the `qft_progressive` block-size baseline
+(train all $k(k+1)$ gates of a $2^k times 2^k$ QFT at once, per stage $k$). DIV2K
+test PSNR (dB) at four keep ratios $rho$:
 
 #align(center)[#table(
-  columns: 7, align: (center, center, center, right, right, right, right),
-  stroke: 0.4pt + luma(180), inset: (x: 5.5pt, y: 3pt),
-  table.header([*$k$*], [*block*], [*\# gates*], [$rho{=}.05$], [$rho{=}.10$],
-               [$rho{=}.15$], [$rho{=}.20$]),
-  ..qp.stages.map(s => (str(s.k), str(s.block_size) + $times$ + str(s.block_size),
-    str(s.n_trainable), f1(s.psnr.at("0.05")), f1(s.psnr.at("0.1")),
-    f1(s.psnr.at("0.15")), f1(s.psnr.at("0.2")))).flatten()
+  columns: (auto, auto, auto, auto, auto),
+  align: (left, right, right, right, right),
+  stroke: 0.4pt + luma(180), inset: (x: 6pt, y: 3pt),
+  table.header([*configuration*], [$rho{=}.05$], [$rho{=}.10$], [$rho{=}.15$], [$rho{=}.20$]),
+  ..inits.map(init => orders.map(((ok, olab)) => {
+    let p = man("div2k_8q", init).orderings.at(ok).final_psnr
+    ("unfreeze · " + init + " · " + ok, f1(p.at("0.05")), f1(p.at("0.1")),
+     f1(p.at("0.15")), f1(p.at("0.2")))
+  })).flatten(),
+  table.hline(stroke: 0.6pt),
+  ..qp.stages.map(s => (
+    "block-size · k=" + str(s.k) + " (" + str(s.block_size) + "×" + str(s.block_size) + ")",
+    f1(s.psnr.at("0.05")), f1(s.psnr.at("0.1")), f1(s.psnr.at("0.15")),
+    f1(s.psnr.at("0.2")))).flatten(),
 )]
 
-It saturates by $k = 2$; the full QFT$(8,8)$ endpoint is
-*#f1(qp.stages.last().psnr.at("0.2")) dB* \@$rho{=}.20$. The gate-unfreeze sweep
-lands at the same value (identity `bg`/`lr` #f1(man("div2k_8q", "identity").orderings.bg.final_psnr.at("0.2"))/#f1(man("div2k_8q", "identity").orderings.lr.final_psnr.at("0.2")) dB,
-random $approx$31.7), so the QFT$(8,8)$ optimum is *schedule-independent*. For
-reference, the best *any* prior trained basis reaches on DIV2K is
-#f1(pastmax.div2k_8q.by_rho.at("0.20").psnr) dB (`#pastmax.div2k_8q.by_rho.at("0.20").method`);
-the QFT family sits $approx$2 dB under the richer U(4) families.
+Both schemes reach the *same* QFT$(8,8)$ endpoint, $approx$#f1(qp.stages.last().psnr.at("0.2")) dB
+\@$rho{=}.20$: the block-size curriculum saturates by $k = 2$, and the gate-unfreeze
+sweep lands there from either init and any order — *schedule-independent* (`rl`
+trails $approx$1 dB; every gate-unfreeze stage ended on the loss-$Delta$ plateau,
+none at the step cap). The best *any* prior basis reaches on DIV2K is
+#f1(pastmax.div2k_8q.by_rho.at("0.20").psnr) dB (#raw(pastmax.div2k_8q.by_rho.at("0.20").method)),
+$approx$2 dB above the QFT family.
 
 = Reading
 
-The staircase shows each gate's marginal value: a tall drop is a gate that
-mattered (mostly the early, small-block gates — see the marked steps), a flat
-plateau a gate left near where it was thawed. All three orderings and both inits
-converge to $approx$31.7 dB, so *order and curriculum set only the path, not the
-destination* — `rl` merely trails by $approx$1 dB en route. The train-loss order
-need not match the test-PSNR order (`bg` has the *highest* train MSE yet the
-*best* test PSNR): the loss is a top-10%-coefficient proxy on the train batch,
-PSNR a 20%-keep reconstruction on the test set, so the two rank slightly
-differently in this near-flat optimum.
+The staircase shows each gate's marginal value: the big drops are the *early*
+gates (the marked Hadamards, e.g. `H9`, `H2` for block-growth); later gates only
+fine-tune. One caveat on the endpoint labels — the train-loss order need not match
+the test-PSNR order (`bg` has the *highest* train MSE yet the *best* test PSNR):
+the loss is a top-10%-coefficient proxy on the train batch, PSNR a 20%-keep
+reconstruction on the test set.
