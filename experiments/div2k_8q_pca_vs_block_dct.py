@@ -40,8 +40,12 @@ import argparse
 import os
 import sys
 
-ALL_BASES = ("qft", "entangled_qft", "tebd", "mera",
-             "blocked_8", "rich_8", "real_rich_8")
+DEFAULT_BASES = ("qft", "entangled_qft", "tebd", "mera",
+                 "blocked_8", "rich_8", "real_rich_8")
+# Ablation variants — selectable via --bases but not in the default
+# headline grid.
+EXTRA_BASES = ("qft_identity",)
+ALL_BASES = DEFAULT_BASES + EXTRA_BASES
 BASELINES = ("fft", "dct", "block_fft_8", "block_dct_8", "pca", "block_pca_8",
              "dct_rank", "block_dct_8_rank", "pca_rank", "block_pca_8_rank",
              "bd_pca", "block_bd_pca_8")
@@ -59,8 +63,9 @@ def main() -> int:
                         help="GPU index. Sets CUDA_VISIBLE_DEVICES before JAX import.")
     parser.add_argument("--out", default=None,
                         help="Output directory (None → timestamped default).")
-    parser.add_argument("--bases", default=",".join(ALL_BASES),
-                        help=f"Comma-separated subset of {ALL_BASES}.")
+    parser.add_argument("--bases", default=",".join(DEFAULT_BASES),
+                        help=f"Comma-separated subset of {ALL_BASES}. "
+                             f"Default: {DEFAULT_BASES}.")
     parser.add_argument("--no-early-stop", action="store_true",
                         help="Disable early-stopping-on-validation-plateau. "
                              "Train for the preset's full epoch budget. Useful "

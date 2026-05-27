@@ -7,10 +7,12 @@ caller has only the string name.
 
 from .div2k import load_div2k
 from .quickdraw import load_quickdraw
+from .tuberlin import load_tuberlin
 
 _LOADERS = {
     "div2k": load_div2k,
     "quickdraw": load_quickdraw,
+    "tuberlin": load_tuberlin,
 }
 
 
@@ -21,4 +23,4 @@ def load(name: str, **kwargs):
     return _LOADERS[name](**kwargs)
 
 
-__all__ = ["load", "load_div2k", "load_quickdraw"]
+__all__ = ["load", "load_div2k", "load_quickdraw", "load_tuberlin"]

@@ -1,0 +1,19 @@
+[qft_id_reg] reg family: L1
+[qft_id_reg] sweep lambdas: [10.0, 1.0, 0.1]
+[qft_id_reg] preset=generalized, epochs=112
+[qft_id_reg] dataset=quickdraw, preset.epochs=112, patience=1000000000
+[qft_id_reg] m=n=5, loaded 500 train, 50 test images
+
+[qft_id_reg] === reg=L1, lambda=1.00e+01 (out: results/qft_identity_init/quickdraw/_runs/regL1_lambda_1e+01) ===
+[qft_id_reg]   trained in 22.3s, steps=1008, epochs=112
+[qft_id_reg]   PSNR @ rho=0.20: 61.89 dB
+
+[qft_id_reg] === reg=L1, lambda=1.00e+00 (out: results/qft_identity_init/quickdraw/_runs/regL1_lambda_1e+00) ===
+[qft_id_reg]   trained in 21.1s, steps=1008, epochs=112
+[qft_id_reg]   PSNR @ rho=0.20: 54.11 dB
+
+[qft_id_reg] === reg=L1, lambda=1.00e-01 (out: results/qft_identity_init/quickdraw/_runs/regL1_lambda_1e-01) ===
+[qft_id_reg]   trained in 20.8s, steps=1008, epochs=112
+[qft_id_reg]   PSNR @ rho=0.20: 40.62 dB
+
+[qft_id_reg] sweep complete.

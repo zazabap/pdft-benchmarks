@@ -1,0 +1,35 @@
+{
+  "experiment": "qft_freeze_sweep",
+  "dataset": "div2k_8q",
+  "epochs": 112,
+  "inner_m": 3,
+  "inner_n": 3,
+  "cells": [
+    {
+      "cell": "freeze_outer",
+      "basis_name": "qft_freeze_outer",
+      "trainable_count": 12,
+      "frozen_count": 60,
+      "psnr_rho_020": 32.260744887277404,
+      "val_mse_final": 129.3221350496957,
+      "steps": 1008,
+      "elapsed_seconds": 471.77025597915053
+    },
+    {
+      "cell": "freeze_inner",
+      "basis_name": "qft_freeze_inner",
+      "trainable_count": 60,
+      "frozen_count": 12,
+      "psnr_rho_020": 22.52392703581003,
+      "val_mse_final": 799.5285862133395,
+      "steps": 1008,
+      "elapsed_seconds": 532.7146215457469
+    }
+  ],
+  "anchors": {
+    "qft": 31.29,
+    "qft_identity": 31.66,
+    "blocked_8": 32.26
+  },
+  "git_sha": "2dfd788579c0aad0fae629eaa7177b0373447073"
+}

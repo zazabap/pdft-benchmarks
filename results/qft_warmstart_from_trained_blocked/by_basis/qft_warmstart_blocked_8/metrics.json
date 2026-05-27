@@ -1,0 +1,58 @@
+{
+  "qft_warmstart_blocked_8": {
+    "metrics": {
+      "0.05": {
+        "mean_mse": 0.0038777260771131867,
+        "std_mse": 0.002429829436541341,
+        "mean_psnr": 25.1848901877557,
+        "std_psnr": 3.348207603621302,
+        "mean_ssim": 0.7139386706508155,
+        "std_ssim": 0.07914441563716074,
+        "nan_count": 0
+      },
+      "0.1": {
+        "mean_mse": 0.0020782610735176382,
+        "std_mse": 0.0013924935220066415,
+        "mean_psnr": 28.085865486958582,
+        "std_psnr": 3.745379675442267,
+        "mean_ssim": 0.8257569993917724,
+        "std_ssim": 0.05834070977470854,
+        "nan_count": 0
+      },
+      "0.15": {
+        "mean_mse": 0.001294392429549456,
+        "std_mse": 0.0009115903200511335,
+        "mean_psnr": 30.296523768495458,
+        "std_psnr": 4.053962969143133,
+        "mean_ssim": 0.8810369851566587,
+        "std_ssim": 0.044872151383996126,
+        "nan_count": 0
+      },
+      "0.2": {
+        "mean_mse": 0.0008518863963427267,
+        "std_mse": 0.0006275103859002749,
+        "mean_psnr": 32.2603378939398,
+        "std_psnr": 4.3277983384869385,
+        "mean_ssim": 0.9152177871107149,
+        "std_ssim": 0.034895356386708966,
+        "nan_count": 0
+      }
+    },
+    "time": 541.8356344895437,
+    "_pdft_py": {
+      "warmup_s": 2.3219458665698767,
+      "device": "cuda:0",
+      "epochs_completed": 112,
+      "steps": 1008,
+      "n_test": 50,
+      "eval_failed_count": {
+        "0.05": 0,
+        "0.1": 0,
+        "0.15": 0,
+        "0.2": 0
+      },
+      "warm_started_from": "results/div2k_8q_pca_vs_block_dct/by_basis/blocked_8/trained_blocked_8.json",
+      "warmstart_bit_exact_max_diff": 4.440892098500626e-16
+    }
+  }
+}
