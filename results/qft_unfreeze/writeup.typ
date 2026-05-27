@@ -6,7 +6,6 @@
 #show raw: set text(size: 8.5pt)
 
 #let datasets_all = (
-  ("quickdraw_5q", "QuickDraw (m=n=5, 30 gates)"),
   ("div2k_8q", "DIV2K (m=n=8, 72 gates)"),
   ("tuberlin_8q", "TU-Berlin (m=n=8, 72 gates)"),
 )
@@ -42,9 +41,8 @@ left$arrow.r$right (`lr`), right$arrow.r$left (`rl`)? and (ii) does the
 
 = Setup
 
-Each run optimises a *fixed batch* of the training split (full $n = 500$ at
-QuickDraw $m = 5$; batch $50$ at $m = 8$) under an `MSELoss` that keeps the
-top-10% of coefficients by magnitude. The loop drives pdft's JIT-compiled Adam
+Each run optimises a *fixed batch* of the training split (batch $50$ at $m = 8$)
+under an `MSELoss` that keeps the top-10% of coefficients by magnitude. The loop drives pdft's JIT-compiled Adam
 step with a per-stage frozen set — Adam moments reset between stages, carried
 within a stage, constant learning rate — and a separate Riemannian grad-norm
 probe supplies the plateau signal. A stage ends when
@@ -179,9 +177,10 @@ the gate-unfreeze table above: if the identity-init sweep also lands at
 $approx$ #f1(qp.stages.last().psnr.at("0.2")) dB, the QFT$(8,8)$ optimum is
 *schedule-independent* — neither the unfreeze order
 nor the one-gate-at-a-time vs whole-block curriculum changes the destination,
-only the trajectory (exactly what the QuickDraw panels show, where all three
-orderings converge). A gate-unfreeze endpoint *below* the block-size baseline
-would instead say the per-gate schedule gets trapped short of the joint optimum.
+only the trajectory (the DIV2K rows above land all three orderings within
+$approx$1 dB, identity and random both at the baseline). A gate-unfreeze endpoint
+*below* the block-size baseline would instead say the per-gate schedule gets
+trapped short of the joint optimum.
 
 #figure(
   image("reference/qft_progressive_training_dynamics.svg", width: 80%),
@@ -196,21 +195,23 @@ would instead say the per-gate schedule gets trapped short of the joint optimum.
 The staircases (absolute top-$k$ MSE) make the per-gate marginal contribution
 legible: a tall step is a gate that mattered, a flat plateau a gate the optimiser
 left near where it was thawed. Compare the three orderings within each panel for
-*path* effects and the two init rows for *initialisation* effects. On QuickDraw
-the training MSE converges to the same floor for all three orderings within an
-init (order changes only the path), while identity reaches a *lower* MSE than
-random — the QFT-family identity carries a usable inductive bias even under a
-one-gate-at-a-time schedule. The trigger mix (grad-norm vs loss-$Delta$ vs
-step-cap) reports *how* each stage terminated.
+*path* effects and the two init rows for *initialisation* effects. On *DIV2K* the
+three orderings reach nearly the same final MSE and PSNR within an init
+(block-growth and left$arrow.r$right at $approx$31.8–32.0 dB, right$arrow.r$left
+about 1 dB behind), and identity and random converge to essentially the same
+endpoint ($approx$31.7 dB) — *matching the block-size baseline above*. So the
+QFT$(8,8)$ optimum is essentially *schedule-independent*: the unfreeze order and
+the one-gate-at-a-time vs whole-block curriculum change the *path*, not the
+destination. The trigger mix (grad-norm vs loss-$Delta$ vs step-cap) reports
+*how* each stage terminated.
 
 *Training loss $eq.not$ test PSNR on sparse data.* The optimiser minimises the
 top-$k$ MSE in the *transform* domain, which is not the same objective as
-test-image PSNR. On QuickDraw the per-stage test PSNR\@$rho{=}.20$ is *highest
-early* — up to *54.8 dB around stage 5*, near the identity/pixel operator — and
-then *falls to $approx$37.6 dB* as more gates train the operator toward the QFT
-and spread energy away from the sparse-pixel representation. So for sparse
-drawings the PSNR-optimal point is *early in the unfreeze schedule*, not at the
-fully-trained end; this matches the reference table above, where the
-prior-experiment maxima also sit at small block sizes. (Per-stage PSNR is
-recorded in each cell's `trace.json`; on DIV2K, where images are not pixel-sparse,
-training instead *improves* PSNR toward the $approx$31.7 dB block-size baseline.)
+test-image PSNR. On DIV2K (not pixel-sparse) the two move together — training
+*improves* PSNR toward the $approx$31.7 dB joint optimum. But on the *sparse
+drawing sets* the prior-experiment maxima (reference table above) sit at *small
+block sizes*, i.e. near the identity/pixel operator: there the per-stage test
+PSNR peaks *early* in the unfreeze schedule and then falls as the operator trains
+toward the QFT and spreads energy away from the sparse-pixel representation — so
+"more training" can lower test PSNR even as the training MSE keeps dropping.
+(Per-stage PSNR is recorded in each cell's `trace.json`.)

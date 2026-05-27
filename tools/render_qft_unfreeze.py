@@ -47,13 +47,16 @@ def _final_psnr(trace: dict, ratio: str = "0.2"):
     return None
 
 
-def _render_combined(base: Path) -> int:
+def _render_combined(base: Path, only=None) -> int:
     """Training-dynamics grid: rows = init (identity, random), cols = dataset,
-    one loss L/L0 curve per unfreeze ordering. The qft_unfreeze analogue of the
+    one absolute-MSE curve per unfreeze ordering. The qft_unfreeze analogue of the
     other experiments' <exp>/figures/training_dynamics figure. Per-(dataset,init)
-    grad-norm staircases live in <dataset>/<init>/figures/staircase.* ."""
+    grad-norm staircases live in <dataset>/<init>/figures/staircase.* .
+
+    `only` (set of dataset tags) restricts which dataset columns are drawn."""
     cols = [(tag, lab) for tag, lab in COMBINED_DATASETS
-            if any((base / tag / init).exists() for init, _ in COMBINED_INITS)]
+            if (only is None or tag in only)
+            and any((base / tag / init).exists() for init, _ in COMBINED_INITS)]
     rows = [(init, lab) for init, lab in COMBINED_INITS
             if any((base / tag / init).exists() for tag, _ in COMBINED_DATASETS)]
     if not cols or not rows:
@@ -122,10 +125,14 @@ def main() -> int:
                         "dynamics grid into <base>/figures/training_dynamics.{pdf,svg}.")
     p.add_argument("--base", default="results/qft_unfreeze",
                    help="Experiment base dir (used with --combined).")
+    p.add_argument("--datasets", default=None,
+                   help="Comma-list of dataset tags to include in --combined "
+                        "(default: all present).")
     args = p.parse_args()
 
     if args.combined:
-        return _render_combined(Path(args.base))
+        only = set(args.datasets.split(",")) if args.datasets else None
+        return _render_combined(Path(args.base), only=only)
 
     indir = Path(args.indir) if args.indir else Path(f"results/qft_unfreeze/{args.dataset}")
     if not indir.exists():
