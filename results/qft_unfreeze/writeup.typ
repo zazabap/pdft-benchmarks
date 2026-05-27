@@ -29,10 +29,19 @@ a plateau, then thaw the next. Does the *order* — block-growth (`bg`),
 left$arrow.r$right (`lr`), right$arrow.r$left (`rl`) — or the *initialisation*
 change the trajectory or the endpoint?
 
-#figure(image("reference/qft_unfreeze_ordering.svg", width: 90%),
-  caption: [The three orderings on a QFT circuit (badge = unfreeze step, fill =
-  block-stage $k$). *bg*: stage $k$ completes QFT$(k, k)$. *lr*: QFT construction
-  order. *rl*: reverse. The same index sequences (at $m = 8$) drive every run.])
+#figure(image("reference/qft_unfreeze_ordering.svg", width: 100%),
+  caption: [The QFT$(5)$ circuit (one axis) with every gate named: $H_i$ =
+  Hadamard on $q_i$; $M_(j,i)$ = controlled-phase between $q_j$ and $q_i$ ($j > i$).
+  The three orderings thaw these same gates in the sequences below; the $m = 8$
+  runs use the analogous 72-gate circuit.]) <fig-circuit>
+
+The three unfreeze orderings traverse the gates of @fig-circuit as:
+- *block-growth* (`bg`): finish QFT$(k)$ before adding qubit $k{+}1$ —
+  $H_1$; $H_2, M_(2,1)$; $H_3, M_(3,1), M_(3,2)$; $H_4, M_(4,1), M_(4,2), M_(4,3)$;
+  $H_5, M_(5,1), ..., M_(5,4)$. Long-range couplings come last.
+- *left$arrow.r$right* (`lr`): QFT construction order —
+  $H_1, M_(2,1), M_(3,1), M_(4,1), M_(5,1), H_2, M_(3,2), ..., H_5$.
+- *right$arrow.r$left* (`rl`): the reverse — $H_5$ first, $H_1$ last.
 
 = Setup
 
