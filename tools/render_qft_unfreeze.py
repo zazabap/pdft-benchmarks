@@ -25,11 +25,89 @@ STYLE = {
 }
 
 
+# Dataset columns for the combined training-dynamics grid (content labels, not
+# a figure title — see CLAUDE.md "No figure-level titles").
+COMBINED_DATASETS = [
+    ("quickdraw_5q", "QuickDraw  (m=n=5)"),
+    ("div2k_8q", "DIV2K  (m=n=8)"),
+    ("tuberlin_8q", "TU-Berlin  (m=n=8)"),
+]
+
+
+COMBINED_INITS = [("identity", "identity init"), ("random", "random init")]
+
+
+def _render_combined(base: Path) -> int:
+    """Training-dynamics grid: rows = init (identity, random), cols = dataset,
+    one loss L/L0 curve per unfreeze ordering. The qft_unfreeze analogue of the
+    other experiments' <exp>/figures/training_dynamics figure. Per-(dataset,init)
+    grad-norm staircases live in <dataset>/<init>/figures/staircase.* ."""
+    cols = [(tag, lab) for tag, lab in COMBINED_DATASETS
+            if any((base / tag / init).exists() for init, _ in COMBINED_INITS)]
+    rows = [(init, lab) for init, lab in COMBINED_INITS
+            if any((base / tag / init).exists() for tag, _ in COMBINED_DATASETS)]
+    if not cols or not rows:
+        print(f"[render] no <dataset>/<init> subdirs under {base}", file=sys.stderr)
+        return 2
+
+    fig, axes = plt.subplots(len(rows), len(cols),
+                             figsize=(3.4 * len(cols), 2.5 * len(rows)),
+                             squeeze=False, sharex="col")
+    any_curve = False
+    for r, (init, init_lab) in enumerate(rows):
+        for c, (tag, ds_lab) in enumerate(cols):
+            ax = axes[r][c]
+            for name, (color, ls, leg) in STYLE.items():
+                tj = base / tag / init / name / "trace.json"
+                if not tj.exists():
+                    continue
+                steps = json.loads(tj.read_text())["steps"]
+                if not steps:
+                    continue
+                xs = [s["step"] for s in steps]
+                loss = [s["loss"] for s in steps]
+                l0 = loss[0] if loss[0] > 0 else 1.0
+                ax.plot(xs, [v / l0 for v in loss], color=color, ls=ls, lw=1.3, label=leg)
+                any_curve = True
+            ax.grid(True, alpha=0.25, lw=0.5)
+            ax.tick_params(labelsize=7)
+            if r == 0:
+                ax.set_title(ds_lab, fontsize=9)
+            if r == len(rows) - 1:
+                ax.set_xlabel("cumulative training step", fontsize=8)
+            if c == 0:
+                ax.set_ylabel(f"{init_lab}\n" + r"loss $L/L_0$", fontsize=8.5)
+            if r == 0 and c == 0:
+                ax.legend(frameon=False, fontsize=7.5)
+
+    if not any_curve:
+        print(f"[render] no trace.json found under {base}/<dataset>/<init>/", file=sys.stderr)
+        return 2
+
+    fig.tight_layout()
+    figdir = base / "figures"
+    figdir.mkdir(parents=True, exist_ok=True)
+    for ext in ("pdf", "svg"):
+        out = figdir / f"training_dynamics.{ext}"
+        fig.savefig(out, bbox_inches="tight")
+        print(f"[render] wrote {out}")
+    plt.close(fig)
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--dataset", default=None)
     p.add_argument("--in", dest="indir", default=None)
+    p.add_argument("--combined", action="store_true",
+                   help="Render a 2x3 (loss, grad-norm) x (dataset) training-"
+                        "dynamics grid into <base>/figures/training_dynamics.{pdf,svg}.")
+    p.add_argument("--base", default="results/qft_unfreeze",
+                   help="Experiment base dir (used with --combined).")
     args = p.parse_args()
+
+    if args.combined:
+        return _render_combined(Path(args.base))
 
     indir = Path(args.indir) if args.indir else Path(f"results/qft_unfreeze/{args.dataset}")
     if not indir.exists():
