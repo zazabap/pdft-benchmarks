@@ -129,9 +129,11 @@ def _render_combined(base: Path, only=None) -> int:
                     ax.plot([xstep], [yloss], marker="|", ms=5, color=color, mew=0.8)
                 finals.append((color, leg, loss[-1], _final_psnr(trace)))
                 any_curve = True
-            # Mark the final absolute MSE and final PSNR@0.20 per ordering.
+            # Final TRAIN top-k MSE loss and TEST PSNR@0.20 per ordering — two
+            # distinct metrics (train transform-domain loss vs test image recon),
+            # so labelled separately to avoid implying PSNR derives from this MSE.
             for i, (color, leg, mse, psnr) in enumerate(finals):
-                txt = f"MSE {mse:.4g}" + (f" · {psnr:.1f} dB" if psnr is not None else "")
+                txt = f"train {mse:.4g}" + (f" · test {psnr:.1f} dB" if psnr is not None else "")
                 ax.text(0.97, 0.96 - 0.085 * i, txt, transform=ax.transAxes,
                         ha="right", va="top", fontsize=6.5, color=color)
             ax.grid(True, alpha=0.25, lw=0.5)
@@ -209,8 +211,8 @@ def main() -> int:
 
     # Final absolute MSE + grad norm + PSNR@0.20 per ordering, marked at finish.
     for i, (color, label, mse, gend, psnr) in enumerate(finals):
-        txt = f"{label}: MSE={mse:.4g}" + \
-              (f"  PSNR@.20={psnr:.2f} dB" if psnr is not None else "")
+        txt = f"{label}: train MSE={mse:.4g}" + \
+              (f"  test PSNR@.20={psnr:.2f} dB" if psnr is not None else "")
         ax_loss.text(0.985, 0.95 - 0.075 * i, txt, transform=ax_loss.transAxes,
                      ha="right", va="top", fontsize=7, color=color)
 

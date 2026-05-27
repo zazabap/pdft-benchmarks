@@ -46,10 +46,13 @@ seed shared across orderings.
 = Training dynamics
 
 #figure(image("figures/training_dynamics.svg", width: 100%),
-  caption: [Absolute top-$k$ MSE vs cumulative step, one curve per ordering (rows:
-  identity / random init). Endpoints carry the final MSE and PSNR\@$rho{=}.20$;
-  tick labels mark *which gate* (e.g. `H7`, `CP3,1`) was thawed at each of the
-  largest drops. Per-cell loss+grad-norm staircases: `div2k_8q/<init>/figures/`.])
+  caption: [Absolute *training* top-$k$ MSE loss vs cumulative step, one curve per
+  ordering (rows: identity / random init). Tick labels mark *which gate* (e.g.
+  `H7`, `CP3,1`) was thawed at each of the largest drops. Endpoints report
+  *train MSE* and *test PSNR\@$rho{=}.20$* — note these are *different* metrics
+  (training top-10%-coefficient loss vs test-set image reconstruction keeping
+  20%), so a curve can sit higher in train loss yet score a higher test PSNR.
+  Per-cell loss+grad-norm staircases: `div2k_8q/<init>/figures/`.])
 
 = Reconstruction PSNR (DIV2K)
 
@@ -104,5 +107,8 @@ The staircase shows each gate's marginal value: a tall drop is a gate that
 mattered (mostly the early, small-block gates — see the marked steps), a flat
 plateau a gate left near where it was thawed. All three orderings and both inits
 converge to $approx$31.7 dB, so *order and curriculum set only the path, not the
-destination* — `rl` merely trails by $approx$1 dB en route. Identity reaches a
-lower training MSE than random but the same PSNR endpoint.
+destination* — `rl` merely trails by $approx$1 dB en route. The train-loss order
+need not match the test-PSNR order (`bg` has the *highest* train MSE yet the
+*best* test PSNR): the loss is a top-10%-coefficient proxy on the train batch,
+PSNR a 20%-keep reconstruction on the test set, so the two rank slightly
+differently in this near-flat optimum.
