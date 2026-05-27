@@ -62,3 +62,40 @@ def _plateau_reason(grad_norm, loss, loss_prev, *, step, min_steps, grad_tol, lo
     if loss_prev is not None and abs(loss - loss_prev) < loss_tol:
         return "loss_delta"
     return None
+
+
+def _make_gradnorm_probe(basis, loss):
+    """Build `probe(tensors, batch, frozen_set) -> (loss: float, grad_norm: float)`.
+
+    Mirrors `_build_jit_adam_step`'s forward/backward (same loss_function, same
+    Wirtinger conjugation) then projects the Euclidean gradient onto the manifold
+    tangent space via pdft's `_batched_project`, zeroing frozen indices — so the
+    norm reflects stationarity of the *trainable* gates only.
+    """
+    import jax
+    import jax.numpy as jnp
+    from pdft.loss import loss_function
+    from pdft.optimizers.core import _batched_project, _common_setup
+
+    m, n = basis.m, basis.n
+    code, inv_code = basis.code, basis.inv_code
+
+    def _per_image(tensors, img):
+        return loss_function(tensors, m, n, code, img, loss, inverse_code=inv_code)
+
+    _batched = jax.vmap(_per_image, in_axes=(None, 0))
+
+    def _stacked_loss(tensors, batch):
+        return jnp.mean(_batched(tensors, batch))
+
+    _val_grad = jax.jit(jax.value_and_grad(_stacked_loss))
+
+    def probe(tensors, batch, frozen_set):
+        loss_val, raw_grads = _val_grad(tensors, batch)
+        grads = [jnp.conj(g) for g in raw_grads]  # Wirtinger, matches adam_step
+        state = _common_setup(tensors)
+        _, grad_norm = _batched_project(state, grads,
+                                        frozen_indices=frozen_set or None)
+        return float(loss_val), float(grad_norm)
+
+    return probe
