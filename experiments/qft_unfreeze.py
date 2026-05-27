@@ -42,7 +42,21 @@ def main() -> int:
     p.add_argument("--loss-tol", type=float, default=1e-5)
     p.add_argument("--min-steps", type=int, default=5)
     p.add_argument("--max-steps", type=int, default=2000)
+    p.add_argument("--psnr-every", type=int, default=1,
+                   help="Evaluate per-stage test PSNR only every K stages (the "
+                        "final stage is always evaluated). K>1 cuts the dominant "
+                        "m=8 eval cost; the loss/grad-norm staircase is unaffected.")
+    p.add_argument("--grad-check-every", type=int, default=1,
+                   help="Run the Riemannian grad-norm probe only every K steps "
+                        "(loss-delta plateau uses the Adam step's free loss every "
+                        "step). K>1 roughly halves the per-step cost at m=8.")
     p.add_argument("--seed", type=int, default=None)
+    p.add_argument("--init", default="identity", choices=["identity", "random"],
+                   help="Gate initialisation: QFT-family identity (default) or "
+                        "Haar-random (H slots -> Haar U(2), CP slots -> uniform phase).")
+    p.add_argument("--init-seed", type=int, default=None,
+                   help="Seed for --init random (default: preset.seed). Shared "
+                        "across orderings so they start from the same basis.")
     p.add_argument("--preset", default="generalized",
                    choices=["smoke", "moderate", "generalized"])
     p.add_argument("--out", default=None)
@@ -56,7 +70,7 @@ def main() -> int:
     import numpy as np
     import pdft
     import pdft.io  # noqa: F401  (needed by evaluate_basis_shared)
-    from pdft_benchmarks.bases import qft_identity_basis
+    from pdft_benchmarks.bases import family_random_basis, qft_identity_basis
     from pdft_benchmarks.datasets import load_div2k, load_quickdraw, load_tuberlin
     from pdft_benchmarks.evaluation import evaluate_basis_shared
     from pdft_benchmarks.presets import get_preset
@@ -79,6 +93,7 @@ def main() -> int:
     m = n = m_q
     preset = get_preset(args.dataset, args.preset)
     seed = args.seed if args.seed is not None else preset.seed
+    init_seed = args.init_seed if args.init_seed is not None else preset.seed
     lr = args.lr if args.lr is not None else preset.lr_peak
     batch = args.batch if args.batch is not None else (preset.n_train if m == 5 else 50)
 
@@ -87,8 +102,14 @@ def main() -> int:
     fixed_batch = [np.asarray(x) for x in train_imgs[:batch]]
     k_train = max(1, round(2 ** (m + n) * 0.1))
     loss = pdft.MSELoss(k=k_train)
-    print(f"[qft_unfreeze] dataset={args.dataset} m=n={m} batch={len(fixed_batch)} "
+    print(f"[qft_unfreeze] dataset={args.dataset} m=n={m} init={args.init} "
+          f"init_seed={init_seed} batch={len(fixed_batch)} "
           f"k_train={k_train} lr={lr} max_steps={args.max_steps}")
+
+    def make_basis():
+        if args.init == "random":
+            return family_random_basis("qft", m, n, init_seed)
+        return qft_identity_basis(m=m, n=n)
 
     orders = qft_unfreeze_orders(m, n)
     keep_ratios = (0.05, 0.10, 0.15, 0.20)
@@ -100,9 +121,14 @@ def main() -> int:
     for name in [s.strip() for s in args.orderings.split(",") if s.strip()]:
         order = orders[name]
         print(f"\n[qft_unfreeze] === ordering {name!r}: {len(order)} stages ===")
-        basis = qft_identity_basis(m=m, n=n)
+        basis = make_basis()
+        n_stages = len(order)
 
-        def stage_psnr(_stage, tensors):
+        def stage_psnr(stage, tensors):
+            # Skip the expensive full-test-set eval on intermediate stages when
+            # --psnr-every > 1; always evaluate the final stage.
+            if args.psnr_every > 1 and stage != n_stages and stage % args.psnr_every != 0:
+                return {}
             b = pdft.QFTBasis(m=m, n=n, tensors=tensors)
             metrics, _ = evaluate_basis_shared(b, test_imgs, keep_ratios=keep_ratios)
             return {"psnr": {f"{r}": float(metrics[str(r)]["mean_psnr"]) for r in keep_ratios}}
@@ -113,7 +139,7 @@ def main() -> int:
             max_steps_per_stage=args.max_steps, loss=loss,
             grad_tol=args.grad_tol, loss_tol=args.loss_tol,
             min_steps_per_stage=args.min_steps, seed=seed,
-            stage_callback=stage_psnr)
+            stage_callback=stage_psnr, grad_check_every=args.grad_check_every)
         elapsed = time.perf_counter() - t0
         total_steps = res.stages[-1].end_step
         print(f"[qft_unfreeze]   {name}: {total_steps} steps, {elapsed:.1f}s, "
@@ -137,9 +163,10 @@ def main() -> int:
         }, indent=2))
         (cell / "env.json").write_text(json.dumps({
             "experiment": "qft_unfreeze", "dataset": args.dataset, "ordering": name,
-            "init": "identity", "lr": lr, "grad_tol": args.grad_tol,
-            "loss_tol": args.loss_tol, "min_steps": args.min_steps,
-            "max_steps": args.max_steps, "batch": len(fixed_batch), "seed": seed,
+            "init": args.init, "init_seed": init_seed, "lr": lr,
+            "grad_tol": args.grad_tol, "loss_tol": args.loss_tol,
+            "min_steps": args.min_steps, "max_steps": args.max_steps,
+            "batch": len(fixed_batch), "seed": seed,
             "device": str(chosen), "git_sha": _git_sha(),
         }, indent=2))
 
@@ -154,6 +181,7 @@ def main() -> int:
 
     (out_base / "manifest.json").write_text(json.dumps({
         "experiment": "qft_unfreeze", "dataset": args.dataset, "m": m, "n": n,
+        "init": args.init, "init_seed": init_seed,
         "orderings": manifest_orderings, "git_sha": _git_sha(),
     }, indent=2))
     print(f"\n[qft_unfreeze] done. Manifest: {out_base / 'manifest.json'}")

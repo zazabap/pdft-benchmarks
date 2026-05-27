@@ -130,7 +130,7 @@ def train_progressive_unfreeze(
     unfreeze_order, lr, max_steps_per_stage, loss,
     grad_tol=1e-5, loss_tol=1e-5, min_steps_per_stage=5,
     beta1=0.9, beta2=0.999, eps=1e-8, seed=0,
-    stage_callback=None,
+    stage_callback=None, grad_check_every=1,
 ):
     """Cumulatively unfreeze gates in `unfreeze_order`, training each stage to a
     plateau on a fixed batch (`dataset`). Returns an `UnfreezeResult`.
@@ -172,15 +172,24 @@ def train_progressive_unfreeze(
         loss_prev = None
         stage_step = 0
         trigger = "max_steps"
-        L = gnorm = float("nan")
+        L = float("nan")
+        gnorm = float("inf")  # carried between grad probes
 
         while stage_step < max_steps_per_stage:
             stage_step += 1
             global_step += 1
-            current, m_state, v_state, _ = step_fn(
+            # The Adam step returns the loss for free (forward+backward already
+            # done inside it). The grad-norm probe is a *second* full
+            # value_and_grad and is the per-step bottleneck (~2x the step). The
+            # loss-delta plateau check only needs L, so probe the Riemannian
+            # grad norm only every `grad_check_every` steps (always on stage
+            # step 1 so the trace/staircase has a grad value from the start).
+            current, m_state, v_state, L = step_fn(
                 current, m_state, v_state, batch,
                 jnp.asarray(lr), jnp.asarray(global_step, dtype=jnp.int32))
-            L, gnorm = probe(current, batch, frozen)
+            L = float(L)
+            if stage_step == 1 or stage_step % grad_check_every == 0:
+                _, gnorm = probe(current, batch, frozen)
             trace.append({"step": global_step, "stage": s, "n_trainable": s,
                           "loss": L, "grad_norm": gnorm})
             reason = _plateau_reason(gnorm, L, loss_prev, step=stage_step,
@@ -191,6 +200,9 @@ def train_progressive_unfreeze(
                 trigger = reason
                 break
 
+        # Accurate final grad norm for the summary (the breaking step may not
+        # have been a probe step when grad_check_every > 1).
+        _, gnorm = probe(current, batch, frozen)
         extra = stage_callback(s, current) if stage_callback is not None else {}
         stages.append(StageSummary(
             stage=s, n_trainable=s, gate_index=unfreeze_order[s - 1],
