@@ -75,21 +75,43 @@ Gate-unfreeze endpoints *together with* the `qft_progressive` block-size baselin
 (train all $k(k+1)$ gates of a $2^k times 2^k$ QFT at once, per stage $k$). DIV2K
 test PSNR (dB) at four keep ratios $rho$:
 
+// gate-unfreeze ("current") and block-size ("previous") rows as (label, (4 raw PSNRs)).
+#let gu = {
+  let acc = ()
+  for init in inits {
+    for (ok, _olab) in orders {
+      let p = man("div2k_8q", init).orderings.at(ok).final_psnr
+      acc.push(("unfreeze · " + init + " · " + ok,
+                (p.at("0.05"), p.at("0.1"), p.at("0.15"), p.at("0.2"))))
+    }
+  }
+  acc
+}
+#let bs = qp.stages.map(s => (
+  "block-size · k=" + str(s.k) + " (" + str(s.block_size) + "×" + str(s.block_size) + ")",
+  (s.psnr.at("0.05"), s.psnr.at("0.1"), s.psnr.at("0.15"), s.psnr.at("0.2"))))
+#let cmax(rows, j) = calc.max(..rows.map(r => r.at(1).at(j)))
+#let gmax = range(4).map(j => cmax(gu, j))     // per-ρ best gate-unfreeze
+#let bmax = range(4).map(j => cmax(bs, j))     // per-ρ best block-size
+#let mk(v, m, c) = if calc.abs(v - m) < 1e-4 { text(fill: c, weight: "bold")[#f1(v)] } else [#f1(v)]
+#let cellrows(rows, maxes, c) = {
+  let acc = ()
+  for (lab, vs) in rows {
+    acc.push(lab)
+    for j in range(4) { acc.push(mk(vs.at(j), maxes.at(j), c)) }
+  }
+  acc
+}
 #align(center)[#table(
   columns: (auto, auto, auto, auto, auto),
   align: (left, right, right, right, right),
   stroke: 0.4pt + luma(180), inset: (x: 6pt, y: 3pt),
   table.header([*configuration*], [$rho{=}.05$], [$rho{=}.10$], [$rho{=}.15$], [$rho{=}.20$]),
-  ..inits.map(init => orders.map(((ok, olab)) => {
-    let p = man("div2k_8q", init).orderings.at(ok).final_psnr
-    ("unfreeze · " + init + " · " + ok, f1(p.at("0.05")), f1(p.at("0.1")),
-     f1(p.at("0.15")), f1(p.at("0.2")))
-  })).flatten(),
-  table.hline(stroke: 0.6pt),
-  ..qp.stages.map(s => (
-    "block-size · k=" + str(s.k) + " (" + str(s.block_size) + "×" + str(s.block_size) + ")",
-    f1(s.psnr.at("0.05")), f1(s.psnr.at("0.1")), f1(s.psnr.at("0.15")),
-    f1(s.psnr.at("0.2")))).flatten(),
+  ..cellrows(gu, gmax, rgb("#0072B2")),       // current = gate-unfreeze, max in blue
+  table.hline(stroke: 0.8pt),
+  table.cell(colspan: 5, inset: (y: 1.3pt), stroke: none)[],   // gap -> double rule
+  table.hline(stroke: 0.8pt),
+  ..cellrows(bs, bmax, rgb("#CC0000")),        // previous = block-size, max in red
 )]
 
 Both schemes reach the *same* QFT$(8,8)$ endpoint, $approx$#f1(qp.stages.last().psnr.at("0.2")) dB
