@@ -1,0 +1,100 @@
+{
+  "experiment": "qft_progressive",
+  "family": "qft",
+  "init_policy": "random",
+  "init_seed": 0,
+  "dataset": "div2k_8q",
+  "epochs_per_stage": 112,
+  "n_stages": 8,
+  "k_values": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "total_epochs": 896,
+  "stages": [
+    {
+      "k": 1,
+      "n_trainable": 2,
+      "block_size": 2,
+      "cell": "stage_k1",
+      "psnr_rho_020": 21.138936255562786,
+      "steps": 1008,
+      "elapsed_seconds": 67.29608839377761
+    },
+    {
+      "k": 2,
+      "n_trainable": 6,
+      "block_size": 4,
+      "cell": "stage_k2",
+      "psnr_rho_020": 32.04592097617552,
+      "steps": 1008,
+      "elapsed_seconds": 128.1783696319908
+    },
+    {
+      "k": 3,
+      "n_trainable": 12,
+      "block_size": 8,
+      "cell": "stage_k3",
+      "psnr_rho_020": 32.26063326520943,
+      "steps": 1008,
+      "elapsed_seconds": 190.95611995272338
+    },
+    {
+      "k": 4,
+      "n_trainable": 20,
+      "block_size": 16,
+      "cell": "stage_k4",
+      "psnr_rho_020": 31.659536358402985,
+      "steps": 1008,
+      "elapsed_seconds": 254.74192011542618
+    },
+    {
+      "k": 5,
+      "n_trainable": 30,
+      "block_size": 32,
+      "cell": "stage_k5",
+      "psnr_rho_020": 30.90623434376381,
+      "steps": 1008,
+      "elapsed_seconds": 321.14256700128317
+    },
+    {
+      "k": 6,
+      "n_trainable": 42,
+      "block_size": 64,
+      "cell": "stage_k6",
+      "psnr_rho_020": 30.807714817404644,
+      "steps": 1008,
+      "elapsed_seconds": 391.971914277412
+    },
+    {
+      "k": 7,
+      "n_trainable": 56,
+      "block_size": 128,
+      "cell": "stage_k7",
+      "psnr_rho_020": 31.293456988409368,
+      "steps": 1008,
+      "elapsed_seconds": 466.91808801237494
+    },
+    {
+      "k": 8,
+      "n_trainable": 72,
+      "block_size": 256,
+      "cell": "stage_k8",
+      "psnr_rho_020": 31.29340466542708,
+      "steps": 1008,
+      "elapsed_seconds": 543.2821857845411
+    }
+  ],
+  "anchors": {
+    "qft": 31.29,
+    "qft_identity": 31.66,
+    "blocked_8": 32.26
+  },
+  "git_sha": "2ece02878bbdd0d54f4fb6500a066f92af069edc"
+}
