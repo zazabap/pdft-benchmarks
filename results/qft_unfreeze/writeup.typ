@@ -45,7 +45,7 @@ seed shared across orderings.
 
 = Training dynamics
 
-#figure(image("figures/training_dynamics.svg", width: 78%),
+#figure(image("figures/training_dynamics.svg", width: 100%),
   caption: [Absolute top-$k$ MSE vs cumulative step, one curve per ordering (rows:
   identity / random init). Endpoints carry the final MSE and PSNR\@$rho{=}.20$;
   tick labels mark *which gate* (e.g. `H7`, `CP3,1`) was thawed at each of the

@@ -98,8 +98,10 @@ def _render_combined(base: Path, only=None) -> int:
         print(f"[render] no <dataset>/<init> subdirs under {base}", file=sys.stderr)
         return 2
 
+    # Wider panels when few dataset columns (the step axis is long).
+    colw = 7.2 if len(cols) <= 1 else (4.2 if len(cols) == 2 else 3.5)
     fig, axes = plt.subplots(len(rows), len(cols),
-                             figsize=(3.4 * len(cols), 2.5 * len(rows)),
+                             figsize=(colw * len(cols), 2.6 * len(rows)),
                              squeeze=False, sharex="col")
     any_curve = False
     for r, (init, init_lab) in enumerate(rows):
