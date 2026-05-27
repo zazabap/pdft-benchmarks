@@ -138,6 +138,16 @@ The classical *block-DCT 8×8* is in fact the strongest here
 *block-FFT 8×8* is weaker (#f1(cl.at(1).at(1).at(3)) dB) — the QFT-family operators
 sit between the two classical block transforms.
 
+*Is the fixed top-10% training objective a confound?* The classical transforms are
+inherently rate-matched (keep top-$rho$ of a *fixed* operator at every $rho$), while
+the learned QFT trains once at top-10% and is scored at 5–20%. This does not explain
+its deficit: (i) at the *matched* rate $rho{=}.10$ the classical block-DCT
+(#f1(clj.block_dct_8.psnr.at("0.1")) dB) still beats the best gate-unfreeze
+(#f1(gmax.at(1)) dB); and (ii) retraining the QFT with top-$k$ matched to each $rho$
+raises the matched-rate PSNR by *$lt.eq 0.07$ dB* (controlled all-at-once probe,
+`reference/rate_matched_div2k.json`) — the operator's energy compaction is
+essentially rate-agnostic, so the top-$k$ choice is not the issue.
+
 = Reading
 
 The staircase shows each gate's marginal value: the big drops are the *early*
