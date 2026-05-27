@@ -1,0 +1,50 @@
+{
+  "experiment": "mera_progressive",
+  "family": "mera",
+  "init_policy": "random",
+  "init_seed": 0,
+  "dataset": "div2k_8q",
+  "epochs_per_stage": 112,
+  "n_stages": 3,
+  "k_values": [
+    2,
+    4,
+    8
+  ],
+  "total_epochs": 336,
+  "stages": [
+    {
+      "k": 2,
+      "n_trainable": 8,
+      "block_size": 4,
+      "cell": "stage_k2",
+      "psnr_rho_020": 32.045647726679206,
+      "steps": 1008,
+      "elapsed_seconds": 134.9783717142418
+    },
+    {
+      "k": 4,
+      "n_trainable": 20,
+      "block_size": 16,
+      "cell": "stage_k4",
+      "psnr_rho_020": 31.6595221912349,
+      "steps": 1008,
+      "elapsed_seconds": 279.8620421681553
+    },
+    {
+      "k": 8,
+      "n_trainable": 44,
+      "block_size": 256,
+      "cell": "stage_k8",
+      "psnr_rho_020": 30.906324695218263,
+      "steps": 1008,
+      "elapsed_seconds": 542.0408181007951
+    }
+  ],
+  "anchors": {
+    "mera": 30.91,
+    "blocked_8": 32.26,
+    "qft": 31.29
+  },
+  "git_sha": "2ece02878bbdd0d54f4fb6500a066f92af069edc"
+}

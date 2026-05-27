@@ -1,0 +1,86 @@
+{
+  "experiment": "tebd_progressive",
+  "family": "tebd",
+  "init_policy": "identity",
+  "init_seed": null,
+  "dataset": "tuberlin_8q",
+  "epochs_per_stage": 112,
+  "n_stages": 7,
+  "k_values": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "total_epochs": 784,
+  "stages": [
+    {
+      "k": 2,
+      "n_trainable": 8,
+      "block_size": 4,
+      "cell": "stage_k2",
+      "psnr_rho_020": 84.9728480323627,
+      "steps": 1008,
+      "elapsed_seconds": 133.0190270571038
+    },
+    {
+      "k": 3,
+      "n_trainable": 12,
+      "block_size": 8,
+      "cell": "stage_k3",
+      "psnr_rho_020": 87.5464956103515,
+      "steps": 1008,
+      "elapsed_seconds": 228.49937633331865
+    },
+    {
+      "k": 4,
+      "n_trainable": 16,
+      "block_size": 16,
+      "cell": "stage_k4",
+      "psnr_rho_020": 69.63143757497716,
+      "steps": 1008,
+      "elapsed_seconds": 267.6020722175017
+    },
+    {
+      "k": 5,
+      "n_trainable": 20,
+      "block_size": 32,
+      "cell": "stage_k5",
+      "psnr_rho_020": 51.42325347041002,
+      "steps": 1008,
+      "elapsed_seconds": 349.649993323721
+    },
+    {
+      "k": 6,
+      "n_trainable": 24,
+      "block_size": 64,
+      "cell": "stage_k6",
+      "psnr_rho_020": 50.17102051626917,
+      "steps": 1008,
+      "elapsed_seconds": 421.5572470910847
+    },
+    {
+      "k": 7,
+      "n_trainable": 28,
+      "block_size": 128,
+      "cell": "stage_k7",
+      "psnr_rho_020": 62.880687554126,
+      "steps": 1008,
+      "elapsed_seconds": 472.9854101911187
+    },
+    {
+      "k": 8,
+      "n_trainable": 32,
+      "block_size": 256,
+      "cell": "stage_k8",
+      "psnr_rho_020": 62.87810539282432,
+      "steps": 1008,
+      "elapsed_seconds": 537.1897372603416
+    }
+  ],
+  "anchors": {},
+  "git_sha": "2ece02878bbdd0d54f4fb6500a066f92af069edc"
+}
