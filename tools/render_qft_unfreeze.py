@@ -69,11 +69,17 @@ def _top_gate_marks(trace: dict, k: int = 4):
     """The k stages with the largest MSE drop: (start_step, pre-drop loss, gate
     label) — i.e. which gate, thawed at which step, caused each big improvement."""
     stages = trace.get("stages", [])
+    steps = trace.get("steps", [])
     m, n = trace.get("m"), trace.get("n")
     labels = _gate_labels(m, n) if m and n else None
+    # The first stage's "previous" loss is the t=0 loss L0, not itself — otherwise
+    # the very first thawed gate (e.g. H1) gets a spurious zero drop and is never
+    # marked.
+    l0 = steps[0]["loss"] if steps else None
     marks = []
     for idx, st in enumerate(stages):
-        pre = stages[idx - 1]["final_loss"] if idx > 0 else st.get("final_loss")
+        pre = stages[idx - 1]["final_loss"] if idx > 0 else (
+            l0 if l0 is not None else st.get("final_loss"))
         drop = pre - st.get("final_loss", pre)
         gi = st.get("gate_index")
         lab = labels[gi] if labels and gi is not None and gi < len(labels) else str(gi)
