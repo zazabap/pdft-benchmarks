@@ -151,6 +151,13 @@ raises the matched-rate PSNR by *$lt.eq 0.07$ dB* (controlled all-at-once probe,
 `reference/rate_matched_div2k.json`) — the operator's energy compaction is
 essentially rate-agnostic, so the top-$k$ choice is not the issue.
 
+*Seed robustness (random init).* Across *17* random-init seeds (block-growth),
+*16 land at exactly 31.66 dB* \@$rho{=}.20$ (mean 31.64, $sigma = 0.09$, max 31.66);
+a single seed dipped to 31.29. So the random endpoint is seed-invariant and
+*never exceeds* the 31.66 attractor — the optimum is a stable basin, not a lucky
+draw, and reseeding cannot reach the identity result (31.98) or the 8×8-block
+32.26 (`reference/random_seed_sweep_div2k.json`, $n = 17$).
+
 = Reading
 
 The staircase shows each gate's marginal value: the big drops are the *early*
