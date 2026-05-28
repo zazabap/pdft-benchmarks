@@ -171,6 +171,91 @@ def _render_combined(base: Path, only=None) -> int:
     return 0
 
 
+def _render_seeds(base: Path) -> int:
+    """Explicit per-seed view of the random-init block-growth seed sweep:
+    Panel A plots every seed's test PSNR\\@ρ=.20 (the 16-at-attractor + lone
+    outlier), Panel B the random min–max band vs ρ against the identity-init and
+    8×8-block references. Reads reference/random_seed_sweep_div2k.json plus the
+    identity manifest and the qft_progressive block-size reference."""
+    ssp = base / "reference" / "random_seed_sweep_div2k.json"
+    if not ssp.exists():
+        print(f"[render] no {ssp}", file=sys.stderr)
+        return 2
+    ss = json.loads(ssp.read_text())
+    rhos = ["0.05", "0.1", "0.15", "0.2"]
+    seeds = ss["seeds"]
+    per = ss["per_seed"]
+    id_psnr = json.loads(
+        (base / "div2k_8q" / "identity" / "manifest.json").read_text()
+    )["orderings"]["bg"]["final_psnr"]
+    qp = json.loads((base / "reference" / "qft_progressive_div2k_8q.json").read_text())
+    blk = next(s for s in qp["stages"] if s.get("block_size") == 8)  # 8×8 (k=3)
+
+    # Wong palette: random=blue, identity=orange, block=green, outlier=vermilion.
+    C_RAND, C_ID, C_BLK, C_OUT, C_MEAN = (
+        "#0072B2", "#E69F00", "#009E73", "#D55E00", "#555555")
+    fig, (axA, axB) = plt.subplots(
+        1, 2, figsize=(10.5, 3.6), gridspec_kw={"width_ratios": [1.6, 1.0]})
+
+    # --- Panel A: every seed at the headline rate ρ=.20 ---
+    r = "0.2"
+    agg = ss["agg"][r]
+    mean, std, mn, mx = agg["mean"], agg["std"], agg["min"], agg["max"]
+    xs = list(range(len(seeds)))
+    axA.axhspan(mean - std, mean + std, color=C_MEAN, alpha=0.12, lw=0)
+    axA.axhline(mean, color=C_MEAN, lw=1.0, label=f"random mean {mean:.2f}")
+    axA.axhline(id_psnr[r], color=C_ID, lw=1.3, ls="--",
+                label=f"identity init {id_psnr[r]:.2f}")
+    axA.axhline(blk["psnr"][r], color=C_BLK, lw=1.3, ls="-.",
+                label=f"block 8×8 {blk['psnr'][r]:.2f}")
+    for x, s in zip(xs, seeds):
+        v = per[str(s)][r]
+        out = abs(v - mn) < 1e-3 and (mx - mn) > 0.05
+        axA.plot(x, v, marker="o", ms=5, color=C_OUT if out else C_RAND, zorder=3)
+        if out:
+            axA.annotate(f"seed {s}", xy=(x, v), xytext=(5, 0),
+                         textcoords="offset points", fontsize=6.5,
+                         color=C_OUT, va="center")
+    axA.set_xticks(xs)
+    axA.set_xticklabels([str(s) for s in seeds], fontsize=6.5)
+    axA.set_xlabel("random-init seed", fontsize=8.5)
+    axA.set_ylabel(r"test PSNR @ $\rho=.20$  (dB)", fontsize=8.5)
+    axA.set_ylim(31.2, 32.45)
+    axA.grid(True, axis="y", alpha=0.25, lw=0.5)
+    axA.tick_params(labelsize=7)
+    axA.legend(frameon=False, fontsize=7, loc="lower center")
+    axA.set_title(f"per seed  (n={len(seeds)})", fontsize=9)
+
+    # --- Panel B: robustness across keep ratio ---
+    rv = [float(x) for x in rhos]
+    axB.fill_between(rv, [ss["agg"][q]["min"] for q in rhos],
+                     [ss["agg"][q]["max"] for q in rhos],
+                     color=C_RAND, alpha=0.3, lw=0, label="random min–max")
+    axB.plot(rv, [ss["agg"][q]["mean"] for q in rhos], color=C_RAND, lw=1.5,
+             marker="o", ms=3.5, label="random mean")
+    axB.plot(rv, [id_psnr[q] for q in rhos], color=C_ID, ls="--", lw=1.5,
+             marker="s", ms=3.5, label="identity init")
+    axB.plot(rv, [blk["psnr"][q] for q in rhos], color=C_BLK, ls="-.", lw=1.5,
+             marker="^", ms=3.5, label="block 8×8")
+    axB.set_xlabel(r"keep ratio $\rho$", fontsize=8.5)
+    axB.set_ylabel("test PSNR (dB)", fontsize=8.5)
+    axB.set_xticks(rv)
+    axB.grid(True, alpha=0.25, lw=0.5)
+    axB.tick_params(labelsize=7)
+    axB.legend(frameon=False, fontsize=7, loc="upper left")
+    axB.set_title("across keep ratio", fontsize=9)
+
+    fig.tight_layout()
+    figdir = base / "figures"
+    figdir.mkdir(parents=True, exist_ok=True)
+    for ext in ("pdf", "svg"):
+        out = figdir / f"seed_robustness.{ext}"
+        fig.savefig(out, bbox_inches="tight")
+        print(f"[render] wrote {out}")
+    plt.close(fig)
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--dataset", default=None)
@@ -178,13 +263,18 @@ def main() -> int:
     p.add_argument("--combined", action="store_true",
                    help="Render a 2x3 (loss, grad-norm) x (dataset) training-"
                         "dynamics grid into <base>/figures/training_dynamics.{pdf,svg}.")
+    p.add_argument("--seeds", action="store_true",
+                   help="Render the random-init seed-sweep figure into "
+                        "<base>/figures/seed_robustness.{pdf,svg}.")
     p.add_argument("--base", default="results/qft_unfreeze",
-                   help="Experiment base dir (used with --combined).")
+                   help="Experiment base dir (used with --combined / --seeds).")
     p.add_argument("--datasets", default=None,
                    help="Comma-list of dataset tags to include in --combined "
                         "(default: all present).")
     args = p.parse_args()
 
+    if args.seeds:
+        return _render_seeds(Path(args.base))
     if args.combined:
         only = set(args.datasets.split(",")) if args.datasets else None
         return _render_combined(Path(args.base), only=only)
