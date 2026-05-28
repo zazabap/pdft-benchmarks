@@ -30,27 +30,21 @@ left$arrow.r$right (`lr`), right$arrow.r$left (`rl`) — or the *initialisation*
 change the trajectory or the endpoint?
 
 #figure(image("reference/qft_unfreeze_ordering.svg", width: 100%),
-  caption: [The QFT$(5)$ circuit (one axis) with every gate named: $H_i$ =
+  caption: [The *2-D* QFT$(5, 5)$ — two independent QFT$(5)$ blocks, one per image
+  axis (*axis 0* = $q_1..q_5$, rows; *axis 1* = $q_6..q_(10)$, columns). $H_i$ =
   Hadamard on $q_i$; $M_(j,i)$ = controlled-phase between $q_j$ and $q_i$ ($j > i$).
-  The three orderings thaw these same gates in the sequences below; the $m = 8$
-  runs use the analogous 72-gate circuit.]) <fig-circuit>
+  The DIV2K runs use the analogous QFT$(8, 8)$ (axis 1 = $q_9..q_(16)$, 72 gates).])
+  <fig-circuit>
 
-The three unfreeze orderings traverse the gates of @fig-circuit as:
-- *block-growth* (`bg`): finish QFT$(k)$ before adding qubit $k{+}1$ —
-  $H_1$; $H_2, M_(2,1)$; $H_3, M_(3,1), M_(3,2)$; $H_4, M_(4,1), M_(4,2), M_(4,3)$;
-  $H_5, M_(5,1), ..., M_(5,4)$. Long-range couplings come last.
-- *left$arrow.r$right* (`lr`): QFT construction order —
-  $H_1, M_(2,1), M_(3,1), M_(4,1), M_(5,1), H_2, M_(3,2), ..., H_5$.
-- *right$arrow.r$left* (`rl`): the reverse — $H_5$ first, $H_1$ last.
-
-The circuit above is *one axis* ($m = 5$) for clarity. The DIV2K runs are the
-*2-D* QFT$(8, 8)$, so every ordering acts on *both* image axes (axis 0 = $q_1..q_8$,
-axis 1 = $q_9..q_(16)$). In particular *block-growth grows a square $2^k times 2^k$
-block*, thawing qubit $k$'s gates on *each* axis together — stage $k{=}1$ is
-$H_1, H_9$ (the MSB Hadamard of both axes), stage $k{=}2$ is $H_2, M_(2,1), H_(10),
-M_(10,9)$, and so on; this is why $H_9$ (the axis-1 twin of $H_1$) is among the
-first gates released in the dynamics figure below. It is the gate-level mirror of
-the block-*size* curriculum.
+Every ordering thaws the gates of @fig-circuit one at a time, on *both* axes:
+- *block-growth* (`bg`): grow a *square $2^k times 2^k$ block* — block-stage $k$
+  thaws qubit $k$ on both axes. $H_1, H_6$; then $H_2, M_(2,1), H_7, M_(7,6)$; then
+  $H_3, M_(3,1), M_(3,2), H_8, M_(8,6), M_(8,7)$; … up to $k{=}5$
+  ($H_5, …, M_(5,4), H_(10), …, M_(10,9)$). Long-range couplings last. (At $m = 8$
+  the axis-1 partner of $H_1$ is $H_9$ — hence the early $H_9$ in the dynamics figure.)
+- *left$arrow.r$right* (`lr`): QFT construction order, axis 0 then axis 1 —
+  $H_1, M_(2,1), …, H_5$, then $H_6, M_(7,6), …, H_(10)$.
+- *right$arrow.r$left* (`rl`): the reverse — $H_(10)$ first, $H_1$ last.
 
 = Setup
 
