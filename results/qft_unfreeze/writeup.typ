@@ -43,6 +43,15 @@ The three unfreeze orderings traverse the gates of @fig-circuit as:
   $H_1, M_(2,1), M_(3,1), M_(4,1), M_(5,1), H_2, M_(3,2), ..., H_5$.
 - *right$arrow.r$left* (`rl`): the reverse — $H_5$ first, $H_1$ last.
 
+The circuit above is *one axis* ($m = 5$) for clarity. The DIV2K runs are the
+*2-D* QFT$(8, 8)$, so every ordering acts on *both* image axes (axis 0 = $q_1..q_8$,
+axis 1 = $q_9..q_(16)$). In particular *block-growth grows a square $2^k times 2^k$
+block*, thawing qubit $k$'s gates on *each* axis together — stage $k{=}1$ is
+$H_1, H_9$ (the MSB Hadamard of both axes), stage $k{=}2$ is $H_2, M_(2,1), H_(10),
+M_(10,9)$, and so on; this is why $H_9$ (the axis-1 twin of $H_1$) is among the
+first gates released in the dynamics figure below. It is the gate-level mirror of
+the block-*size* curriculum.
+
 = Setup
 
 Fixed batch of 50 training images; `MSELoss` on the top-10% coefficients. pdft's
