@@ -17,3 +17,6 @@ results/**/trained_*.json
 results/**/loss_history/
 results/**/run.log
 results/**/failures/
+
+# Local virtualenv (created for runs; not part of the repo)
+.venv/

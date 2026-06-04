@@ -1,0 +1,62 @@
+{
+  "experiment": "qft_unfreeze",
+  "dataset": "quickdraw_5q",
+  "m": 5,
+  "n": 5,
+  "init": "random",
+  "init_seed": 42,
+  "orderings": {
+    "bg": {
+      "n_stages": 30,
+      "total_steps": 1890,
+      "elapsed_seconds": 794.9873532075435,
+      "trigger_counts": {
+        "grad_norm": 0,
+        "loss_delta": 30,
+        "max_steps": 0
+      },
+      "final_loss": 7.866517120888775,
+      "final_psnr": {
+        "0.05": 17.430282452062105,
+        "0.1": 21.636027363521865,
+        "0.15": 25.3107468561236,
+        "0.2": 28.91758821219784
+      }
+    },
+    "lr": {
+      "n_stages": 30,
+      "total_steps": 2452,
+      "elapsed_seconds": 830.9173913886771,
+      "trigger_counts": {
+        "grad_norm": 0,
+        "loss_delta": 30,
+        "max_steps": 0
+      },
+      "final_loss": 7.8674811831098435,
+      "final_psnr": {
+        "0.05": 17.438413958331708,
+        "0.1": 21.63570386128073,
+        "0.15": 25.31430482936787,
+        "0.2": 28.924722052023736
+      }
+    },
+    "rl": {
+      "n_stages": 30,
+      "total_steps": 2024,
+      "elapsed_seconds": 761.6712955692783,
+      "trigger_counts": {
+        "grad_norm": 0,
+        "loss_delta": 30,
+        "max_steps": 0
+      },
+      "final_loss": 7.536083935646173,
+      "final_psnr": {
+        "0.05": 17.280184534575042,
+        "0.1": 21.95389136585753,
+        "0.15": 26.4765677275152,
+        "0.2": 31.52733408277104
+      }
+    }
+  },
+  "git_sha": "bfd5f97ea60e53b8dffa85b825e72bb86fa216c4"
+}

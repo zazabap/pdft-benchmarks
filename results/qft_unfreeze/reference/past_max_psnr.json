@@ -1,0 +1,62 @@
+{
+  "div2k_8q": {
+    "label": "DIV2K",
+    "by_rho": {
+      "0.05": {
+        "psnr": 26.35,
+        "method": "rich/identity",
+        "k": "5"
+      },
+      "0.10": {
+        "psnr": 29.27,
+        "method": "rich/identity",
+        "k": "4"
+      },
+      "0.20": {
+        "psnr": 33.66,
+        "method": "rich/identity",
+        "k": "3"
+      }
+    }
+  },
+  "quickdraw_5q": {
+    "label": "QuickDraw",
+    "by_rho": {
+      "0.05": {
+        "psnr": 18.91,
+        "method": "rich/random",
+        "k": "4"
+      },
+      "0.10": {
+        "psnr": 24.07,
+        "method": "rich/identity",
+        "k": "4"
+      },
+      "0.20": {
+        "psnr": 49.62,
+        "method": "qft/identity",
+        "k": "1"
+      }
+    }
+  },
+  "tuberlin_8q": {
+    "label": "TU-Berlin",
+    "by_rho": {
+      "0.05": {
+        "psnr": 37.29,
+        "method": "rich/identity",
+        "k": "3"
+      },
+      "0.10": {
+        "psnr": 53.43,
+        "method": "rich/identity",
+        "k": "3"
+      },
+      "0.20": {
+        "psnr": 88.21,
+        "method": "mera/random",
+        "k": "2"
+      }
+    }
+  }
+}
