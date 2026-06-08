@@ -70,7 +70,6 @@ def main() -> int:
         os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
 
     # Imports below trigger JAX device discovery; must come AFTER env var.
-    import numpy as np
     import jax
     import pdft
     import pdft.io  # noqa: F401 — register pdft.io submodule for evaluate_basis_shared
@@ -83,6 +82,7 @@ def main() -> int:
     from pdft_benchmarks.datasets.quickdraw import load_quickdraw
     from pdft_benchmarks.datasets.tuberlin import load_tuberlin
     from pdft_benchmarks.evaluation import evaluate_basis_shared
+    from pdft_benchmarks.experiment_utils import serialize_tensors
     from pdft_benchmarks.presets import get_preset
 
     lambdas = [float(x.strip()) for x in args.lambdas.split(",") if x.strip()]
@@ -198,9 +198,7 @@ def main() -> int:
             "lam": lam, "outer_weight": W,
             "inner_m": args.inner_m, "inner_n": args.inner_n,
             "m": m, "n": n,
-            "tensors": [{"real": np.asarray(t).real.tolist(),
-                         "imag": np.asarray(t).imag.tolist()}
-                        for t in result.basis.tensors],
+            "tensors": serialize_tensors(result.basis.tensors),
         }, indent=2))
         psnr20 = eval_metrics["0.2"]["mean_psnr"]
         print(f"[qft_id_reg]   PSNR @ rho=0.20: {psnr20:.2f} dB")

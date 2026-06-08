@@ -27,20 +27,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 import sys
 import time
 from dataclasses import replace
 from pathlib import Path
-
-
-def _git_sha() -> str:
-    try:
-        return subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], text=True
-        ).strip()
-    except Exception:
-        return "unknown"
 
 
 def main() -> int:
@@ -66,7 +56,6 @@ def main() -> int:
     if args.gpu is not None:
         os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
 
-    import numpy as np
     import jax
     import pdft
     import pdft.io  # noqa: F401
@@ -76,6 +65,7 @@ def main() -> int:
     )
     from pdft_benchmarks.datasets import load_div2k
     from pdft_benchmarks.evaluation import evaluate_basis_shared
+    from pdft_benchmarks.experiment_utils import git_sha, serialize_tensors
     from pdft_benchmarks.presets import get_preset
 
     # GPU fail-fast — same pattern as qft_progressive driver.
@@ -228,9 +218,7 @@ def main() -> int:
             "m": m, "n": n,
             "inner_m": int(args.inner_m), "inner_n": int(args.inner_n),
             "frozen_indices": list(spec["frozen_indices"]),
-            "tensors": [{"real": np.asarray(t).real.tolist(),
-                         "imag": np.asarray(t).imag.tolist()}
-                        for t in result.basis.tensors],
+            "tensors": serialize_tensors(result.basis.tensors),
         }, indent=2))
         (out_dir / "env.json").write_text(json.dumps({
             "experiment": "qft_freeze_sweep",
@@ -244,7 +232,7 @@ def main() -> int:
             "preset_name": args.preset,
             "preset_epochs": int(args.epochs),
             "device": str(jax.devices()[0]),
-            "git_sha": _git_sha(),
+            "git_sha": git_sha(short=False),
         }, indent=2))
 
         summaries.append({
@@ -265,7 +253,7 @@ def main() -> int:
         "inner_m": int(args.inner_m), "inner_n": int(args.inner_n),
         "cells": summaries,
         "anchors": {"qft": 31.29, "qft_identity": 31.66, "blocked_8": 32.26},
-        "git_sha": _git_sha(),
+        "git_sha": git_sha(short=False),
     }, indent=2))
 
     print(f"\n[qft_freeze_sweep] complete. Manifest: {manifest_path}")

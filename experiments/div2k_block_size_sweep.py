@@ -64,24 +64,16 @@ def main() -> int:
         print(f"[div2k-sweep] unknown bases: {unknown}; valid: {ALL_BASES}", file=sys.stderr)
         return 2
 
-    from dataclasses import replace
+    from pdft_benchmarks.experiment_utils import apply_preset_overrides
     from pdft_benchmarks.pipeline import run_experiment
-    from pdft_benchmarks.presets import get_preset
 
-    preset = args.preset
-    if args.no_early_stop or args.epochs is not None:
-        # Note: the preset registry key is "div2k_8q" (the experiment) but the
-        # data-loader key passed to run_experiment below is "div2k" (the dataset).
-        # The asymmetry is intentional and matches div2k_8q_pca_vs_block_dct.py.
-        base = get_preset("div2k_8q", preset)
-        kwargs = {}
-        if args.no_early_stop:
-            kwargs["early_stopping_patience"] = 10**9
-        if args.epochs is not None:
-            kwargs["epochs"] = args.epochs
-        preset = replace(base, **kwargs)
-        print(f"[div2k-sweep] preset overrides: epochs={preset.epochs}, "
-              f"patience={preset.early_stopping_patience}")
+    # Note: the preset registry key is "div2k_8q" (the experiment) but the
+    # data-loader key passed to run_experiment below is "div2k" (the dataset).
+    # The asymmetry is intentional and matches div2k_8q_pca_vs_block_dct.py.
+    preset = apply_preset_overrides(
+        args.preset, dataset="div2k_8q", tag="div2k-sweep",
+        no_early_stop=args.no_early_stop, epochs=args.epochs,
+    )
 
     res = run_experiment(
         dataset="div2k",

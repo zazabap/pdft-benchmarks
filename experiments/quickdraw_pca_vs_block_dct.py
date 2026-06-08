@@ -20,10 +20,9 @@ image.
 """
 
 import argparse
-from dataclasses import replace
 
+from pdft_benchmarks.experiment_utils import apply_preset_overrides
 from pdft_benchmarks.pipeline import run_experiment
-from pdft_benchmarks.presets import get_preset
 
 
 def main():
@@ -38,17 +37,10 @@ def main():
                         help="Override preset.epochs.")
     args = parser.parse_args()
 
-    preset = args.preset
-    if args.no_early_stop or args.epochs is not None:
-        base = get_preset("quickdraw", preset) if isinstance(preset, str) else preset
-        kwargs = {}
-        if args.no_early_stop:
-            kwargs["early_stopping_patience"] = 10**9
-        if args.epochs is not None:
-            kwargs["epochs"] = args.epochs
-        preset = replace(base, **kwargs)
-        print(f"[quickdraw] preset overrides: epochs={preset.epochs}, "
-              f"patience={preset.early_stopping_patience}")
+    preset = apply_preset_overrides(
+        args.preset, dataset="quickdraw", tag="quickdraw",
+        no_early_stop=args.no_early_stop, epochs=args.epochs,
+    )
 
     res = run_experiment(
         dataset="quickdraw",
