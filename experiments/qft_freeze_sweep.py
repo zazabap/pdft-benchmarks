@@ -16,8 +16,8 @@ parameter (added in pdft commit 31decf7):
 Inner-block boundary fixed at (inner_m=3, inner_n=3) to match the
 blocked_8 anchor's structural form.
 
-Cells land at results/qft_freeze_sweep/div2k_8q/_runs/{freeze_outer,freeze_inner}/.
-Manifest at results/qft_freeze_sweep/div2k_8q/manifest.json.
+Cells land at results/training/_archive/qft_freeze_sweep/div2k_8q/_runs/{freeze_outer,freeze_inner}/.
+Manifest at results/training/_archive/qft_freeze_sweep/div2k_8q/manifest.json.
 
 Usage:
     python experiments/qft_freeze_sweep.py --gpu 0 [--epochs 112]
@@ -105,7 +105,7 @@ def main() -> int:
           f"first 10 = {outer_idx[:10]} ... last 3 = {outer_idx[-3:]}")
 
     out_base = Path(args.out_base) if args.out_base else \
-        Path(f"results/qft_freeze_sweep/{args.dataset}/_runs")
+        Path(f"results/training/_archive/qft_freeze_sweep/{args.dataset}/_runs")
     out_base.mkdir(parents=True, exist_ok=True)
 
     cell_specs = []

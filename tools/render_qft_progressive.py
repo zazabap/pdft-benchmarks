@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Render <family>_progressive per-stage training-dynamics curves.
 
-Reads results/<family>_progressive/<dataset>/_runs/stage_k<k>/loss_history/
+Reads results/training/_archive/<family>_progressive/<dataset>/_runs/stage_k<k>/loss_history/
 <family>_progressive_k<k>_loss.json for k=1..7 and emits
-training_dynamics.{pdf,svg} at results/<family>_progressive/figures/.
+training_dynamics.{pdf,svg} at results/training/_archive/<family>_progressive/figures/.
 
 `--family` selects the circuit family (qft / rich / real_rich); it only
 changes the loss-file basename and the default input/output paths. Style
@@ -23,8 +23,8 @@ Usage:
     python tools/render_qft_progressive.py --family qft
     python tools/render_qft_progressive.py --family rich
     python tools/render_qft_progressive.py \\
-        --results-base results/rich_progressive/div2k_8q \\
-        --out-dir results/rich_progressive/figures \\
+        --results-base results/training/_archive/rich_progressive/div2k_8q \\
+        --out-dir results/training/_archive/rich_progressive/figures \\
         [--mode {normalized,absolute}]   (default: absolute)
 """
 from __future__ import annotations
@@ -103,10 +103,10 @@ def main() -> int:
                         help="Dataset tag used in the default --results-base path.")
     parser.add_argument("--results-base", type=str, default=None,
                         help="Parent dir holding _runs/stage_k<k>/. "
-                             "Default results/<family>_progressive/<dataset>.")
+                             "Default results/training/_archive/<family>_progressive/<dataset>.")
     parser.add_argument("--out-dir", type=str, default=None,
                         help="Where to write training_dynamics.{pdf,svg}. "
-                             "Default results/<family>_progressive/figures.")
+                             "Default results/training/_archive/<family>_progressive/figures.")
     parser.add_argument("--mode", type=str, default="absolute",
                         choices=["normalized", "absolute"],
                         help="absolute (default): y = val MSE. "
@@ -124,9 +124,9 @@ def main() -> int:
 
     family = args.family
     results_base = Path(args.results_base) if args.results_base else \
-        Path(f"results/{family}_progressive/{args.dataset}")
+        Path(f"results/training/_archive/{family}_progressive/{args.dataset}")
     out_dir = Path(args.out_dir) if args.out_dir else \
-        Path(f"results/{family}_progressive/figures")
+        Path(f"results/training/_archive/{family}_progressive/figures")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Collect per-stage curves for k=1..7.
