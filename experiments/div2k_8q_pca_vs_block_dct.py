@@ -90,22 +90,16 @@ def main() -> int:
         return 2
 
     # Imports below trigger JAX device discovery; must come AFTER the env var.
-    from dataclasses import replace
+    # (experiment_utils is JAX-free, but kept here alongside the pipeline import
+    # for locality.)
+    from pdft_benchmarks.experiment_utils import apply_preset_overrides
     from pdft_benchmarks.pipeline import run_experiment
-    from pdft_benchmarks.presets import get_preset
 
-    preset = args.preset
-    if args.no_early_stop or args.epochs is not None:
-        # Resolve the preset early so we can apply overrides.
-        base = get_preset("div2k_8q", preset) if isinstance(preset, str) else preset
-        kwargs = {}
-        if args.no_early_stop:
-            kwargs["early_stopping_patience"] = 10**9
-        if args.epochs is not None:
-            kwargs["epochs"] = args.epochs
-        preset = replace(base, **kwargs)
-        print(f"[div2k-8q] preset overrides: epochs={preset.epochs}, "
-              f"patience={preset.early_stopping_patience}")
+    # Preset-registry key is "div2k_8q"; the dataset-loader key below is "div2k".
+    preset = apply_preset_overrides(
+        args.preset, dataset="div2k_8q", tag="div2k-8q",
+        no_early_stop=args.no_early_stop, epochs=args.epochs,
+    )
 
     res = run_experiment(
         dataset="div2k",

@@ -44,7 +44,6 @@ import argparse
 import hashlib
 import json
 import os
-import subprocess
 import sys
 import time
 from dataclasses import replace
@@ -72,15 +71,6 @@ ANCHORS = {
     "tuberlin_8q": {},
     "quickdraw_5q": {},
 }
-
-
-def _git_sha() -> str:
-    try:
-        return subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], text=True
-        ).strip()
-    except Exception:
-        return "unknown"
 
 
 def _sha256_file(path: Path) -> str:
@@ -167,13 +157,13 @@ def main() -> int:
         os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
 
     # IMPORTANT: imports after env var so JAX picks up the device.
-    import numpy as np
     import jax
     import pdft
     import pdft.io  # noqa: F401 — needed by evaluate_basis_shared
     from pdft_benchmarks.bases import family_identity_basis, family_random_basis
     from pdft_benchmarks.datasets import load_div2k, load_quickdraw, load_tuberlin
     from pdft_benchmarks.evaluation import evaluate_basis_shared
+    from pdft_benchmarks.experiment_utils import git_sha, serialize_tensors
     from pdft_benchmarks.presets import get_preset
 
     family = args.family
@@ -351,9 +341,7 @@ def main() -> int:
                 "stage_k": k,
                 "m": int(inner_trained.m),
                 "n": int(inner_trained.n),
-                "tensors": [{"real": np.asarray(t).real.tolist(),
-                             "imag": np.asarray(t).imag.tolist()}
-                            for t in inner_trained.tensors],
+                "tensors": serialize_tensors(inner_trained.tensors),
             }, indent=2))
 
             metrics_path.write_text(json.dumps({
@@ -393,7 +381,7 @@ def main() -> int:
                 "preset_name": args.preset,
                 "preset_epochs_per_stage": int(args.epochs_per_stage),
                 "device": str(jax.devices()[0]),
-                "git_sha": _git_sha(),
+                "git_sha": git_sha(short=False),
             }, indent=2))
 
         # COMMON path (both resume and train): record manifest summary. No
@@ -422,7 +410,7 @@ def main() -> int:
         "total_epochs": int(args.epochs_per_stage * n_stages),
         "stages": stage_summaries,
         "anchors": ANCHORS.get(args.dataset, {}).get(family, {}),
-        "git_sha": _git_sha(),
+        "git_sha": git_sha(short=False),
     }, indent=2))
 
     print(f"\n[{exp}] sweep complete. Manifest: {manifest_path}")

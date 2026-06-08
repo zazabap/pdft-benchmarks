@@ -18,10 +18,9 @@ Outputs land in `--out` directly. After the run, cellify into the canonical
 # 20+ classical baselines, so a single visible GPU is fine.
 
 import argparse
-from dataclasses import replace
 
+from pdft_benchmarks.experiment_utils import apply_preset_overrides
 from pdft_benchmarks.pipeline import run_experiment
-from pdft_benchmarks.presets import get_preset
 
 
 TRAINED_BASES = (
@@ -61,17 +60,10 @@ def main():
         print(f"[quickdraw-sweep] unknown bases: {unknown}; valid: {TRAINED_BASES}", file=sys.stderr)
         raise SystemExit(2)
 
-    preset = args.preset
-    if args.no_early_stop or args.epochs is not None:
-        base = get_preset("quickdraw", preset) if isinstance(preset, str) else preset
-        kwargs = {}
-        if args.no_early_stop:
-            kwargs["early_stopping_patience"] = 10**9
-        if args.epochs is not None:
-            kwargs["epochs"] = args.epochs
-        preset = replace(base, **kwargs)
-        print(f"[quickdraw-sweep] preset overrides: epochs={preset.epochs}, "
-              f"patience={preset.early_stopping_patience}")
+    preset = apply_preset_overrides(
+        args.preset, dataset="quickdraw", tag="quickdraw-sweep",
+        no_early_stop=args.no_early_stop, epochs=args.epochs,
+    )
 
     res = run_experiment(
         dataset="quickdraw",

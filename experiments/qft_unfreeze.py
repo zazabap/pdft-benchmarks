@@ -15,17 +15,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 import sys
 import time
 from pathlib import Path
-
-
-def _git_sha() -> str:
-    try:
-        return subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-    except Exception:
-        return "unknown"
 
 
 def main() -> int:
@@ -73,6 +65,7 @@ def main() -> int:
     from pdft_benchmarks.bases import family_random_basis, qft_identity_basis
     from pdft_benchmarks.datasets import load_div2k, load_quickdraw, load_tuberlin
     from pdft_benchmarks.evaluation import evaluate_basis_shared
+    from pdft_benchmarks.experiment_utils import git_sha, serialize_tensors
     from pdft_benchmarks.presets import get_preset
     from pdft_benchmarks.unfreeze import qft_unfreeze_orders, train_progressive_unfreeze
 
@@ -154,12 +147,11 @@ def main() -> int:
             "batch": len(fixed_batch), "k_train": k_train,
             "steps": res.trace,
             "stages": [vars(s) for s in res.stages],
-            "git_sha": _git_sha(),
+            "git_sha": git_sha(short=False),
         }, indent=2))
         (cell / "trained_final.json").write_text(json.dumps({
             "ordering": name, "m": int(res.basis.m), "n": int(res.basis.n),
-            "tensors": [{"real": np.asarray(t).real.tolist(),
-                         "imag": np.asarray(t).imag.tolist()} for t in res.basis.tensors],
+            "tensors": serialize_tensors(res.basis.tensors),
         }, indent=2))
         (cell / "env.json").write_text(json.dumps({
             "experiment": "qft_unfreeze", "dataset": args.dataset, "ordering": name,
@@ -167,7 +159,7 @@ def main() -> int:
             "grad_tol": args.grad_tol, "loss_tol": args.loss_tol,
             "min_steps": args.min_steps, "max_steps": args.max_steps,
             "batch": len(fixed_batch), "seed": seed,
-            "device": str(chosen), "git_sha": _git_sha(),
+            "device": str(chosen), "git_sha": git_sha(short=False),
         }, indent=2))
 
         manifest_orderings[name] = {
@@ -182,7 +174,7 @@ def main() -> int:
     (out_base / "manifest.json").write_text(json.dumps({
         "experiment": "qft_unfreeze", "dataset": args.dataset, "m": m, "n": n,
         "init": args.init, "init_seed": init_seed,
-        "orderings": manifest_orderings, "git_sha": _git_sha(),
+        "orderings": manifest_orderings, "git_sha": git_sha(short=False),
     }, indent=2))
     print(f"\n[qft_unfreeze] done. Manifest: {out_base / 'manifest.json'}")
     return 0
