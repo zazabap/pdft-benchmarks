@@ -175,6 +175,21 @@ identity result (#f2(id20)) or the 8×8-block #f2(bmax.at(3))
   \@$rho{=}.05$ vs #f1(ss.agg.at("0.05").mean)), crossing above only near
   $rho{=}.20$.])
 
+#let sd = json("reference/random_seed_dynamics_div2k.json")
+#let sd_p20 = sd.per_seed.values().map(v => v.final_psnr.at("0.2"))
+#figure(image("figures/seed_dynamics.svg", width: 100%),
+  caption: [*Per-seed training dynamics* (random init, block-growth, DIV2K): one
+  absolute training top-$k$ MSE curve per seed (#sd.seeds.map(str).join(", ")). The
+  seeds start from different Haar inits (hence different $L_0$) and descend along
+  visibly different early paths, yet all converge to the same
+  $approx$#f2(calc.max(..sd_p20)) dB attractor by step $approx$1000. *Caveat:* on this
+  rerun (grad-probe every 5 steps) seed 2 *itself* reached the attractor
+  (#f2(sd.per_seed.at("2").final_psnr.at("0.2")) dB), not the #f2(ss20.min)-dB outlier
+  recorded in the $n = #ss20.n$ sweep above — the lone-outlier result is *not robust* to
+  the grad-probe cadence / device floating-point, so the seed 2 dip should be read with
+  caution. Data: `reference/random_seed_dynamics_div2k.json`.])
+  <fig-seed-dyn>
+
 = Reading
 
 The staircase shows each gate's marginal value: the big drops are the *early*
