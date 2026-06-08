@@ -9,7 +9,7 @@ For each dataset, plot:
 Y-axis: absolute val MSE (linear), so the right-edge ordering equals the
 PSNR ranking. X-axis: training step.
 
-Outputs PDF + SVG to results/qft_warmstart_from_trained_blocked/figures/.
+Outputs PDF + SVG to results/training/1_structure_inclusion/figures/.
 """
 
 from __future__ import annotations
@@ -31,20 +31,20 @@ WONG = {
 # Per-dataset config: (basis name in headline cells, headline cell root)
 DATASETS: dict[str, dict] = {
     "div2k_8q": {
-        "headline_root":   "results/div2k_8q_pca_vs_block_dct/by_basis",
+        "headline_root":   "results/structure/div2k_8q_pca_vs_block_dct/by_basis",
         "qft_name":        "qft",
         "blocked_name":    "blocked_8",
-        "warmstart_root":  "results/qft_warmstart_from_trained_blocked/by_basis",
+        "warmstart_root":  "results/training/1_structure_inclusion/by_basis",
         "warmstart_name":  "qft_warmstart_blocked_8",
-        "out":             "results/qft_warmstart_from_trained_blocked/figures/loss_curves_div2k_8q.pdf",
+        "out":             "results/training/1_structure_inclusion/figures/loss_curves_div2k_8q.pdf",
     },
     "quickdraw": {
-        "headline_root":   "results/quickdraw_pca_vs_block_dct/by_basis",
+        "headline_root":   "results/structure/quickdraw_pca_vs_block_dct/by_basis",
         "qft_name":        "qft",
         "blocked_name":    "blocked",
-        "warmstart_root":  "results/qft_warmstart_from_trained_blocked/by_basis",
+        "warmstart_root":  "results/training/1_structure_inclusion/by_basis",
         "warmstart_name":  "qft_warmstart_blocked",
-        "out":             "results/qft_warmstart_from_trained_blocked/figures/loss_curves_quickdraw.pdf",
+        "out":             "results/training/1_structure_inclusion/figures/loss_curves_quickdraw.pdf",
     },
 }
 

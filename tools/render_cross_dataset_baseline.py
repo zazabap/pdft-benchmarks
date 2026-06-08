@@ -9,7 +9,7 @@ plotting PSNR vs ρ ∈ {0.05, 0.10, 0.15, 0.20} for:
   - L1 lam=0.1, 1, 10 (the full sweep)
   - qft_identity (init, no training — pure identity operator)
 
-Output: results/qft_identity_init/figures/cross_dataset_psnr.{pdf,svg}
+Output: results/training/2_direct_training/identity_l1/figures/cross_dataset_psnr.{pdf,svg}
 """
 import json
 from pathlib import Path
@@ -27,7 +27,7 @@ GRAY   = "#666666"
 
 
 def _l1_psnrs(dataset, rates_str):
-    base = Path(f"results/qft_identity_init/{dataset}/_runs")
+    base = Path(f"results/training/2_direct_training/identity_l1/{dataset}/_runs")
     rows = {}
     for d in sorted(base.glob("regL1_lambda_*")):
         m = json.load(open(d / "metrics.json"))
@@ -38,7 +38,7 @@ def _l1_psnrs(dataset, rates_str):
 
 
 def _bdct8_psnrs(dataset, rates_str):
-    p = Path(f"results/qft_identity_init/{dataset}/baselines_block_dct_8.json")
+    p = Path(f"results/training/2_direct_training/identity_l1/{dataset}/baselines_block_dct_8.json")
     m = json.load(open(p))["block_dct_8"]["metrics"]
     return [m[r] for r in ["0.05", "0.10", "0.15", "0.20"]]
 
@@ -84,7 +84,7 @@ def main():
         ax.set_xticks(rates)
         ax.set_xticklabels([f"{r:.2f}" for r in rates], fontsize=9)
 
-    OUT = Path("results/qft_identity_init/figures")
+    OUT = Path("results/training/2_direct_training/identity_l1/figures")
     for ext in ("pdf", "svg"):
         p = OUT / f"cross_dataset_psnr.{ext}"
         fig.savefig(p)
