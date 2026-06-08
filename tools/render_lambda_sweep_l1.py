@@ -30,8 +30,8 @@ BLUE   = "#0072B2"   # outer-per-blocked_8
 ORANGE = "#E69F00"   # inner-per-blocked_8
 GREEN  = "#009E73"
 
-RUNS_BASE = Path("results/qft_identity_init/div2k_8q/_runs")
-OUT_BASE  = Path("results/qft_identity_init/figures")
+RUNS_BASE = Path("results/training/2_direct_training/identity_l1/div2k_8q/_runs")
+OUT_BASE  = Path("results/training/2_direct_training/identity_l1/figures")
 
 
 def main() -> None:

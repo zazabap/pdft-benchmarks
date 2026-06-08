@@ -6,7 +6,7 @@ For each dataset, produce a 3-row x 3-col figure:
   cols = (test image, |T(x)| frequency magnitude in log10, recon @ ρ=0.20)
 
 Outputs:
-  results/qft_identity_init/figures/freq_recon_<dataset>.{pdf,svg}
+  results/training/2_direct_training/identity_l1/figures/freq_recon_<dataset>.{pdf,svg}
 """
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def main() -> None:
         from pdft_benchmarks.datasets.div2k import load_div2k
         m = n = 8
         train, test = load_div2k(n_train=500, n_test=50, seed=42, size=2**m)
-        runs_base = Path("results/qft_identity_init/div2k_8q/_runs")
+        runs_base = Path("results/training/2_direct_training/identity_l1/div2k_8q/_runs")
         method_paths = {
             "qft_identity (λ=0)": None,
             "Block-masked (λ=1)": runs_base / "reg_lambda_1e+00_W10" / "trained_qft_identity_reg.json",
@@ -52,7 +52,7 @@ def main() -> None:
         from pdft_benchmarks.datasets.quickdraw import load_quickdraw
         m = n = 5
         train, test = load_quickdraw(n_train=500, n_test=50, seed=42, img_size=2**m)
-        runs_base = Path("results/qft_identity_init/quickdraw/_runs")
+        runs_base = Path("results/training/2_direct_training/identity_l1/quickdraw/_runs")
         method_paths = {
             "qft_identity (λ=0)": None,
             "L1 (λ=10)": runs_base / "regL1_lambda_1e+01" / "trained_qft_identity_reg.json",
@@ -120,7 +120,7 @@ def main() -> None:
         axes[i, 2].set_xlabel(f"PSNR {psnr:.2f} dB", fontsize=9)
         axes[i, 2].set_xticks([]); axes[i, 2].set_yticks([])
 
-    OUT_BASE = Path("results/qft_identity_init/figures")
+    OUT_BASE = Path("results/training/2_direct_training/identity_l1/figures")
     OUT_BASE.mkdir(parents=True, exist_ok=True)
     for ext in ("pdf", "svg"):
         p = OUT_BASE / f"freq_recon_{args.dataset}.{ext}"
