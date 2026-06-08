@@ -4,7 +4,7 @@ one curve per ordering). PDF + SVG, no figure title, Wong palette.
 
 Usage:
     python tools/render_qft_unfreeze.py --dataset quickdraw_5q
-    python tools/render_qft_unfreeze.py --in results/qft_unfreeze/quickdraw_5q
+    python tools/render_qft_unfreeze.py --in results/training/2_direct_training/unfreeze/quickdraw_5q
 """
 from __future__ import annotations
 
@@ -266,7 +266,7 @@ def main() -> int:
     p.add_argument("--seeds", action="store_true",
                    help="Render the random-init seed-sweep figure into "
                         "<base>/figures/seed_robustness.{pdf,svg}.")
-    p.add_argument("--base", default="results/qft_unfreeze",
+    p.add_argument("--base", default="results/training/2_direct_training/unfreeze",
                    help="Experiment base dir (used with --combined / --seeds).")
     p.add_argument("--datasets", default=None,
                    help="Comma-list of dataset tags to include in --combined "
@@ -279,7 +279,7 @@ def main() -> int:
         only = set(args.datasets.split(",")) if args.datasets else None
         return _render_combined(Path(args.base), only=only)
 
-    indir = Path(args.indir) if args.indir else Path(f"results/qft_unfreeze/{args.dataset}")
+    indir = Path(args.indir) if args.indir else Path(f"results/training/2_direct_training/unfreeze/{args.dataset}")
     if not indir.exists():
         print(f"[render] no such dir: {indir}", file=sys.stderr)
         return 2

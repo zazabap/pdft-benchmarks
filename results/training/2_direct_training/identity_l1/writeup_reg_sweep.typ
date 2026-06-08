@@ -372,7 +372,7 @@ warm-start init — steers training to one of those minima.
 Main result (L1 across three datasets):
 
 ```
-python experiments/qft_identity_regularization.py \
+python experiments/qft_direct_training.py l1-reg \
     --gpu 0 --reg L1 --lambdas 0.1,1,10 --epochs 112 \
     --dataset {div2k_8q, quickdraw, tuberlin}
 ```

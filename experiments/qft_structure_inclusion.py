@@ -10,7 +10,7 @@ warm-start does not push the operator out of the blocked basin.
 Pipeline (self-contained, does NOT use pdft_benchmarks.run_experiment):
 
   1. Load the previously-trained blocked basis from
-       results/<src_experiment>/by_basis/<blocked_name>/trained_<blocked_name>.json
+       results/structure/<src_experiment>/by_basis/<blocked_name>/trained_<blocked_name>.json
   2. Construct a QFTBasis(m, n) whose initial operator equals the trained
      blocked one bit-exactly (via bases.qft_warm_from_trained_blocked).
   3. Sanity-check bit-exactness on a random complex test input.
@@ -20,7 +20,7 @@ Pipeline (self-contained, does NOT use pdft_benchmarks.run_experiment):
      the existing by_basis convention.
 
 Outputs land at:
-  results/qft_warmstart_from_trained_blocked/by_basis/<basis_name>/
+  results/training/1_structure_inclusion/by_basis/<basis_name>/
     metrics.json, env.json, trained_<basis_name>.json, loss_history/
 """
 
@@ -39,7 +39,7 @@ DATASETS: dict[str, dict] = {
         "load_dataset": "div2k",
         "preset_namespace": "div2k_8q",
         "trained_blocked_path": (
-            "results/div2k_8q_pca_vs_block_dct/by_basis/blocked_8/"
+            "results/structure/div2k_8q_pca_vs_block_dct/by_basis/blocked_8/"
             "trained_blocked_8.json"
         ),
         "output_basis_name": "qft_warmstart_blocked_8",
@@ -49,7 +49,7 @@ DATASETS: dict[str, dict] = {
         "load_dataset": "quickdraw",
         "preset_namespace": "quickdraw",
         "trained_blocked_path": (
-            "results/quickdraw_pca_vs_block_dct/by_basis/blocked/"
+            "results/structure/quickdraw_pca_vs_block_dct/by_basis/blocked/"
             "trained_blocked.json"
         ),
         "output_basis_name": "qft_warmstart_blocked",
@@ -67,7 +67,7 @@ def main() -> int:
                         help="GPU index. Sets CUDA_VISIBLE_DEVICES before JAX import.")
     parser.add_argument(
         "--out",
-        default="results/qft_warmstart_from_trained_blocked",
+        default="results/training/1_structure_inclusion",
         help="Output root. Cell will land at <out>/by_basis/<basis_name>/.",
     )
     parser.add_argument("--epochs", type=int, default=112,
@@ -173,7 +173,7 @@ def main() -> int:
     host_basis = jax.tree_util.tree_map(jax.device_get, res.basis)
     kr_metrics, nan_counts = evaluate_basis_shared(host_basis, test_imgs, preset.keep_ratios)
     psnr_summary = {kr: m["mean_psnr"] for kr, m in kr_metrics.items()}
-    print(f"[warmstart] PSNR by keep-ratio: " + ", ".join(
+    print("[warmstart] PSNR by keep-ratio: " + ", ".join(
         f"ρ={kr}: {p:.2f} dB" for kr, p in psnr_summary.items()
     ))
 

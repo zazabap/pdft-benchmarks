@@ -15,10 +15,10 @@ headline ``qft`` cell — analytic QFT init, the ``generalized`` preset, the
 check (DIV2K-8q: 25.09 / 27.57 / 29.53 / 31.29 dB at rho = 0.05/0.10/0.15/0.20).
 
 Standalone driver: does NOT use ``run_experiment``. One cell per training-k at
-``results/training/qft_topk_sweep/<dataset>/_runs/train_k<pct>/`` (standard cell
+``results/training/3_training_topk/<dataset>/_runs/train_k<pct>/`` (standard cell
 schema: metrics.json, env.json, trained_*.json, loss_history/). An aggregate
 manifest with the full train-k x eval-rho PSNR matrix lands at
-``results/training/qft_topk_sweep/<dataset>/manifest.json``.
+``results/training/3_training_topk/<dataset>/manifest.json``.
 
 GPU isolation: ``--gpu`` sets ``CUDA_VISIBLE_DEVICES`` BEFORE importing
 pdft_benchmarks (which transitively imports JAX, which preallocates GPU memory).
@@ -73,7 +73,7 @@ def main() -> int:
                              "steps, the headline budget). Early stopping disabled.")
     parser.add_argument("--out-base", default=None,
                         help="Parent for per-ratio cells. Default "
-                             "results/training/qft_topk_sweep/<dataset>/_runs.")
+                             "results/training/3_training_topk/<dataset>/_runs.")
     parser.add_argument("--force", action="store_true",
                         help="Retrain every ratio even if its cell already exists; "
                              "otherwise resume by reading existing metrics.json.")
@@ -137,7 +137,7 @@ def main() -> int:
     print(f"[{exp}] eval keep-ratios: {list(eval_ratios)}")
 
     out_base = Path(args.out_base) if args.out_base else \
-        Path(f"results/training/{exp}/{args.dataset}/_runs")
+        Path(f"results/training/3_training_topk/{args.dataset}/_runs")
     out_base.mkdir(parents=True, exist_ok=True)
 
     rows: list[dict] = []

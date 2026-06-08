@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Render the QFT training top-k sweep figure.
 
-Reads results/training/qft_topk_sweep/<dataset>/manifest.json (written by
+Reads results/training/3_training_topk/<dataset>/manifest.json (written by
 experiments/qft_topk_sweep.py) and emits topk_<dataset>.{pdf,svg} at
-results/training/qft_topk_sweep/figures/.
+results/training/3_training_topk/figures/.
 
 Two panels (CLAUDE.md style: Wong palette, linear y, no figure title):
   left  — PSNR vs training-k, one line per eval keep-ratio. The diagonal
@@ -37,12 +37,12 @@ def main() -> int:
                         choices=["div2k_8q", "quickdraw_5q"])
     parser.add_argument("--manifest", default=None,
                         help="Path to manifest.json. Default "
-                             "results/training/qft_topk_sweep/<dataset>/manifest.json.")
-    parser.add_argument("--out-dir", default="results/training/qft_topk_sweep/figures")
+                             "results/training/3_training_topk/<dataset>/manifest.json.")
+    parser.add_argument("--out-dir", default="results/training/3_training_topk/figures")
     args = parser.parse_args()
 
     manifest_path = Path(args.manifest) if args.manifest else \
-        Path(f"results/training/qft_topk_sweep/{args.dataset}/manifest.json")
+        Path(f"results/training/3_training_topk/{args.dataset}/manifest.json")
     if not manifest_path.is_file():
         print(f"[render_topk] manifest not found: {manifest_path}", file=sys.stderr)
         return 2

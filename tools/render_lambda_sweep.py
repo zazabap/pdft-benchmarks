@@ -26,8 +26,8 @@ BLUE   = "#0072B2"   # outer gates
 ORANGE = "#E69F00"   # inner gates (and qft analytic-init reference)
 GREEN  = "#009E73"   # blocked_8 reference
 
-RUNS_BASE = Path("results/qft_identity_init/div2k_8q/_runs")
-OUT_BASE  = Path("results/qft_identity_init/figures")
+RUNS_BASE = Path("results/training/2_direct_training/identity_l1/div2k_8q/_runs")
+OUT_BASE  = Path("results/training/2_direct_training/identity_l1/figures")
 
 
 def load_tensors_from_json(d: dict) -> list:
