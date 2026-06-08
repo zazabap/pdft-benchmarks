@@ -20,7 +20,7 @@ objective itself was well-chosen.
 
 == Finding 1 — The blocked optimum lies *inside* the QFT family
 
-*(`qft_warmstart_from_trained_blocked/`)* Take the trained blocked
+*(`1_structure_inclusion/`)* Take the trained blocked
 solution, embed its $48$ tensor entries into a full `QFTBasis(8, 8)`
 with every other gate pinned to identity — a point whose operator
 equals the trained blocked one bit-exactly — then train all $288$
@@ -34,7 +34,7 @@ of the family. *Block-QFT $subset$ QFT.*
 
 == Finding 2 — Direct training reaches good QFT operators
 
-*(`qft_identity_init/`, `qft_unfreeze/`)* The analytic-QFT init is not
+*(`2_direct_training/`)* The analytic-QFT init is not
 required. Initialising every gate at its manifold identity
 ($T_(t=0)(x) = x$) and training under the identical budget reaches
 $31.66$ dB at $rho = 0.20$ — $0.37$ dB *above* the analytic-init
@@ -49,7 +49,7 @@ Good QFT operators are *trainable directly*, given the right protocol.
 
 == Finding 3 — The training objective (top-k) is a real lever
 
-*(`qft_topk_sweep/`)* Every cell above optimises `MSELoss` on a fixed
+*(`3_training_topk/`)* Every cell above optimises `MSELoss` on a fixed
 top $10%$ of coefficients while evaluation spans $rho in [0.05, 0.20]$.
 Sweeping the training top-$k$ shows the fixed $10%$ is *not* optimal
 and the best value is dataset-dependent: DIV2K wants a *broader*
@@ -87,6 +87,6 @@ on QFT; the *structure* side (`results/structure/`) extends the
 comparison to the other parametric families.
 
 #v(0.4em)
-_Per-study detail: `qft_warmstart_from_trained_blocked/writeup.pdf`,
-`qft_identity_init/writeup.pdf`, `qft_unfreeze/writeup.pdf`,
-`qft_topk_sweep/writeup.pdf`._
+_Per-study detail: `1_structure_inclusion/writeup.pdf`,
+`2_direct_training/writeup.pdf`,
+`3_training_topk/writeup.pdf`._
