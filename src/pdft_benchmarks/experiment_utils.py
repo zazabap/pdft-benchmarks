@@ -66,6 +66,17 @@ def apply_preset_overrides(
     return preset
 
 
+def train_k_for(m: int, n: int, keep_ratio: float) -> int:
+    """Top-k coefficient count for ``MSELoss`` at a given keep-ratio.
+
+    The MSELoss top-k truncation count as a fraction of the ``2**(m+n)`` total
+    coefficients: ``max(1, round(2**(m+n) * keep_ratio))``. This is the
+    canonical "training top-k" formula the drivers use; historically it was
+    hard-coded at ``keep_ratio=0.1`` (top 10%). ``qft_topk_sweep`` varies it.
+    """
+    return max(1, round(2 ** (m + n) * keep_ratio))
+
+
 def git_sha(*, short: bool = True) -> str:
     """Return the current git HEAD revision, or ``"unknown"`` outside a repo.
 
