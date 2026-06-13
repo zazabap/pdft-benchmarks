@@ -198,6 +198,9 @@ def main() -> int:
     p.add_argument("--no-trace", action="store_true", default=False,
                    help="Skip the full per-step trace file (keeps only the "
                         "compact endpoint cell with per-stage final losses).")
+    p.add_argument("--no-tensors", action="store_true", default=False,
+                   help="Skip saving the trained QFT operator (trained_seed_*.json). "
+                        "Each is ~10-20 KB and regenerable from the seed.")
     p.add_argument("--force", action="store_true", default=False,
                    help="Retrain cells even if their seed_<NNN>.json exists.")
     p.add_argument("--aggregate-only", action="store_true", default=False,
@@ -245,7 +248,7 @@ def main() -> int:
     from pdft_benchmarks import datasets as ds_mod
     from pdft_benchmarks.bases import family_random_basis
     from pdft_benchmarks.evaluation import evaluate_basis_shared
-    from pdft_benchmarks.experiment_utils import git_sha
+    from pdft_benchmarks.experiment_utils import git_sha, serialize_tensors
     from pdft_benchmarks.presets import get_preset
     from pdft_benchmarks.unfreeze import qft_unfreeze_orders, train_progressive_unfreeze
 
@@ -339,6 +342,15 @@ def main() -> int:
                 _atomic_write_json(cell.with_name(f"seed_{seed:03d}_trace.json"), {
                     "ordering": ordering, "seed": seed,
                     "steps": res.trace,
+                })
+            if not args.no_tensors:
+                # The trained QFT operator itself (~10-20 KB). Regenerable from
+                # the seed, but saved so reconstruction / re-eval don't need a
+                # 2 h rerun. Schema matches the unfreeze trained_*.json cells.
+                _atomic_write_json(cell.with_name(f"trained_seed_{seed:03d}.json"), {
+                    "ordering": ordering, "seed": seed,
+                    "m": int(res.basis.m), "n": int(res.basis.n),
+                    "tensors": serialize_tensors(res.basis.tensors),
                 })
             _release_claim(cell)
 
