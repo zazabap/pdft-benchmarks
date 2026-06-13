@@ -7,5 +7,5 @@
 _progress.json
 # crossover claim-locks (ephemeral)
 **/_runs/**/*.claim
-# trained operators per seed (~10-20KB each, regenerable from seed)
-**/_runs/**/trained_seed_*.json
+# NB: trained operators (trained_seed_*.json, ~8.7 KB each) ARE committed —
+# they're a durable resource for re-evaluation / MSE computation per seed.
