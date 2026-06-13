@@ -87,6 +87,12 @@ def main() -> int:
     p.add_argument("--no-trace", action="store_true", default=False)
     p.add_argument("--force", action="store_true", default=False)
     p.add_argument("--python", default=str(DEFAULT_PY))
+    p.add_argument("--cache-dir", default="/tmp/jax_compile_cache_seed_sweep",
+                   help="Shared XLA persistent-compilation-cache dir. Stage-k of "
+                        "an ordering compiles identically for every seed, so the "
+                        "first seed populates the cache and the rest hit it "
+                        "(huge win — the 72 per-stage recompiles are the hidden "
+                        "cost). Empty string disables.")
     p.add_argument("--stagger", type=float, default=3.0,
                    help="Seconds between launches (dodges the cuBLASLt init race).")
     p.add_argument("--dry-run", action="store_true", default=False)
@@ -165,6 +171,10 @@ def main() -> int:
         env = dict(os.environ)
         env["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
         env["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+        if args.cache_dir:
+            # Persistent XLA compilation cache, shared across all job processes.
+            env["JAX_COMPILATION_CACHE_DIR"] = args.cache_dir
+            env["JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS"] = "0"
         log = out_base / "_runs" / ordering / f"_job_{chunk[0]:03d}_{chunk[-1]:03d}.log"
         log.parent.mkdir(parents=True, exist_ok=True)
         fh = log.open("w")
