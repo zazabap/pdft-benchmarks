@@ -5,3 +5,5 @@
 # Dispatcher job logs + heartbeat are ephemeral run state.
 **/_runs/**/*.log
 _progress.json
+# crossover claim-locks (ephemeral)
+**/_runs/**/*.claim

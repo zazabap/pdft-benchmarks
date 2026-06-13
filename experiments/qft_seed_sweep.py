@@ -71,6 +71,46 @@ def _cell_path(out_base: Path, ordering: str, seed: int) -> Path:
     return out_base / "_runs" / ordering / f"seed_{seed:03d}.json"
 
 
+def _try_claim(cell: Path, stale_seconds: float = 14400) -> bool:
+    """Atomically claim a (ordering, seed) so a *second* dispatcher's driver
+    won't redundantly run the same seed where the forward/reverse sweeps cross
+    (mainly on `lr`). Returns True if we may run it, False only if another LIVE
+    driver currently holds the claim.
+
+    Conservative by design: on ANY doubt (claim is stale from a crashed run,
+    unreadable, or a race) it returns True. A redundant run is harmless (atomic
+    last-writer-wins), whereas a wrongly-skipped seed would be missing from the
+    300 — so we always err toward running.
+    """
+    claim = cell.with_suffix(".claim")
+    try:
+        fd = os.open(claim, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+        os.write(fd, str(int(time.time())).encode())
+        os.close(fd)
+        return True
+    except FileExistsError:
+        try:
+            fresh = (time.time() - os.path.getmtime(claim)) < stale_seconds
+        except OSError:
+            return True
+        if fresh:
+            return False            # a live driver owns it -> skip
+        try:
+            os.utime(claim, None)   # stale (crashed run) -> take it over
+        except OSError:
+            pass
+        return True
+    except OSError:
+        return True
+
+
+def _release_claim(cell: Path) -> None:
+    try:
+        cell.with_suffix(".claim").unlink()
+    except OSError:
+        pass
+
+
 # ---------------------------------------------------------------------------
 # Aggregation (no GPU; reusable from --aggregate-only and from the dispatcher).
 # ---------------------------------------------------------------------------
@@ -245,6 +285,12 @@ def main() -> int:
             if cell.exists() and not args.force:
                 print(f"[seed_sweep] skip {ordering}/seed_{seed:03d} (exists)")
                 continue
+            if not args.force and not _try_claim(cell):
+                print(f"[seed_sweep] skip {ordering}/seed_{seed:03d} (claimed by another worker)")
+                continue
+            if cell.exists() and not args.force:  # cell landed while we claimed
+                _release_claim(cell)
+                continue
 
             # Per-seed training batch: subsample `batch` of the fixed train pool.
             rng = np.random.default_rng(seed)
@@ -294,6 +340,7 @@ def main() -> int:
                     "ordering": ordering, "seed": seed,
                     "steps": res.trace,
                 })
+            _release_claim(cell)
 
     # Refresh the rolled-up summary so a single-process run also produces it.
     aggregate(out_base, orderings, seeds, keep_ratios,
