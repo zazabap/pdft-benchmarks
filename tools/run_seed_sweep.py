@@ -145,7 +145,7 @@ def main() -> int:
             "elapsed_seconds": round(time.time() - t_start, 1),
             "running": [{"gpu": slot[0], "ordering": o,
                          "seeds": [c[0], c[-1]], "elapsed_s": round(time.time() - t0, 1)}
-                        for (_pk, (_pr, slot, o, c, t0)) in running.items()],
+                        for (_pk, (_pr, slot, o, c, t0, _fh)) in running.items()],
             "updated": time.strftime("%Y-%m-%d %H:%M:%S"),
         }, indent=2))
 
