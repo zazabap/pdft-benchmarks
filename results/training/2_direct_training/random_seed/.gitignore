@@ -1,0 +1,7 @@
+# Per-seed full per-step loss traces are large (~1.2 MB each at m=8); kept
+# locally for inspection but not committed. The compact endpoint cells
+# (seed_<NNN>.json) and the rolled-up seed_sweep.json ARE committed.
+**/_runs/**/*_trace.json
+# Dispatcher job logs + heartbeat are ephemeral run state.
+**/_runs/**/*.log
+_progress.json
