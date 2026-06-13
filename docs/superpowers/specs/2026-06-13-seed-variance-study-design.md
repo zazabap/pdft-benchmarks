@@ -30,10 +30,19 @@ objective**, with the variance shown explicitly. The thesis to confirm:
   for `pdft.MSELoss`, vs the headline 0.10. **Eval keep-ratios unchanged**:
   (0.05, 0.10, 0.15, 0.20), so PSNR@ρ=.20 and the block-FFT comparison stay
   comparable to the existing writeup.
-- **What a "seed" varies:** the Haar **init seed** only. Data is fixed at
-  `preset.seed = 42` (same 50-image fixed batch for every run), matching the
-  existing n=17 methodology so the band isolates *initialisation* turbulence,
-  not data resampling.
+- **What a "seed" varies (per supervisor: "100 seeds" = 100 independent
+  draws):** each seed `s` drives **everything trainable** — the Haar gate init,
+  the 50-image training batch (subsampled from the 500-image train pool with
+  `rng(s)`), and the training RNG. The **held-out test set is held fixed** (the
+  canonical seed-42 50 images) so endpoint-PSNR variance reflects *the model*,
+  not which test images were drawn — and stays directly comparable to the
+  existing unfreeze writeup. This is the decoupling: `load_div2k(seed=s)` would
+  also move the test split, so we load the canonical split once and only
+  reseed the *training* batch + init.
+- **Goal framing:** with both init and training batch reseeded, the 100
+  endpoints form a genuine **distribution** (not a single attractor). We report
+  it as such — histogram + fitted Gaussian (mean, σ) per ordering — which is the
+  "seed turbulence as a gaussian distribution" the user asked to see.
 
 ## Components
 
@@ -51,20 +60,23 @@ Mirrors `experiments/qft_progressive.py` conventions:
 Flags:
 - `--dataset {div2k_8q,quickdraw_5q,tuberlin_8q}` (default `div2k_8q`).
 - `--orderings bg,lr,rl`.
-- `--seeds 1-100` — range (`A-B`) or comma list; each value is the Haar
-  `init_seed`. Data seed stays `preset.seed`.
+- `--seeds 1-100` — range (`A-B`) or comma list; each value seeds the Haar
+  init, the training-batch subsample, and the training RNG. Test set fixed.
 - `--topk-ratio 0.20`.
 - `--grad-check-every 5` (≈halves per-step cost), `--max-steps 2000`,
   `--min-steps 5`, `--grad-tol 1e-5`, `--loss-tol 1e-5`, `--lr` (default
   `preset.lr_peak`), `--batch` (default 50 at m=8).
 - `--out` (default `results/training/2_direct_training/random_seed/<dataset>`).
 
-Per run (one ordering × one seed):
-- Build `family_random_basis("qft", m, n, seed)`.
-- `train_progressive_unfreeze(...)` with a `stage_callback` that returns PSNR
-  **only for the final stage** (`stage == n_stages`) — the endpoint is all the
-  variance study needs, and skipping ~71 intermediate full-test evals is the
-  main reason 300 runs are affordable.
+Per run (one ordering × one seed `s`):
+- Subsample the 50-image training batch from the fixed 500-image train pool via
+  `np.random.default_rng(s).choice(500, 50, replace=False)`.
+- Build `family_random_basis("qft", m, n, s)`.
+- `train_progressive_unfreeze(..., seed=s)` with a `stage_callback` that returns
+  PSNR (on the **fixed** test set) **only for the final stage**
+  (`stage == n_stages`) — the endpoint is all the variance study needs, and
+  skipping ~71 intermediate full-test evals is the main reason 300 runs are
+  affordable.
 - Record the endpoint cell (see Checkpointing).
 
 ### 2. Checkpointing + resume
@@ -73,9 +85,10 @@ Per run (one ordering × one seed):
   `random_seed/<dataset>/_runs/<ordering>/seed_<NNN>.json`, written
   **atomically** (`<file>.tmp` then `os.replace`). Contents: PSNR at all four
   keep-ratios, `final_loss`, `total_steps`, `trigger_counts`,
-  `per_stage_final_loss` (72 values, enough to also plot dynamics-variance
-  later), `elapsed_seconds`, `init_seed`, `git_sha`, `device`,
-  `k_train`/`topk_ratio`.
+  `per_stage_final_loss` (72 values), the **full per-step loss trace**
+  (`step`, `stage`, `loss`, `grad_norm`) so each seed's turbulence is
+  inspectable from disk, `elapsed_seconds`, `seed`, `git_sha`, `device`,
+  `k_train`/`topk_ratio`, `train_batch_idx` (the 50 sampled indices).
 - The driver **skips** any `(ordering, seed)` whose cell already exists (unless
   `--force`). So a crash loses at most the in-flight runs, and re-invoking the
   dispatcher fills only the gaps.
@@ -110,7 +123,8 @@ Reads all `_runs/<ordering>/seed_*.json`, emits
   "n_seeds": 100, "seeds": [...], "data_seed": 42,
   "per_ordering": {
     "bg": { "per_seed": { "1": {"0.05":..,"0.1":..,"0.15":..,"0.2":..}, ... },
-            "agg": { "0.2": {"mean":..,"std":..,"min":..,"max":..,"n":100}, ... } },
+            "agg": { "0.2": {"mean":..,"std":..,"min":..,"max":..,"n":100,
+                             "shapiro_p":..}, ... } },
     "lr": {...}, "rl": {...}
   },
   "identity_reference": { "bg": {...}, "lr": {...}, "rl": {...} },
@@ -129,9 +143,15 @@ ordering, **linear y**, **no figure title**, PDF + SVG only.
   line (the claim's bar); dotted **block-DCT 8×8** for honesty (the writeup
   already notes DCT is the strongest classical here). Identity-init dashed
   reference per ordering.
-- **Right panel:** per-seed scatter of PSNR@ρ=.20 for the three orderings
-  (jittered columns) with the mean±σ band overlaid — makes the attractor's
-  tightness and the block-FFT margin visually unambiguous.
+- **Middle panel:** per-seed scatter of PSNR@ρ=.20 for the three orderings
+  (jittered columns) with the mean±σ band overlaid — makes the spread and the
+  block-FFT margin visually unambiguous.
+- **Right panel (the "gaussian distribution"):** histogram of the 100
+  PSNR@ρ=.20 endpoints per ordering with a fitted normal curve (mean, σ)
+  overlaid, and the block-FFT line marked. A separate companion figure
+  `seed_hist.{pdf,svg}` holds the full per-ordering histogram grid if the
+  three don't fit cleanly in one panel. Report a normality check
+  (Shapiro–Wilk p) in the aggregate JSON.
 
 ### 6. Tables + writeup
 
