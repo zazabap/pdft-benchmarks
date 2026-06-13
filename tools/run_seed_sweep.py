@@ -95,6 +95,11 @@ def main() -> int:
                         "cost). Empty string disables.")
     p.add_argument("--stagger", type=float, default=3.0,
                    help="Seconds between launches (dodges the cuBLASLt init race).")
+    p.add_argument("--reverse", action="store_true", default=False,
+                   help="Process the job list back-to-front. Lets a SECOND "
+                        "dispatcher share the same GPUs (2 procs/GPU) and sweep "
+                        "from the opposite end — the driver's skip-existing guard "
+                        "makes the two sweeps converge with minimal overlap.")
     p.add_argument("--dry-run", action="store_true", default=False)
     args = p.parse_args()
 
@@ -118,6 +123,9 @@ def main() -> int:
             pending.append(s)
         for chunk in _chunk(pending, args.seeds_per_job):
             jobs.append((ordering, chunk))
+
+    if args.reverse:
+        jobs.reverse()
 
     n_jobs = len(jobs)
     n_runs = sum(len(c) for _, c in jobs)
