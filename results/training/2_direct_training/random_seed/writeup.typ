@@ -29,8 +29,8 @@
 = Question
 
 Does the gate-unfreeze QFT endpoint depend on the random draw? We retrain the
-`QFTBasis(8,8)` operator from *Haar-random* init under the *block-growth* (`bg`),
-*left*#sym.arrow.r*right* (`lr`) and *right*#sym.arrow.r*left* (`rl`) unfreeze
+`QFTBasis(8,8)` operator from *Haar-random* init under the #olab.bg (`bg`),
+#olab.lr (`lr`) and #olab.rl (`rl`) unfreeze
 orderings, for #nseed seeds each. Every seed $s$ reseeds *everything trainable* —
 the Haar gate init, the 50-image training-batch subsample (from the fixed
 500-image pool), and the training RNG — while the held-out *test set is held
@@ -91,19 +91,41 @@ $rho$.
 
 = Reading
 
+#let n_below(o) = ss.per_ordering.at(o).per_seed.values().filter(v => v.at("0.2") < fft20).len()
+#let n_above_all = nseed * 3 - n_below("bg") - n_below("lr") - n_below("rl")
+
 Despite starting from #nseed genuinely different random inits (previous
-section), every ordering's endpoint sits in a tight band: at $rho{=}.20$ the
+section), each ordering's endpoint sits in a narrow band: at $rho{=}.20$ the
 per-seed standard deviation is
-#orderings.map(o => olab.at(o) + " " + f2(agg(o, "0.2").std)).join(", ") dB.
-Crucially the *worst single seed of all* still clears the classical block-FFT
-8#sym.times#8 reference (#f2(fft20) dB \@$rho{=}.20$): the minimum is
-#orderings.map(o => f2(agg(o, "0.2").min)).join(" / ") dB for bg / lr / rl. So
-*neither the random initialisation nor the gate-release order moves the endpoint
-much*, and the learned QFT is *always* above block-FFT — though block-DCT
-8#sym.times#8 (#f2(cl.block_dct_8.psnr.at("0.2")) dB) remains the strongest
-classical transform here, ahead of the QFT family.
+#orderings.map(o => olab.at(o) + " " + f2(agg(o, "0.2").std)).join(", ") dB. The
+*release order*, not the random draw, is the dominant factor: #olab.bg and
+#olab.lr are tight and sit highest, while #olab.rl
+is #sym.tilde 2#sym.times wider and lowest — the dynamics figure below explains
+why (rl starts from a far worse loss and its seeds stay spread until the final
+unfreeze stages).
+
+Against the classical block-FFT 8#sym.times#8 reference (#f2(fft20) dB
+\@$rho{=}.20$): #olab.bg and #olab.lr clear it for *every*
+seed (worst seed #f2(agg("bg", "0.2").min) / #f2(agg("lr", "0.2").min) dB;
+margins +#f2(agg("bg", "0.2").min - fft20) / +#f2(agg("lr", "0.2").min - fft20)
+dB). #olab.rl clears it for #(nseed - n_below("rl")) of #nseed
+seeds; #n_below("rl") low-tail seeds dip below by at most
+#f2(fft20 - agg("rl", "0.2").min) dB. Overall #n_above_all of #(nseed * 3) runs
+(#f1(n_above_all / (nseed * 3) * 100)%) clear block-FFT. So the gate-unfreeze
+QFT is *essentially always* above block-FFT — unconditionally for bg/lr, and for
+#f1(100 * (nseed - n_below("rl")) / nseed)% of the highest-variance rl ordering
+— while block-DCT 8#sym.times#8 (#f2(cl.block_dct_8.psnr.at("0.2")) dB) remains
+the strongest classical transform here, ahead of the QFT family.
+
+The per-seed endpoints are *not* Gaussian: a Shapiro#sym.dash.en Wilk test
+rejects normality for all three orderings ($p < 10^(-7)$), because seeds settle
+into a few discrete attractor basins of the very-flat top-$k$ MSE valley rather
+than scattering smoothly. The fitted normal in the endpoint panel is a visual
+summary of location and spread, not a claim of Gaussianity.
 
 #figure(image("div2k_8q/figures/seed_training_dynamics.svg", width: 100%),
   caption: [Per-seed training dynamics: every seed's top-$k$ MSE staircase (one
   per unfreeze stage), one panel per ordering. Different Haar starts descend
-  along slightly different paths yet converge to the same attractor.])
+  along different paths: #olab.bg collapses fast and stays tight, whereas
+  #olab.rl starts far higher and its seeds remain spread until the
+  final stages — visually accounting for the endpoint variances above.])

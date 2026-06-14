@@ -9,3 +9,7 @@ _progress.json
 **/_runs/**/*.claim
 # NB: trained operators (trained_seed_*.json, ~8.7 KB each) ARE committed —
 # they're a durable resource for re-evaluation / MSE computation per seed.
+# The repo-root .gitignore ignores `results/**/trained_*.json` (regenerable
+# per-cell artifacts in the main experiments); this negation re-includes the
+# seed-sweep operators so eval_seed_basis.py works from a fresh checkout.
+!**/_runs/**/trained_seed_*.json
