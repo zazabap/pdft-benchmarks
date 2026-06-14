@@ -64,22 +64,54 @@ def _atomic_write_json(path: Path, obj) -> None:
     os.replace(tmp, path)
 
 
+BARE_FAMILIES = ("qft", "entangled_qft", "tebd", "mera")
+BLOCK_FAMILIES = ("qft", "entangled_qft", "tebd", "mera", "rich")
+
+
+def _is_pow2(x: int) -> bool:
+    return x >= 1 and (x & (x - 1)) == 0
+
+
 def build_basis(key: str, m: int, n: int, seed: int):
-    """Seed-`seed` initialisation for a driver basis key (fresh each call)."""
+    """Seed-`seed` initialisation for a driver basis key (fresh each call).
+
+    Keys:
+      qft|entangled_qft|tebd|mera   bare full-image family
+      rich_full                     bare full-image RichBasis
+      <family>_b<innerq>            family wrapped into 2^innerq x 2^innerq-pixel
+                                    blocks (e.g. qft_b2 = 4x4, rich_b3 = 8x8).
+                                    rich_8 is kept as an alias of rich_b3.
+    """
     import pdft
     from pdft_benchmarks.bases import family_random_basis
-    if key in ("qft", "entangled_qft", "tebd", "mera"):
+    if key in BARE_FAMILIES:
         return family_random_basis(key, m, n, seed)
     if key == "rich_full":
         return family_random_basis("rich", m, n, seed)
-    if key == "rich_8":
-        # Fixed 8x8 blocks: inner 3-qubit RichBasis (seed-init), block-wrapped.
-        inner = family_random_basis("rich", 3, 3, seed)
-        return pdft.BlockedBasis(inner=inner, block_log_m=m - 3, block_log_n=n - 3)
+    if key == "rich_8":            # legacy alias for rich inner-3 (8x8 blocks)
+        key = "rich_b3"
+    if "_b" in key:
+        fam, iq_s = key.rsplit("_b", 1)
+        iq = int(iq_s)
+        if fam not in BLOCK_FAMILIES:
+            raise ValueError(f"unknown family {fam!r} in block key {key!r}")
+        if m - iq < 0 or n - iq < 0:
+            raise ValueError(f"{key}: inner {iq} qubits/axis > outer m={m}, n={n}")
+        if fam == "mera" and not _is_pow2(2 * iq):
+            raise ValueError(f"{key}: MERA needs inner m+n = 2*{iq} a power of 2 "
+                             f"(valid innerq: 1, 2, 4, ...)")
+        inner = family_random_basis(fam, iq, iq, seed)
+        return pdft.BlockedBasis(inner=inner, block_log_m=m - iq, block_log_n=n - iq)
     raise ValueError(f"unknown basis key {key!r}")
 
 
-VALID_KEYS = ("qft", "entangled_qft", "tebd", "mera", "rich_full", "rich_8")
+def valid_key(key: str) -> bool:
+    if key in BARE_FAMILIES or key in ("rich_full", "rich_8"):
+        return True
+    if "_b" in key:
+        fam, iq_s = key.rsplit("_b", 1)
+        return fam in BLOCK_FAMILIES and iq_s.isdigit()
+    return False
 
 
 def main() -> int:
@@ -89,7 +121,9 @@ def main() -> int:
                     help="GPU index; sets CUDA_VISIBLE_DEVICES before JAX import.")
     ap.add_argument("--dataset", required=True, choices=list(DATASET_CFG))
     ap.add_argument("--bases", required=True,
-                    help=f"Comma-separated subset of {VALID_KEYS}.")
+                    help="Comma-separated keys: qft|entangled_qft|tebd|mera|"
+                         "rich_full, or block variants <family>_b<innerq> "
+                         "(e.g. qft_b2=4x4, rich_b3=8x8, mera_b4=16x16).")
     ap.add_argument("--seed", type=int, default=98,
                     help="Init + training-RNG seed (test set stays seed-42).")
     ap.add_argument("--epochs", type=int, default=112,
@@ -106,9 +140,9 @@ def main() -> int:
                     help="Re-run bases whose cell already exists.")
     args = ap.parse_args()
 
-    bad = [b for b in args.bases.split(",") if b.strip() and b.strip() not in VALID_KEYS]
+    bad = [b for b in args.bases.split(",") if b.strip() and not valid_key(b.strip())]
     if bad:
-        print(f"unknown basis key(s): {bad}; choices: {VALID_KEYS}", file=sys.stderr)
+        print(f"unknown/invalid basis key(s): {bad}", file=sys.stderr)
         return 2
 
     if args.gpu is not None:
