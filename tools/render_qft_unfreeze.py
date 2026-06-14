@@ -256,6 +256,51 @@ def _render_seeds(base: Path) -> int:
     return 0
 
 
+# Wong palette + line style, one per seed (cycled if more seeds than entries).
+_SEED_CYCLE = [
+    ("#0072B2", "-"), ("#E69F00", "--"), ("#009E73", "-."), ("#CC79A7", ":"),
+    ("#D55E00", "-"), ("#56B4E9", "--"), ("#000000", "-."),
+]
+
+
+def _render_seed_dynamics(base: Path) -> int:
+    """Overlay the random-init block-growth training curves for several seeds —
+    the same absolute top-$k$ MSE vs cumulative-step view as the training_dynamics
+    figure, but one curve per random seed instead of per ordering. Reads
+    reference/random_seed_dynamics_div2k.json (per-seed step/loss + final PSNR)."""
+    p = base / "reference" / "random_seed_dynamics_div2k.json"
+    if not p.exists():
+        print(f"[render] no {p}", file=sys.stderr)
+        return 2
+    d = json.loads(p.read_text())
+    per, seeds = d["per_seed"], d["seeds"]
+    fig, ax = plt.subplots(figsize=(7.2, 3.6))
+    for i, s in enumerate(seeds):
+        rec = per[str(s)]
+        steps = rec["steps"]
+        xs = [t["step"] for t in steps]
+        loss = [t["loss"] for t in steps]  # absolute top-k MSE (matches training_dynamics)
+        color, ls = _SEED_CYCLE[i % len(_SEED_CYCLE)]
+        psnr = (rec.get("final_psnr") or {}).get("0.2")
+        leg = f"seed {s}" + (f"  ({psnr:.2f} dB)" if psnr is not None else "")
+        ax.plot(xs, loss, color=color, ls=ls, lw=1.3, label=leg)
+        ax.plot([xs[-1]], [loss[-1]], marker="o", ms=3.5, color=color)  # endpoint
+    ax.set_xlabel("cumulative training step", fontsize=8.5)
+    ax.set_ylabel("training top-$k$ MSE loss", fontsize=8.5)
+    ax.grid(True, alpha=0.25, lw=0.5)
+    ax.tick_params(labelsize=7)
+    ax.legend(frameon=False, fontsize=7.5, loc="upper right")
+    fig.tight_layout()
+    figdir = base / "figures"
+    figdir.mkdir(parents=True, exist_ok=True)
+    for ext in ("pdf", "svg"):
+        out = figdir / f"seed_dynamics.{ext}"
+        fig.savefig(out, bbox_inches="tight")
+        print(f"[render] wrote {out}")
+    plt.close(fig)
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--dataset", default=None)
@@ -266,6 +311,9 @@ def main() -> int:
     p.add_argument("--seeds", action="store_true",
                    help="Render the random-init seed-sweep figure into "
                         "<base>/figures/seed_robustness.{pdf,svg}.")
+    p.add_argument("--seed-dynamics", dest="seed_dynamics", action="store_true",
+                   help="Overlay per-seed random-init training curves into "
+                        "<base>/figures/seed_dynamics.{pdf,svg}.")
     p.add_argument("--base", default="results/training/2_direct_training/unfreeze",
                    help="Experiment base dir (used with --combined / --seeds).")
     p.add_argument("--datasets", default=None,
@@ -275,6 +323,8 @@ def main() -> int:
 
     if args.seeds:
         return _render_seeds(Path(args.base))
+    if args.seed_dynamics:
+        return _render_seed_dynamics(Path(args.base))
     if args.combined:
         only = set(args.datasets.split(",")) if args.datasets else None
         return _render_combined(Path(args.base), only=only)
