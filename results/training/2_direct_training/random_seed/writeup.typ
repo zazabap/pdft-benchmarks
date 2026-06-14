@@ -41,12 +41,15 @@ $rho$.
 
 = The random initialisations are genuinely different
 
-#figure(image("div2k_8q/figures/init_distribution.svg", width: 92%),
-  caption: [*Left:* the untrained random operator's initial top-$k$ MSE loss
+#figure(
+  grid(columns: (1fr, 1.15fr), column-gutter: 6pt, align: horizon,
+    image("div2k_8q/figures/init_distribution_L0.svg", width: 100%),
+    image("div2k_8q/figures/init_distribution_pca.svg", width: 100%)),
+  caption: [*(a)* the untrained random operator's initial top-$k$ MSE loss
   $L_0$ on a common fixed batch, per seed — it spans
   #f1(idist.L0_stats.min)#sym.dash.en#f1(idist.L0_stats.max)
   (mean #f1(idist.L0_stats.mean), $sigma = #f1(idist.L0_stats.std)$), so the
-  seeds start from genuinely different points. *Right:* a 2-D PCA of the
+  seeds start from genuinely different points. *(b)* a 2-D PCA of the
   #nseed init parameter vectors; the top two components explain only
   #f1(idist.pca.explained_var_ratio.at(0)*100)% + #f1(idist.pca.explained_var_ratio.at(1)*100)%
   of the variance, i.e. the inits are spread across many near-orthogonal
@@ -54,11 +57,15 @@ $rho$.
 
 = Endpoint variance
 
-#figure(image("div2k_8q/figures/seed_variance.svg", width: 100%),
-  caption: [Per-ordering test PSNR across #nseed seeds. *Left:* mean
+#figure(
+  grid(columns: (1.2fr, 1fr, 1fr), column-gutter: 5pt, align: horizon,
+    image("div2k_8q/figures/seed_variance_band.svg", width: 100%),
+    image("div2k_8q/figures/seed_variance_scatter.svg", width: 100%),
+    image("div2k_8q/figures/seed_variance_hist.svg", width: 100%)),
+  caption: [Per-ordering test PSNR across #nseed seeds. *(a)* mean
   $plus.minus sigma$ band (+ min#sym.dash.en max whiskers) vs $rho$, against the
   block-FFT 8#sym.times#8 baseline (dashed) and block-DCT 8#sym.times#8 (dotted).
-  *Middle:* per-seed scatter at $rho{=}.20$. *Right:* the endpoint distribution
+  *(b)* per-seed scatter at $rho{=}.20$. *(c)* the endpoint distribution
   (histogram + fitted normal).])
 
 // Inline table: per-ordering mean +/- sigma, plus the worst single seed @ .20.
@@ -123,9 +130,14 @@ into a few discrete attractor basins of the very-flat top-$k$ MSE valley rather
 than scattering smoothly. The fitted normal in the endpoint panel is a visual
 summary of location and spread, not a claim of Gaussianity.
 
-#figure(image("div2k_8q/figures/seed_training_dynamics.svg", width: 100%),
+#figure(
+  grid(columns: 3, column-gutter: 4pt, align: horizon,
+    image("div2k_8q/figures/seed_dynamics_bg.svg", width: 100%),
+    image("div2k_8q/figures/seed_dynamics_lr.svg", width: 100%),
+    image("div2k_8q/figures/seed_dynamics_rl.svg", width: 100%)),
   caption: [Per-seed training dynamics: every seed's top-$k$ MSE staircase (one
-  per unfreeze stage), one panel per ordering. Different Haar starts descend
-  along different paths: #olab.bg collapses fast and stays tight, whereas
-  #olab.rl starts far higher and its seeds remain spread until the
-  final stages — visually accounting for the endpoint variances above.])
+  per unfreeze stage), one panel per ordering, on a shared y-range. Different
+  Haar starts descend along different paths: #olab.bg *(a)* collapses fast and
+  stays tight, whereas #olab.rl *(c)* starts far higher and its seeds remain
+  spread until the final stages — visually accounting for the endpoint variances
+  above. #olab.lr *(b)* is intermediate.])

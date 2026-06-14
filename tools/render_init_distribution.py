@@ -10,21 +10,28 @@ seeds so the spread reflects the init alone):
         (its "starting point" before any gate is thawed).
   - a flattened parameter vector of all gate tensors (real || imag).
 
-Then plots, one figure (PDF + SVG, no title):
+Then plots two panels (PDF + SVG, no title):
 
-  Left  — histogram of L0 across seeds: the random inits span a broad range of
-          starting losses (they are different draws), to be contrasted with the
-          narrow converged endpoint (see seed_variance).
-  Right — 2-D PCA scatter of the init parameter vectors, one point per seed,
-          coloured by L0: the inits are distinct, spread-out points in
-          parameter space, not near-duplicates.
+  L0   — histogram of L0 across seeds: the random inits span a broad range of
+         starting losses (they are different draws), to be contrasted with the
+         narrow converged endpoint (see seed_variance).
+  pca  — 2-D PCA scatter of the init parameter vectors, one point per seed,
+         coloured by L0: the inits are distinct, spread-out points in
+         parameter space, not near-duplicates.
 
-Also writes reference/init_distribution.json (per-seed L0 / grad-norm + PCA
-coords) so the numbers are recorded locally.
+By default the panels are composed into one figure (init_distribution.{pdf,svg}).
+With --separate each panel is written standalone (init_distribution_{L0,pca}).
+With --from-json the panels are re-drawn from the committed
+reference/init_distribution.json (no GPU / no recompute) — use this to just
+re-render the figures. The compute path also writes that JSON.
 
 Usage:
+    # compute + render (needs GPU)
     python tools/render_init_distribution.py --gpu 2 \
         --dataset div2k_8q --seeds 1-100 \
+        --base results/training/2_direct_training/random_seed/div2k_8q
+    # re-render separately from the saved JSON (no GPU)
+    python tools/render_init_distribution.py --from-json --separate \
         --base results/training/2_direct_training/random_seed/div2k_8q
 """
 from __future__ import annotations
@@ -34,6 +41,8 @@ import json
 import os
 import sys
 from pathlib import Path
+
+import numpy as np
 
 
 def _parse_seeds(spec: str) -> list[int]:
@@ -50,27 +59,17 @@ def _parse_seeds(spec: str) -> list[int]:
     return sorted(seeds)
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--gpu", type=int, default=None)
-    ap.add_argument("--dataset", default="div2k_8q",
-                    choices=["div2k_8q", "quickdraw_5q", "tuberlin_8q"])
-    ap.add_argument("--seeds", default="1-100")
-    ap.add_argument("--topk-ratio", type=float, default=0.20)
-    ap.add_argument("--batch", type=int, default=50,
-                    help="Common reference batch size (canonical seed-42 images).")
-    ap.add_argument("--base", required=True,
-                    help="random_seed/<dataset> dir for figures/ + reference/.")
-    args = ap.parse_args()
+def _compute(args):
+    """Build every seed's Haar init, measure L0 + param vector on a fixed batch.
 
+    Returns (seeds, L0, scores, var_ratio) and writes reference/init_distribution.json.
+    """
     if args.gpu is not None:
         os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
         os.environ.setdefault("CUDA_DEVICE_ORDER", "PCI_BUS_ID")
     os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 
     import jax.numpy as jnp
-    import numpy as np
     import pdft
     from pdft_benchmarks import datasets as ds_mod
     from pdft_benchmarks.bases import family_random_basis
@@ -130,37 +129,108 @@ def main() -> int:
                 "coords": {str(s): [float(scores[i, 0]), float(scores[i, 1])]
                            for i, s in enumerate(seeds)}},
     }, indent=2))
+    return seeds, L0, scores, np.asarray(var_ratio)
+
+
+def _load_json(args):
+    """Re-load (seeds, L0, scores, var_ratio) from reference/init_distribution.json."""
+    p = Path(args.base) / "reference" / "init_distribution.json"
+    if not p.exists():
+        print(f"[init-dist] no {p} — run the compute path first (needs GPU)",
+              file=sys.stderr)
+        return None
+    d = json.loads(p.read_text())
+    seeds = [int(s) for s in d["seeds"]]
+    L0 = np.array([d["L0"][str(s)] for s in seeds])
+    scores = np.array([d["pca"]["coords"][str(s)] for s in seeds])
+    var_ratio = np.array(d["pca"]["explained_var_ratio"])
+    return seeds, L0, scores, var_ratio
+
+
+def _draw_L0(ax, L0, n_seeds):
+    ax.hist(L0, bins=24, color="#0072B2", alpha=0.75)
+    ax.axvline(L0.mean(), color="k", ls="--", lw=1.2,
+               label=f"mean {L0.mean():.1f} ($\\sigma$={L0.std(ddof=1):.1f})")
+    ax.set_xlabel("initial top-$k$ MSE loss $L_0$  (random init)", fontsize=8.5)
+    ax.set_ylabel(f"# seeds (n={n_seeds})", fontsize=8.5)
+    ax.legend(frameon=False, fontsize=7.5)
+
+
+def _draw_pca(fig, ax, scores, L0, var_ratio):
+    sc = ax.scatter(scores[:, 0], scores[:, 1], c=L0, cmap="viridis",
+                    s=22, edgecolors="none")
+    cb = fig.colorbar(sc, ax=ax, fraction=0.046, pad=0.04)
+    cb.set_label("$L_0$", fontsize=8)
+    ax.set_xlabel(f"PC1 ({var_ratio[0]*100:.0f}% var)", fontsize=8.5)
+    ax.set_ylabel(f"PC2 ({var_ratio[1]*100:.0f}% var)", fontsize=8.5)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--gpu", type=int, default=None)
+    ap.add_argument("--dataset", default="div2k_8q",
+                    choices=["div2k_8q", "quickdraw_5q", "tuberlin_8q"])
+    ap.add_argument("--seeds", default="1-100")
+    ap.add_argument("--topk-ratio", type=float, default=0.20)
+    ap.add_argument("--batch", type=int, default=50,
+                    help="Common reference batch size (canonical seed-42 images).")
+    ap.add_argument("--base", required=True,
+                    help="random_seed/<dataset> dir for figures/ + reference/.")
+    ap.add_argument("--from-json", action="store_true", default=False,
+                    help="Re-draw from reference/init_distribution.json instead "
+                         "of recomputing (no GPU needed).")
+    ap.add_argument("--separate", action="store_true", default=False,
+                    help="Emit one standalone figure per panel "
+                         "(init_distribution_{L0,pca}) with no panel title, "
+                         "instead of the composite.")
+    args = ap.parse_args()
+
+    loaded = _load_json(args) if args.from_json else _compute(args)
+    if loaded is None:
+        return 2
+    seeds, L0, scores, var_ratio = loaded
 
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    fig, (axA, axB) = plt.subplots(1, 2, figsize=(9.6, 3.8),
-                                   gridspec_kw={"width_ratios": [1.0, 1.15]})
-    axA.hist(L0, bins=24, color="#0072B2", alpha=0.75)
-    axA.axvline(L0.mean(), color="k", ls="--", lw=1.2,
-                label=f"mean {L0.mean():.1f} ($\\sigma$={L0.std(ddof=1):.1f})")
-    axA.set_xlabel("initial top-$k$ MSE loss $L_0$  (random init)", fontsize=8.5)
-    axA.set_ylabel(f"# seeds (n={len(seeds)})", fontsize=8.5)
-    axA.legend(frameon=False, fontsize=7.5)
-    axA.set_title("starting points are spread", fontsize=9)
-
-    sc = axB.scatter(scores[:, 0], scores[:, 1], c=L0, cmap="viridis",
-                     s=22, edgecolors="none")
-    cb = fig.colorbar(sc, ax=axB, fraction=0.046, pad=0.04)
-    cb.set_label("$L_0$", fontsize=8)
-    axB.set_xlabel(f"PC1 ({var_ratio[0]*100:.0f}% var)", fontsize=8.5)
-    axB.set_ylabel(f"PC2 ({var_ratio[1]*100:.0f}% var)", fontsize=8.5)
-    axB.set_title("init parameter vectors (PCA)", fontsize=9)
-
-    fig.tight_layout()
+    base = Path(args.base)
     figdir = base / "figures"
     figdir.mkdir(parents=True, exist_ok=True)
-    for ext in ("pdf", "svg"):
-        out = figdir / f"init_distribution.{ext}"
-        fig.savefig(out, bbox_inches="tight")
-        print(f"[init-dist] wrote {out}")
-    plt.close(fig)
+
+    if args.separate:
+        figA, axA = plt.subplots(figsize=(4.7, 3.7))
+        _draw_L0(axA, L0, len(seeds))
+        figA.tight_layout()
+        for ext in ("pdf", "svg"):
+            out = figdir / f"init_distribution_L0.{ext}"
+            figA.savefig(out, bbox_inches="tight")
+            print(f"[init-dist] wrote {out}")
+        plt.close(figA)
+
+        figB, axB = plt.subplots(figsize=(5.0, 3.7))
+        _draw_pca(figB, axB, scores, L0, var_ratio)
+        figB.tight_layout()
+        for ext in ("pdf", "svg"):
+            out = figdir / f"init_distribution_pca.{ext}"
+            figB.savefig(out, bbox_inches="tight")
+            print(f"[init-dist] wrote {out}")
+        plt.close(figB)
+    else:
+        fig, (axA, axB) = plt.subplots(1, 2, figsize=(9.6, 3.8),
+                                       gridspec_kw={"width_ratios": [1.0, 1.15]})
+        _draw_L0(axA, L0, len(seeds))
+        axA.set_title("starting points are spread", fontsize=9)
+        _draw_pca(fig, axB, scores, L0, var_ratio)
+        axB.set_title("init parameter vectors (PCA)", fontsize=9)
+        fig.tight_layout()
+        for ext in ("pdf", "svg"):
+            out = figdir / f"init_distribution.{ext}"
+            fig.savefig(out, bbox_inches="tight")
+            print(f"[init-dist] wrote {out}")
+        plt.close(fig)
+
     print(f"[init-dist] L0 spread: mean={L0.mean():.2f} std={L0.std(ddof=1):.2f} "
           f"min={L0.min():.2f} max={L0.max():.2f}")
     return 0
