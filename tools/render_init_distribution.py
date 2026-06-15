@@ -231,9 +231,12 @@ def main() -> int:
         fig, (axA, axB) = plt.subplots(1, 2, figsize=(_w, _h),
                                        gridspec_kw={"width_ratios": [1.0, 1.15]})
         _draw_L0(axA, L0, len(seeds))
-        axA.set_title("starting points are spread", fontsize=9)
         _draw_pca(fig, axB, scores, L0, var_ratio)
-        axB.set_title("init parameter vectors (PCA)", fontsize=9)
+        if not args.paper_style:
+            # Paper figures drop descriptive panel titles (the LaTeX caption
+            # carries them); the screen composite keeps them.
+            axA.set_title("starting points are spread", fontsize=9)
+            axB.set_title("init parameter vectors (PCA)", fontsize=9)
         fig.tight_layout()
         if args.paper_style:
             pdir = figdir / "paper"; pdir.mkdir(parents=True, exist_ok=True)
