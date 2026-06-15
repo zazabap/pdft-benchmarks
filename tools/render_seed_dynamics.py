@@ -117,7 +117,15 @@ def main() -> int:
                     help="Emit one standalone figure per ordering "
                          "(seed_dynamics_{bg,lr,rl}) with a shared y-range, "
                          "instead of the composite.")
+    ap.add_argument("--paper-style", action="store_true", default=False,
+                    help="Publication style + paper-width figsize; PDF to figures/paper/.")
     args = ap.parse_args()
+    if args.paper_style:
+        import sys as _sys
+        from pathlib import Path as _P
+        _sys.path.insert(0, str(_P(__file__).resolve().parent))
+        from paper_style import apply_paper_style, PAPER_TEXTWIDTH
+        apply_paper_style()
 
     base = Path(args.base)
     runs = base / "_runs"
@@ -147,7 +155,9 @@ def main() -> int:
             plt.close(fig)
         return 0
 
-    fig, axes = plt.subplots(1, len(orderings), figsize=(4.3 * len(orderings), 3.6),
+    _w = PAPER_TEXTWIDTH if args.paper_style else 4.3 * len(orderings)
+    _h = 2.5 if args.paper_style else 3.6
+    fig, axes = plt.subplots(1, len(orderings), figsize=(_w, _h),
                              sharey=True, squeeze=False)
     axes = axes[0]
     for i, (ax, o) in enumerate(zip(axes, orderings)):
@@ -156,10 +166,16 @@ def main() -> int:
 
     fig.tight_layout()
     stem = "seed_training_dynamics" + suffix
-    for ext in ("pdf", "svg"):
-        out = figdir / f"{stem}.{ext}"
+    if args.paper_style:
+        pdir = figdir / "paper"; pdir.mkdir(parents=True, exist_ok=True)
+        out = pdir / f"{stem}.pdf"
         fig.savefig(out, bbox_inches="tight")
         print(f"[render] wrote {out}")
+    else:
+        for ext in ("pdf", "svg"):
+            out = figdir / f"{stem}.{ext}"
+            fig.savefig(out, bbox_inches="tight")
+            print(f"[render] wrote {out}")
     plt.close(fig)
     return 0
 
