@@ -184,7 +184,15 @@ def main() -> int:
                     help="Emit one standalone figure per panel "
                          "(init_distribution_{L0,pca}) with no panel title, "
                          "instead of the composite.")
+    ap.add_argument("--paper-style", action="store_true", default=False,
+                    help="Publication style + paper-width figsize; PDF to figures/paper/.")
     args = ap.parse_args()
+    if args.paper_style:
+        import sys as _sys
+        from pathlib import Path as _P
+        _sys.path.insert(0, str(_P(__file__).resolve().parent))
+        from paper_style import apply_paper_style, PAPER_TEXTWIDTH
+        apply_paper_style()
 
     loaded = _load_json(args) if args.from_json else _compute(args)
     if loaded is None:
@@ -218,17 +226,28 @@ def main() -> int:
             print(f"[init-dist] wrote {out}")
         plt.close(figB)
     else:
-        fig, (axA, axB) = plt.subplots(1, 2, figsize=(9.6, 3.8),
+        _w = PAPER_TEXTWIDTH if args.paper_style else 9.6
+        _h = 2.6 if args.paper_style else 3.8
+        fig, (axA, axB) = plt.subplots(1, 2, figsize=(_w, _h),
                                        gridspec_kw={"width_ratios": [1.0, 1.15]})
         _draw_L0(axA, L0, len(seeds))
-        axA.set_title("starting points are spread", fontsize=9)
         _draw_pca(fig, axB, scores, L0, var_ratio)
-        axB.set_title("init parameter vectors (PCA)", fontsize=9)
+        if not args.paper_style:
+            # Paper figures drop descriptive panel titles (the LaTeX caption
+            # carries them); the screen composite keeps them.
+            axA.set_title("starting points are spread", fontsize=9)
+            axB.set_title("init parameter vectors (PCA)", fontsize=9)
         fig.tight_layout()
-        for ext in ("pdf", "svg"):
-            out = figdir / f"init_distribution.{ext}"
+        if args.paper_style:
+            pdir = figdir / "paper"; pdir.mkdir(parents=True, exist_ok=True)
+            out = pdir / "init_distribution.pdf"
             fig.savefig(out, bbox_inches="tight")
             print(f"[init-dist] wrote {out}")
+        else:
+            for ext in ("pdf", "svg"):
+                out = figdir / f"init_distribution.{ext}"
+                fig.savefig(out, bbox_inches="tight")
+                print(f"[init-dist] wrote {out}")
         plt.close(fig)
 
     print(f"[init-dist] L0 spread: mean={L0.mean():.2f} std={L0.std(ddof=1):.2f} "

@@ -41,7 +41,15 @@ def main() -> int:
                     help="random_seed/<dataset> dir holding reference/_multiratio_*.json.")
     ap.add_argument("--ratios", default="0.01,0.05,0.1,0.2",
                     help="Keep ratios (panels), left-to-right.")
+    ap.add_argument("--paper-style", action="store_true", default=False,
+                    help="Publication style + paper-width figsize; PDF to figures/paper/.")
     args = ap.parse_args()
+    if args.paper_style:
+        import sys as _sys
+        from pathlib import Path as _P
+        _sys.path.insert(0, str(_P(__file__).resolve().parent))
+        from paper_style import apply_paper_style, PAPER_TEXTWIDTH
+        apply_paper_style()
 
     base = Path(args.base)
     ratios = [r.strip() for r in args.ratios.split(",") if r.strip()]
@@ -55,8 +63,9 @@ def main() -> int:
     orderings = [o for o in ("bg", "lr", "rl") if o in per_ordering]
     classical = merged.get("classical")
 
-    fig, axes = plt.subplots(1, len(ratios), figsize=(3.4 * len(ratios), 3.7),
-                             squeeze=False)
+    _w = PAPER_TEXTWIDTH if args.paper_style else 3.4 * len(ratios)
+    _h = 2.4 if args.paper_style else 3.7
+    fig, axes = plt.subplots(1, len(ratios), figsize=(_w, _h), squeeze=False)
     axes = axes[0]
     rng = np.random.default_rng(0)
     for ax, r in zip(axes, ratios):
@@ -90,10 +99,16 @@ def main() -> int:
     fig.tight_layout()
     figdir = base / "figures"
     figdir.mkdir(parents=True, exist_ok=True)
-    for ext in ("pdf", "svg"):
-        out = figdir / f"seed_scatter_ratios.{ext}"
+    if args.paper_style:
+        pdir = figdir / "paper"; pdir.mkdir(parents=True, exist_ok=True)
+        out = pdir / "seed_scatter_ratios.pdf"
         fig.savefig(out, bbox_inches="tight")
         print(f"[render] wrote {out}")
+    else:
+        for ext in ("pdf", "svg"):
+            out = figdir / f"seed_scatter_ratios.{ext}"
+            fig.savefig(out, bbox_inches="tight")
+            print(f"[render] wrote {out}")
     plt.close(fig)
     return 0
 
