@@ -58,15 +58,19 @@ $rho$.
 = Endpoint variance
 
 #figure(
-  grid(columns: (1.2fr, 1fr, 1fr), column-gutter: 5pt, align: horizon,
-    image("div2k_8q/figures/seed_variance_band.svg", width: 100%),
-    image("div2k_8q/figures/seed_variance_scatter.svg", width: 100%),
-    image("div2k_8q/figures/seed_variance_hist.svg", width: 100%)),
-  caption: [Per-ordering test PSNR across #nseed seeds. *(a)* mean
-  $plus.minus sigma$ band (+ min#sym.dash.en max whiskers) vs $rho$, against the
-  block-FFT 8#sym.times#8 baseline (dashed) and block-DCT 8#sym.times#8 (dotted).
-  *(b)* per-seed scatter at $rho{=}.20$. *(c)* the endpoint distribution
-  (histogram + fitted normal).])
+  stack(spacing: 7pt,
+    grid(columns: (1fr, 1fr), column-gutter: 6pt, align: horizon,
+      image("div2k_8q/figures/seed_variance_band.svg", width: 100%),
+      image("div2k_8q/figures/seed_variance_hist.svg", width: 100%)),
+    image("div2k_8q/figures/seed_scatter_ratios.svg", width: 100%)),
+  caption: [Per-ordering test PSNR across #nseed seeds. *Top:* *(a)* mean
+  $plus.minus sigma$ band (+ min#sym.dash.en max whiskers) vs $rho$, against
+  block-FFT 8#sym.times#8 (dashed) and block-DCT 8#sym.times#8 (dotted); and
+  *(c)* the endpoint distribution at $rho{=}.20$ (histogram + fitted normal).
+  *Bottom:* *(b)* per-seed scatter at four keep ratios
+  ($rho = 0.01, 0.05, 0.10, 0.20$) — the trained bases beat block-FFT at every
+  rate and exceed both classical references by #sym.tilde 6 dB at $rho{=}.01$,
+  while block-DCT overtakes them for $rho >= .05$.])
 
 // Inline table: per-ordering mean +/- sigma, plus the worst single seed @ .20.
 #let best = (r) => calc.max(..orderings.map(o => agg(o, r).mean))
