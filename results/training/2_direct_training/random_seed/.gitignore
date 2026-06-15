@@ -7,6 +7,10 @@
 _progress.json
 # crossover claim-locks (ephemeral)
 **/_runs/**/*.claim
+# Scratch per-ordering re-eval partials. They are merged into the committed
+# reference/seed_scatter_ratios.json (the multi-rate Figure 2b data source) and
+# are fully regenerable from the trained_seed_*.json operators.
+**/reference/_multiratio_*.json
 # NB: trained operators (trained_seed_*.json, ~8.7 KB each) ARE committed —
 # they're a durable resource for re-evaluation / MSE computation per seed.
 # The repo-root .gitignore ignores `results/**/trained_*.json` (regenerable
