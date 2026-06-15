@@ -151,45 +151,6 @@ raises the matched-rate PSNR by *$lt.eq 0.07$ dB* (controlled all-at-once probe,
 `reference/rate_matched_div2k.json`) — the operator's energy compaction is
 essentially rate-agnostic, so the top-$k$ choice is not the issue.
 
-#let ss = json("reference/random_seed_sweep_div2k.json")
-#let ss20 = ss.agg.at("0.2")
-#let f2(x) = str(calc.round(x, digits: 2))
-#let n_top = ss.per_seed.values().filter(v => calc.abs(v.at("0.2") - ss20.max) < 5e-3).len()
-#let id20 = man("div2k_8q", "identity").orderings.bg.final_psnr.at("0.2")
-*Seed robustness (random init).* Across *#ss20.n* random-init seeds (block-growth),
-*#n_top land at #f2(ss20.max) dB* \@$rho{=}.20$ (mean #f2(ss20.mean), $sigma =
-#f2(ss20.std)$, max #f2(ss20.max)); a single seed dipped to #f2(ss20.min). So the
-random endpoint is seed-invariant and *never exceeds* the #f2(ss20.max) attractor —
-the optimum is a stable basin, not a lucky draw, and reseeding cannot reach the
-identity result (#f2(id20)) or the 8×8-block #f2(bmax.at(3))
-(`reference/random_seed_sweep_div2k.json`, $n = #ss20.n$).
-
-#figure(image("figures/seed_robustness.svg", width: 100%),
-  caption: [*Random-init seed sweep* (block-growth, DIV2K, $n = #ss20.n$).
-  *Left:* every seed's test PSNR\@$rho{=}.20$: #n_top sit on the
-  #f2(ss20.max)-dB attractor (grey band $=$ mean $plus.minus sigma$) and the
-  lone outlier (seed 2) at #f2(ss20.min) — none reach the identity-init
-  (#f2(id20)) or 8×8-block (#f2(bmax.at(3))) reference. *Right:* the random min–max band is
-  negligible at every $rho$ — yet identity init is *worse* at low $rho$
-  (#f1(man("div2k_8q", "identity").orderings.bg.final_psnr.at("0.05")) dB
-  \@$rho{=}.05$ vs #f1(ss.agg.at("0.05").mean)), crossing above only near
-  $rho{=}.20$.])
-
-#let sd = json("reference/random_seed_dynamics_div2k.json")
-#let sd_p20 = sd.per_seed.values().map(v => v.final_psnr.at("0.2"))
-#figure(image("figures/seed_dynamics.svg", width: 100%),
-  caption: [*Per-seed training dynamics* (random init, block-growth, DIV2K): one
-  absolute training top-$k$ MSE curve per seed (#sd.seeds.map(str).join(", ")). The
-  seeds start from different Haar inits (hence different $L_0$) and descend along
-  visibly different early paths, yet all converge to the same
-  $approx$#f2(calc.max(..sd_p20)) dB attractor by step $approx$1000. *Caveat:* on this
-  rerun (grad-probe every 5 steps) seed 2 *itself* reached the attractor
-  (#f2(sd.per_seed.at("2").final_psnr.at("0.2")) dB), not the #f2(ss20.min)-dB outlier
-  recorded in the $n = #ss20.n$ sweep above — the lone-outlier result is *not robust* to
-  the grad-probe cadence / device floating-point, so the seed 2 dip should be read with
-  caution. Data: `reference/random_seed_dynamics_div2k.json`.])
-  <fig-seed-dyn>
-
 = Reading
 
 The staircase shows each gate's marginal value: the big drops are the *early*
