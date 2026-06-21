@@ -148,7 +148,7 @@ summary of location and spread, not a claim of Gaussianity.
 
 #let blk = json("div2k_8q/block_structure.json")
 #let blkpool = blk.pooled
-#let frozen_per_dim = f1(8 - blkpool.n_mix_row.mean)
+#let frozen_per_dim = f1((16 - blkpool.n_mix_row.mean - blkpool.n_mix_col.mean) / 2)
 
 = Emergent block structure of the trained QFT
 
@@ -159,9 +159,9 @@ itself into a block code with no block prior. We read each converged
 about #frozen_per_dim per dimension collapse to non-mixing *Pauli-Z/X* gates
 (mixing $2|a||b| approx 0.3%$) — classical block indices — while all 56
 controlled-phase gates stay fully active, so the intra-block transform remains
-rich. The dense operator is consequently block-diagonal: its block-leakage
-(off-block energy) is #f2(blkpool.eff_leakage.mean*100)% at a 16-pixel block,
-with a modal effective block of $16 times 16$.
+rich. The dense operator is consequently block-diagonal: its off-block energy is
+only #str(calc.round(blkpool.eff_leakage.mean * 100, digits: 3))% at a 16-pixel
+block — essentially exact — with a modal effective block of $16 times 16$.
 
 #figure(
   image("div2k_8q/figures/block_gate_collapse.svg", width: 100%),
@@ -180,7 +180,11 @@ with a modal effective block of $16 times 16$.
   block-structured at that specific scale and not below; the untrained
   closed-form QFT (not shown) stays high at every scale.])
 
-Across all #(nseed * 3) operators the structure is stable: the modal effective
-block is $16 times 16$ and the per-seed block-leakage stays at the low-percent
-level, so the block factorization is a robust property of the trained QFT rather
-than a one-run artifact.
+Across all #(nseed * 3) operators the structure is stable: the per-seed
+block-leakage stays negligible (below $0.01%$) and the pooled modal effective
+block is $16 times 16$, so the block factorization is a robust property of the
+trained QFT rather than a one-run artifact. The tightly-converged #olab.bg and
+#olab.lr orderings concentrate at $16 times 16$, while the high-variance
+#olab.rl ordering freezes fewer column Hadamards (the lighter c5\/c6 cells in the
+freeze map above), giving larger, more variable column blocks — the one axis
+along which the emergent block loosens.
