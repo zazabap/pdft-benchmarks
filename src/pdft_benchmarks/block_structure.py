@@ -139,10 +139,17 @@ def _summarize(ops: list, block_sizes) -> dict:
     for o in ops:
         for key in ("block_row", "block_col"):
             hist[str(o[key])] = hist.get(str(o[key]), 0) + 1
-    sweep = {str(int(b)): _stats([o["leakage_sweep"][b] for o in ops])
+    def _sweep_get(sw, b):
+        return sw[b] if b in sw else sw[str(b)]
+
+    sweep = {str(int(b)): _stats([_sweep_get(o["leakage_sweep"], b) for o in ops])
              for b in block_sizes}
-    # Representative seed = closest to modal endpoint (n_mix_row == 4, lowest leak16).
-    modal = sorted(ops, key=lambda o: (abs(o["n_mix_row"] - 4), o["eff_leakage"]))
+    # Representative seed = closest to the data's modal n_mix_row, lowest leak16
+    # (data-driven; no hardcoded block size, so it works for any m, n).
+    rows = [o["n_mix_row"] for o in ops]
+    modal_nmix = max(set(rows), key=rows.count)
+    modal = sorted(ops, key=lambda o: (abs(o["n_mix_row"] - modal_nmix),
+                                       o["eff_leakage"]))
     return {
         "n": n,
         "freeze_prob": freeze_prob,
@@ -159,6 +166,8 @@ def _summarize(ops: list, block_sizes) -> dict:
 
 def aggregate(ops: list, block_sizes=(2, 4, 8, 16, 32, 64, 128)) -> dict:
     """Summarize per-operator records per ordering and pooled."""
+    if not ops:
+        raise ValueError("aggregate: empty ops list")
     orderings = sorted({o["ordering"] for o in ops})
     return {
         "block_sizes": [int(b) for b in block_sizes],

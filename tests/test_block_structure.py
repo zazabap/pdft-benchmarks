@@ -118,3 +118,26 @@ def test_aggregate_basic():
     assert "16" in bg["block_size_hist"]        # pooled row+col block sizes
     assert isinstance(bg["representative_seed"], int)
     assert agg["pooled"]["n"] == 11
+
+
+def test_aggregate_tolerates_string_sweep_keys():
+    # A record whose leakage_sweep came back from a JSON round-trip (string keys)
+    # must still aggregate without a KeyError.
+    op = _fake_op("bg", 1, 4, 4, 0.01)
+    op["leakage_sweep"] = {str(k): v for k, v in op["leakage_sweep"].items()}
+    agg = bs.aggregate([op], block_sizes=(2, 4, 8, 16, 32, 64, 128))
+    assert agg["orderings"]["bg"]["sweep"]["16"]["mean"] == pytest.approx(0.01)
+
+
+def test_aggregate_empty_raises():
+    with pytest.raises(ValueError):
+        bs.aggregate([])
+
+
+def test_aggregate_representative_is_data_driven():
+    # Modal n_mix_row here is 3 (not the old hardcoded 4); representative must be
+    # drawn from the n_mix_row==3 group.
+    ops = [_fake_op("bg", s, 3, 3, 0.05) for s in range(1, 6)]
+    ops += [_fake_op("bg", 99, 4, 4, 0.40)]
+    agg = bs.aggregate(ops)
+    assert agg["orderings"]["bg"]["representative_seed"] in range(1, 6)
