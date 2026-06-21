@@ -58,3 +58,67 @@ def gate_summary(tensors, m: int = 8, n: int = 8) -> dict:
         "cp_active_frac": float(np.mean(np.abs(1 - np.exp(1j * phis)) > 0.05)),
         "n_cp": len(CP),
     }
+
+
+def block_leakage(W: np.ndarray, b: int) -> float:
+    """Fraction of operator energy that crosses block boundaries at block size b.
+
+    Group rows/cols of |W|^2 into K=N/b contiguous index-blocks, form the KxK
+    block-coupling matrix, and subtract the best one-to-one (Hungarian) match.
+    0 == perfectly block-structured (each input block maps to one output block);
+    permutation- and scale-invariant.
+    """
+    N = W.shape[0]
+    K = N // b
+    C = (np.abs(W) ** 2).reshape(K, b, K, b).sum(axis=(1, 3))
+    tot = C.sum()
+    if tot <= 0:
+        return 0.0
+    r, c = linear_sum_assignment(-C)
+    return float(1.0 - C[r, c].sum() / tot)
+
+
+def leakage_sweep(W: np.ndarray, sizes=(2, 4, 8, 16, 32, 64, 128)) -> dict:
+    """Block-leakage at each candidate block size (the 'knee' locates the block)."""
+    return {int(b): block_leakage(W, b) for b in sizes}
+
+
+def effective_block_size(W: np.ndarray,
+                         sizes=(2, 4, 8, 16, 32, 64, 128, 256),
+                         tol: float = 1e-6) -> int:
+    """Smallest block size at which leakage vanishes (the emergent block)."""
+    for b in sizes:
+        if block_leakage(W, b) <= tol:
+            return int(b)
+    return int(W.shape[0])
+
+
+def materialize_factor(forward_transform, N: int = 256, axis: int = 0) -> np.ndarray:
+    """Materialize the 1-D factor of a separable 2-D transform, up to a global
+    scale, via delta-image extraction (block-leakage is scale-invariant).
+
+    forward_transform: a JAX-native callable mapping a (N,N) array to (N,N)
+    (e.g. `basis.forward_transform` — do NOT numpy-wrap it, that breaks vmap).
+    axis=0 -> row factor (delta at column 0, sweep the row), axis=1 -> col factor.
+    """
+    import jax
+    import jax.numpy as jnp
+
+    deltas = np.zeros((N, N, N), dtype=np.complex128)
+    for i in range(N):
+        if axis == 0:
+            deltas[i, i, 0] = 1.0
+        else:
+            deltas[i, 0, i] = 1.0
+    d = jnp.asarray(deltas)
+    try:
+        Ys = np.asarray(jax.vmap(forward_transform)(d))          # fast path
+    except Exception:
+        Ys = np.stack([np.asarray(forward_transform(d[i])) for i in range(N)])
+    Ys = Ys.reshape(N, N, N)
+    if axis == 0:
+        # Ys[i][r,c] = Wrow[r,i]*Wcol[c,0]; pick strongest c0 of Wcol[:,0].
+        c0 = int(np.argmax((np.abs(Ys) ** 2).sum(axis=(0, 1))))
+        return Ys[:, :, c0].T
+    r0 = int(np.argmax((np.abs(Ys) ** 2).sum(axis=(0, 2))))
+    return Ys[:, r0, :].T
