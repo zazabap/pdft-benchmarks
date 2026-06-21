@@ -145,3 +145,42 @@ summary of location and spread, not a claim of Gaussianity.
   stays tight, whereas #olab.rl *(c)* starts far higher and its seeds remain
   spread until the final stages — visually accounting for the endpoint variances
   above. #olab.lr *(b)* is intermediate.])
+
+#let blk = json("div2k_8q/block_structure.json")
+#let blkpool = blk.pooled
+#let frozen_per_dim = f1(8 - blkpool.n_mix_row.mean)
+
+= Emergent block structure of the trained QFT
+
+The same #(nseed)-seed operators let us test, robustly across random init, the
+paper's central structural claim (sec5.3): the trained full-image QFT factors
+itself into a block code with no block prior. We read each converged
+`QFTBasis(8,8)` directly. Of the 16 Hadamard-role gates (8 per dimension),
+about #frozen_per_dim per dimension collapse to non-mixing *Pauli-Z/X* gates
+(mixing $2|a||b| approx 0.3%$) — classical block indices — while all 56
+controlled-phase gates stay fully active, so the intra-block transform remains
+rich. The dense operator is consequently block-diagonal: its block-leakage
+(off-block energy) is #f2(blkpool.eff_leakage.mean*100)% at a 16-pixel block,
+with a modal effective block of $16 times 16$.
+
+#figure(
+  image("div2k_8q/figures/block_gate_collapse.svg", width: 100%),
+  caption: [Per-Hadamard freeze probability across all seeds, one row per
+  unfreeze ordering (row qubits r1..8 | col qubits c1..8). Roughly half of each
+  dimension's Hadamards reliably freeze to Pauli-Z/X (non-mixing), the rest stay
+  frequency-mixing.])
+
+#figure(
+  grid(columns: (1.05fr, 1fr), column-gutter: 8pt, align: horizon,
+    image("div2k_8q/figures/block_operator_heatmap.svg", width: 100%),
+    image("div2k_8q/figures/block_leakage_sweep.svg", width: 100%)),
+  caption: [*Left:* $log|W|$ of the representative seed's 1-D operator factor,
+  block-diagonal at the emergent 16-pixel block. *Right:* block-leakage vs
+  candidate block size — the knee at $b=16$ (dotted) shows the operator is
+  block-structured at that specific scale and not below; the untrained
+  closed-form QFT (not shown) stays high at every scale.])
+
+Across all #(nseed * 3) operators the structure is stable: the modal effective
+block is $16 times 16$ and the per-seed block-leakage stays at the low-percent
+level, so the block factorization is a robust property of the trained QFT rather
+than a one-run artifact.
