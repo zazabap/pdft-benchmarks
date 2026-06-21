@@ -85,8 +85,8 @@ def leakage_sweep(W: np.ndarray, sizes=(2, 4, 8, 16, 32, 64, 128)) -> dict:
 
 def effective_block_size(W: np.ndarray,
                          sizes=(2, 4, 8, 16, 32, 64, 128, 256),
-                         tol: float = 1e-6) -> int:
-    """Smallest block size at which leakage vanishes (the emergent block)."""
+                         tol: float = 1e-3) -> int:
+    """Smallest block size whose off-block leakage falls below tol (the emergent block). tol=1e-3 sits above the ~1e-4 residual real trained operators leave at their true block and below the ~0.1+ leakage one block-size finer."""
     for b in sizes:
         if block_leakage(W, b) <= tol:
             return int(b)

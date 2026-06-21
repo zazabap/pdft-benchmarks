@@ -141,3 +141,23 @@ def test_aggregate_representative_is_data_driven():
     ops += [_fake_op("bg", 99, 4, 4, 0.40)]
     agg = bs.aggregate(ops)
     assert agg["orderings"]["bg"]["representative_seed"] in range(1, 6)
+
+
+def test_effective_block_size_noisy_regime():
+    # Real operators leave a tiny (~1e-5..1e-4) residual off-block energy at the
+    # true block size, NOT exactly zero. effective_block_size must still report
+    # the block, so the tolerance has to sit above that residual.
+    W = _block_diag_matrix(16, 16)
+    rng = np.random.default_rng(1)
+    scale = 0.02 * np.abs(W).mean()
+    noise = scale * (rng.standard_normal(W.shape) + 1j * rng.standard_normal(W.shape))
+    # add noise ONLY off the 16-block diagonal so the block structure is intact
+    # but slightly leaky
+    K, b = 16, 16
+    mask = np.ones((W.shape[0], W.shape[0]), bool)
+    for i in range(K):
+        mask[i*b:(i+1)*b, i*b:(i+1)*b] = False   # keep diagonal blocks clean
+    Wn = W + noise * mask
+    leak = bs.block_leakage(Wn, 16)
+    assert 1e-6 < leak < 1e-3, f"need leak in the (1e-6,1e-3) gap, got {leak}"
+    assert bs.effective_block_size(Wn) == 16
