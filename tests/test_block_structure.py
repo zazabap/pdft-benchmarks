@@ -86,3 +86,35 @@ def test_materialize_factor_untrained_qft_is_not_block():
     W = bs.materialize_factor(q.forward_transform)   # pass the JAX-native callable
     assert W.shape == (256, 256)
     assert bs.block_leakage(W, 16) > 0.5      # closed-form QFT: no block structure
+
+
+def _fake_op(ordering, seed, n_mix_row, n_mix_col, leak16):
+    return {
+        "ordering": ordering, "seed": seed,
+        "mixing": [1.0] * n_mix_row + [0.0] * (8 - n_mix_row)
+                  + [1.0] * n_mix_col + [0.0] * (8 - n_mix_col),
+        "row_tags": ["H"] * n_mix_row + ["Z"] * (8 - n_mix_row),
+        "col_tags": ["H"] * n_mix_col + ["Z"] * (8 - n_mix_col),
+        "n_mix_row": n_mix_row, "n_mix_col": n_mix_col,
+        "block_row": 2 ** n_mix_row, "block_col": 2 ** n_mix_col,
+        "cp_abs_phase_median": 1.6, "cp_active_frac": 1.0, "n_cp": 56,
+        "leakage_sweep": {2: 0.9, 4: 0.8, 8: 0.5, 16: leak16, 32: 0.0,
+                          64: 0.0, 128: 0.0},
+        "eff_block": 16, "eff_leakage": leak16,
+    }
+
+
+def test_aggregate_basic():
+    ops = [_fake_op("bg", s, 4, 4, 0.01) for s in range(1, 11)]
+    ops += [_fake_op("bg", 11, 3, 5, 0.02)]
+    agg = bs.aggregate(ops, block_sizes=(2, 4, 8, 16, 32, 64, 128))
+    bg = agg["orderings"]["bg"]
+    assert bg["n"] == 11
+    assert len(bg["freeze_prob"]) == 16
+    assert bg["freeze_prob"][0] == 0.0          # position 0 always mixing here
+    assert bg["freeze_prob"][7] == pytest.approx(1.0)   # position 7 always frozen
+    assert bg["n_mix_row"]["mean"] == pytest.approx((4 * 10 + 3) / 11)
+    assert bg["sweep"]["16"]["mean"] == pytest.approx((0.01 * 10 + 0.02) / 11)
+    assert "16" in bg["block_size_hist"]        # pooled row+col block sizes
+    assert isinstance(bg["representative_seed"], int)
+    assert agg["pooled"]["n"] == 11

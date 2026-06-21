@@ -122,3 +122,47 @@ def materialize_factor(forward_transform, N: int = 256, axis: int = 0) -> np.nda
         return Ys[:, :, c0].T
     r0 = int(np.argmax((np.abs(Ys) ** 2).sum(axis=(0, 2))))
     return Ys[:, r0, :].T
+
+
+def _stats(xs) -> dict:
+    a = np.asarray(xs, float)
+    return {"mean": float(a.mean()), "std": float(a.std(ddof=1) if a.size > 1 else 0.0),
+            "min": float(a.min()), "max": float(a.max())}
+
+
+def _summarize(ops: list, block_sizes) -> dict:
+    n = len(ops)
+    tags = np.array([[t != "H" for t in o["row_tags"]]
+                     + [t != "H" for t in o["col_tags"]] for o in ops], float)
+    freeze_prob = tags.mean(axis=0).tolist()           # 16-vector
+    hist: dict[str, int] = {}
+    for o in ops:
+        for key in ("block_row", "block_col"):
+            hist[str(o[key])] = hist.get(str(o[key]), 0) + 1
+    sweep = {str(int(b)): _stats([o["leakage_sweep"][b] for o in ops])
+             for b in block_sizes}
+    # Representative seed = closest to modal endpoint (n_mix_row == 4, lowest leak16).
+    modal = sorted(ops, key=lambda o: (abs(o["n_mix_row"] - 4), o["eff_leakage"]))
+    return {
+        "n": n,
+        "freeze_prob": freeze_prob,
+        "n_mix_row": _stats([o["n_mix_row"] for o in ops]),
+        "n_mix_col": _stats([o["n_mix_col"] for o in ops]),
+        "block_size_hist": hist,
+        "sweep": sweep,
+        "eff_leakage": _stats([o["eff_leakage"] for o in ops]),
+        "cp_active_frac": _stats([o["cp_active_frac"] for o in ops]),
+        "representative_seed": int(modal[0]["seed"]),
+        "representative_ordering": modal[0]["ordering"],
+    }
+
+
+def aggregate(ops: list, block_sizes=(2, 4, 8, 16, 32, 64, 128)) -> dict:
+    """Summarize per-operator records per ordering and pooled."""
+    orderings = sorted({o["ordering"] for o in ops})
+    return {
+        "block_sizes": [int(b) for b in block_sizes],
+        "orderings": {ordr: _summarize([o for o in ops if o["ordering"] == ordr],
+                                       block_sizes) for ordr in orderings},
+        "pooled": _summarize(ops, block_sizes),
+    }
