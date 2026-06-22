@@ -54,3 +54,21 @@ def test_render_figs_emits_pdf_and_svg(tmp_path):
     for name in ("block_gate_collapse", "block_operator_heatmap", "block_leakage_sweep"):
         assert (figdir / f"{name}.pdf").exists(), name
         assert (figdir / f"{name}.svg").exists(), name
+
+
+DIV2K = Path("/home/claude-user/ParametricDFT-Benchmarks.jl/data/DIV2K_train_HR")
+
+
+def test_render_freq_spectrum_emits_pdf_and_svg(tmp_path):
+    if not (BASE / "_runs" / "bg" / "trained_seed_028.json").exists():
+        pytest.skip("no representative seed")
+    if not DIV2K.exists():
+        pytest.skip("DIV2K dataset not present")
+    sys.path.insert(0, "tools")
+    from render_qft_block_structure_figs import render_freq_spectrum
+    agg = {"orderings": {"bg": {"representative_seed": 28,
+                                "representative_ordering": "bg"}}}
+    render_freq_spectrum(agg, tmp_path, source_base=BASE, n_test=4)
+    figdir = tmp_path / "figures"
+    assert (figdir / "block_freq_spectrum.pdf").exists()
+    assert (figdir / "block_freq_spectrum.svg").exists()

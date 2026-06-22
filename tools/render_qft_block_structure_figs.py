@@ -92,8 +92,55 @@ def _fig_leakage_sweep(agg, figdir):
     plt.close(fig)
 
 
+def _fig_freq_spectrum(agg, figdir, source_base, n_test=50):
+    """The block factorization seen in frequency space: mean test-set power
+    spectrum of the untrained global QFT (one low-frequency lobe) vs the trained
+    QFT (16x16 grid of repeated sub-spectra — the block-periodic signature)."""
+    import jax
+    import jax.numpy as jnp
+    import matplotlib.pyplot as plt
+    import pdft
+    from pdft_benchmarks import datasets as ds
+
+    rep = agg["orderings"][list(agg["orderings"])[0]]
+    ordr = rep.get("representative_ordering", "bg")
+    seed = rep["representative_seed"]
+    d = json.loads((Path(source_base) / "_runs" / ordr
+                    / f"trained_seed_{seed:03d}.json").read_text())
+    m, n = int(d["m"]), int(d["n"])
+    N = 2 ** m
+    T = [jnp.asarray(np.asarray(t["real"]) + 1j * np.asarray(t["imag"]),
+                     dtype=jnp.complex128) for t in d["tensors"]]
+    trained = pdft.QFTBasis(m=m, n=n, tensors=T)
+    untrained = pdft.QFTBasis(m=m, n=n)
+
+    _, test = ds.load_div2k(n_train=500, n_test=n_test, seed=42, size=N)
+    imgs = jnp.asarray(np.asarray(test, dtype=np.complex128))
+
+    def mean_power(basis):
+        F = jax.vmap(basis.forward_transform)(imgs)        # (n_test, N, N)
+        P = np.asarray((jnp.abs(F) ** 2).mean(0))
+        return np.clip(np.log10(P / P.max() + 1e-12), -6, 0)
+
+    Pu, Pt = mean_power(untrained), mean_power(trained)
+    fig, axes = plt.subplots(1, 2, figsize=(8.6, 4.3))
+    for ax, P, lab in [(axes[0], Pu, "untrained global QFT"),
+                       (axes[1], Pt, f"trained QFT ({ordr} seed {seed})")]:
+        im = ax.imshow(P, cmap="viridis", vmin=-6, vmax=0)
+        for k in range(16, N, 16):
+            ax.axhline(k - 0.5, color="w", lw=0.25, alpha=0.35)
+            ax.axvline(k - 0.5, color="w", lw=0.25, alpha=0.35)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlabel(lab, fontsize=8.5)
+    cb = fig.colorbar(im, ax=axes, fraction=0.024, pad=0.02)
+    cb.set_label(r"$\log_{10}\,\overline{|F|^2}$ (peak-normalized)", fontsize=8)
+    _save(fig, figdir, "block_freq_spectrum")
+    plt.close(fig)
+
+
 def render_all(agg: dict, base, source_base=None):
-    """Render all three figures into <base>/figures/. source_base (for the
+    """Render the three core figures into <base>/figures/. source_base (for the
     operator heatmap's representative seed) defaults to base."""
     import matplotlib
     matplotlib.use("Agg")
@@ -101,3 +148,12 @@ def render_all(agg: dict, base, source_base=None):
     _fig_gate_collapse(agg, figdir)
     _fig_operator_heatmap(agg, figdir, Path(source_base or base))
     _fig_leakage_sweep(agg, figdir)
+
+
+def render_freq_spectrum(agg: dict, base, source_base=None, n_test=50):
+    """Render the frequency-space block-structure panel (mean test-set power
+    spectrum, untrained vs trained QFT) into <base>/figures/. Requires the DIV2K
+    dataset; raises if it is unavailable, so callers should guard the call."""
+    import matplotlib
+    matplotlib.use("Agg")
+    _fig_freq_spectrum(agg, Path(base) / "figures", Path(source_base or base), n_test)

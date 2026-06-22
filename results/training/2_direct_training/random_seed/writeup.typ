@@ -180,6 +180,18 @@ block — essentially exact — with a modal effective block of $16 times 16$.
   block-structured at that specific scale and not below; the untrained
   closed-form QFT (not shown) stays high at every scale.])
 
+The same factorization is visible directly in frequency space.
+
+#figure(
+  image("div2k_8q/figures/block_freq_spectrum.svg", width: 100%),
+  caption: [Mean test-set power spectrum (peak-normalized
+  $log_10 overline(|F|^2)$, averaged over the 50 DIV2K test images) of the
+  untrained *global QFT* (left) and the *trained QFT* (right, representative
+  seed). The global transform packs energy into a single low-frequency lobe; the
+  trained transform tiles into a $16 times 16$ grid of repeated sub-spectra — the
+  block-periodic signature of a block transform, the same structure the $8
+  times 8$ block references produce in Fig. 4 of the main text.])
+
 Across all #(nseed * 3) operators the structure is stable: the per-seed
 block-leakage stays negligible (below $0.01%$) and the pooled modal effective
 block is $16 times 16$, so the block factorization is a robust property of the

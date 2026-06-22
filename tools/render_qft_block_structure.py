@@ -113,6 +113,8 @@ def main():
     ap.add_argument("--out", default=None, help="JSON path (default: <base>/block_structure.json)")
     ap.add_argument("--compute-only", action="store_true", default=False)
     ap.add_argument("--from-json", action="store_true", default=False)
+    ap.add_argument("--no-freq", action="store_true", default=False,
+                    help="skip the DIV2K mean-power-spectrum panel (needs the dataset).")
     args = ap.parse_args()
 
     base = Path(args.base)
@@ -128,8 +130,14 @@ def main():
     if args.compute_only:
         return 0
 
-    from render_qft_block_structure_figs import render_all  # Task 5
+    from render_qft_block_structure_figs import render_all, render_freq_spectrum
     render_all(agg, base)
+    if not args.no_freq:
+        try:
+            render_freq_spectrum(agg, base)
+        except Exception as e:  # noqa: BLE001 -- dataset optional; core figs already done
+            print(f"[block] skipped freq-spectrum panel "
+                  f"({type(e).__name__}: {e}); core figures rendered.")
     return 0
 
 
