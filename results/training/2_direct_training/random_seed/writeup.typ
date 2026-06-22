@@ -171,7 +171,30 @@ $#blk.block_row times #blk.block_col$-pixel block.
   frequencies; the other four freeze to Pauli-Z (or X) and act as classical block
   indices.])
 
-The factorization shows directly in the dense operator.
+The factorization is a statement about the trained operator itself. The transform
+is separable, $Y = W X W^top$, so its block structure lives in the single
+$N times N$ ($N = 2^8 = 256$) one-dimensional factor $W$. Acting on an input row
+$x$ it returns the coefficient row
+
+$ y = W x, quad y_i = sum_(j=0)^(N-1) W_(i j) x_j, $
+
+where $j$ indexes the input pixel and $i$ the output coefficient; the $j$-th
+column of $W$ is the operator's response to a single input pixel, $W e_j$.
+Grouping the $256$ indices into sixteen contiguous $16$-pixel blocks
+$B_p = {16 p, dots, 16 p + 15}$, the trained $W$ is *block-diagonal up to a block
+permutation* $sigma$: $j in B_q$ implies $W_(i j) = 0$ for all
+$i in.not B_(sigma(q))$, i.e.
+
+$ P^top W = W^((0)) plus.o dots.c plus.o W^((15)), quad
+  W^((p)) in CC^(16 times 16), $
+
+a direct sum of sixteen $16 times 16$ within-block transforms $W^((p))$ (the
+permutation $sigma$, and the off-diagonal placement of the blocks, come from the
+QFT bit-reversal and the frozen-X gates). Each input pixel therefore drives only
+the $16$ output coefficients of its own block. Figure 5 shows this two ways: the
+full matrix $|W|$ (left) and three of its columns $W e_j$ (right). The untrained
+global QFT, by contrast, has $|W_(i j)| = 1\/sqrt(N)$ for every $i, j$, so a
+single pixel spreads across all $256$ coefficients — no blocks.
 
 #figure(
   grid(columns: (1fr, 1.25fr), column-gutter: 8pt, align: horizon,
