@@ -171,15 +171,24 @@ $#blk.block_row times #blk.block_col$-pixel block.
   frequencies; the other four freeze to Pauli-Z (or X) and act as classical block
   indices.])
 
-The factorization shows directly in the dense operator and its spectrum.
+The factorization shows directly in the dense operator.
 
 #figure(
-  grid(columns: (1.05fr, 1fr), column-gutter: 8pt, align: horizon,
+  grid(columns: (1fr, 1.25fr), column-gutter: 8pt, align: horizon,
     image("div2k_8q/figures/block_operator_heatmap.svg", width: 100%),
-    image("div2k_8q/figures/block_leakage_sweep.svg", width: 100%)),
+    image("div2k_8q/figures/block_io_demo.svg", width: 100%)),
   caption: [*Left:* $log|W|$ of the trained QFT's 1-D operator factor,
   block-diagonal at the emergent 16-pixel block (off-block energy below $0.01%$).
-  *Right:* off-block energy vs candidate block size — the knee at $b=16$ (dotted)
+  *Right:* the same operator read one input at a time — a single input pixel
+  (top) produces output (bottom) confined to a single 16-coefficient block
+  ($>99.99%$ of its energy), zero elsewhere. The output block is permuted from the
+  input one by the QFT bit-reversal and the frozen-X gates; a global transform
+  would instead spread each pixel across all 256 coefficients. The heatmap is
+  these per-pixel responses stacked side by side.])
+
+#figure(
+  image("div2k_8q/figures/block_leakage_sweep.svg", width: 72%),
+  caption: [Off-block energy vs candidate block size — the knee at $b=16$ (dotted)
   shows the operator is block-structured at that specific scale and not below; the
   untrained closed-form QFT (not shown) stays high at every scale.])
 

@@ -75,6 +75,36 @@ def _fig_operator_heatmap(W, leak16, label, figdir):
     plt.close(fig)
 
 
+def _fig_io_demo(W, figdir, positions=(40, 120, 210)):
+    """Concrete input -> output: a single input pixel produces output confined to
+    one 16-coefficient block (the block transform, seen one operator column at a
+    time). Top: the input impulses; bottom: their output magnitudes."""
+    import matplotlib.pyplot as plt
+    N = W.shape[0]
+    wong = ["#0072B2", "#E69F00", "#009E73"]
+    fig, ax = plt.subplots(2, 1, figsize=(5.0, 4.0), sharex=True)
+    for j, c in zip(positions, wong):
+        out = np.abs(W[:, j])
+        out = out / out.max()
+        ax[0].vlines(j, 0, 1, color=c, lw=2, label=f"pixel {j} (block {j // 16})")
+        ob = int(np.argmax([out[16 * k:16 * k + 16].sum() for k in range(N // 16)]))
+        ax[1].axvspan(16 * ob, 16 * ob + 16, color=c, alpha=0.12)
+        ax[1].plot(np.arange(N), out, color=c, lw=1.0)
+    for a in ax:
+        for k in range(16, N, 16):
+            a.axvline(k, color="0.85", lw=0.4, zorder=0)
+    ax[0].set_ylabel("input\n(one pixel)", fontsize=8.5)
+    ax[0].set_ylim(0, 1.45)
+    ax[0].legend(fontsize=6.8, frameon=False, loc="upper center", ncol=3,
+                 handlelength=1.0, columnspacing=1.0)
+    ax[1].set_ylabel("output\n|coefficient|", fontsize=8.5)
+    ax[1].set_xlim(0, N)
+    ax[1].set_xlabel("pixel / coefficient index (16-pixel blocks)", fontsize=8.5)
+    fig.tight_layout()
+    _save(fig, figdir, "block_io_demo")
+    plt.close(fig)
+
+
 def _fig_leakage_sweep(sweep, figdir):
     import matplotlib.pyplot as plt
     sizes = sorted(int(b) for b in sweep)
@@ -140,6 +170,7 @@ def render_core(d: dict, base, W=None, sweep=None):
         sweep = bs.leakage_sweep(W)
     _fig_gate_collapse(g, figdir)
     _fig_operator_heatmap(W, bs.block_leakage(W, 16), _label(d), figdir)
+    _fig_io_demo(W, figdir)
     _fig_leakage_sweep(sweep, figdir)
 
 

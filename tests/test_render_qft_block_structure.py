@@ -36,7 +36,8 @@ def test_render_core_emits_pdf_and_svg(tmp_path):
     d = json.loads(BASIS.read_text())
     render_core(d, tmp_path)
     figdir = tmp_path / "figures"
-    for name in ("block_gate_collapse", "block_operator_heatmap", "block_leakage_sweep"):
+    for name in ("block_gate_collapse", "block_operator_heatmap",
+                 "block_io_demo", "block_leakage_sweep"):
         assert (figdir / f"{name}.pdf").exists(), name
         assert (figdir / f"{name}.svg").exists(), name
 
