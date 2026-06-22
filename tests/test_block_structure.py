@@ -88,61 +88,6 @@ def test_materialize_factor_untrained_qft_is_not_block():
     assert bs.block_leakage(W, 16) > 0.5      # closed-form QFT: no block structure
 
 
-def _fake_op(ordering, seed, n_mix_row, n_mix_col, leak16):
-    return {
-        "ordering": ordering, "seed": seed,
-        "mixing": [1.0] * n_mix_row + [0.0] * (8 - n_mix_row)
-                  + [1.0] * n_mix_col + [0.0] * (8 - n_mix_col),
-        "row_tags": ["H"] * n_mix_row + ["Z"] * (8 - n_mix_row),
-        "col_tags": ["H"] * n_mix_col + ["Z"] * (8 - n_mix_col),
-        "n_mix_row": n_mix_row, "n_mix_col": n_mix_col,
-        "block_row": 2 ** n_mix_row, "block_col": 2 ** n_mix_col,
-        "cp_abs_phase_median": 1.6, "cp_active_frac": 1.0, "n_cp": 56,
-        "leakage_sweep": {2: 0.9, 4: 0.8, 8: 0.5, 16: leak16, 32: 0.0,
-                          64: 0.0, 128: 0.0},
-        "eff_block": 16, "eff_leakage": leak16,
-    }
-
-
-def test_aggregate_basic():
-    ops = [_fake_op("bg", s, 4, 4, 0.01) for s in range(1, 11)]
-    ops += [_fake_op("bg", 11, 3, 5, 0.02)]
-    agg = bs.aggregate(ops, block_sizes=(2, 4, 8, 16, 32, 64, 128))
-    bg = agg["orderings"]["bg"]
-    assert bg["n"] == 11
-    assert len(bg["freeze_prob"]) == 16
-    assert bg["freeze_prob"][0] == 0.0          # position 0 always mixing here
-    assert bg["freeze_prob"][7] == pytest.approx(1.0)   # position 7 always frozen
-    assert bg["n_mix_row"]["mean"] == pytest.approx((4 * 10 + 3) / 11)
-    assert bg["sweep"]["16"]["mean"] == pytest.approx((0.01 * 10 + 0.02) / 11)
-    assert "16" in bg["block_size_hist"]        # pooled row+col block sizes
-    assert isinstance(bg["representative_seed"], int)
-    assert agg["pooled"]["n"] == 11
-
-
-def test_aggregate_tolerates_string_sweep_keys():
-    # A record whose leakage_sweep came back from a JSON round-trip (string keys)
-    # must still aggregate without a KeyError.
-    op = _fake_op("bg", 1, 4, 4, 0.01)
-    op["leakage_sweep"] = {str(k): v for k, v in op["leakage_sweep"].items()}
-    agg = bs.aggregate([op], block_sizes=(2, 4, 8, 16, 32, 64, 128))
-    assert agg["orderings"]["bg"]["sweep"]["16"]["mean"] == pytest.approx(0.01)
-
-
-def test_aggregate_empty_raises():
-    with pytest.raises(ValueError):
-        bs.aggregate([])
-
-
-def test_aggregate_representative_is_data_driven():
-    # Modal n_mix_row here is 3 (not the old hardcoded 4); representative must be
-    # drawn from the n_mix_row==3 group.
-    ops = [_fake_op("bg", s, 3, 3, 0.05) for s in range(1, 6)]
-    ops += [_fake_op("bg", 99, 4, 4, 0.40)]
-    agg = bs.aggregate(ops)
-    assert agg["orderings"]["bg"]["representative_seed"] in range(1, 6)
-
-
 def test_effective_block_size_noisy_regime():
     # Real operators leave a tiny (~1e-5..1e-4) residual off-block energy at the
     # true block size, NOT exactly zero. effective_block_size must still report

@@ -1,25 +1,26 @@
 #!/usr/bin/env python3
-"""Quantify how 'block' the trained random-seed QFTBasis operators are.
+"""Quantify how 'block' a single trained QFT operator is, and render the panels.
 
-For every trained_seed_*.json operator (100 seeds x bg/lr/rl), compute:
-  A  gate-collapse: which Hadamard-role gates froze to Pauli-Z/X, CP activity;
-  B  dense-operator block-leakage at the emergent block (the row 1-D factor);
-  C  block-leakage vs block-size sweep (the 'knee' locating the block scale).
-Aggregate across seeds, write block_structure.json, and render three figures
-(PDF + SVG): block_gate_collapse, block_operator_heatmap, block_leakage_sweep.
+For one trained_*.json operator (default: the canonical published trained QFT,
+results/final/div2k_8q/by_basis/qft) compute:
+  A  gate-collapse: which Hadamard-role gates froze to non-mixing Pauli-Z/X;
+  B  dense-operator block-leakage at the emergent block (the 1-D row factor);
+  C  block-leakage vs block-size sweep (the 'knee' locating the block scale);
+  D  the frequency-space view (mean test-set power spectrum, untrained vs trained).
+Write block_structure.json (the operator's metrics) and render four figures
+(PDF + SVG) into <out-base>/figures/.
 
-Runs on CPU (analysis is cheap; avoids GPU contention). Re-render from the
-saved JSON with --from-json (no recompute), mirroring render_init_distribution.py.
+Runs on CPU (analysis is cheap; avoids GPU contention). The frequency panel needs
+the DIV2K dataset and is skipped (with a warning) if it is unavailable, or with
+--no-freq.
 
 Usage:
-    # compute + render (writes JSON + figures)
+    # canonical trained QFT -> figures in the random_seed writeup's figures dir
+    python tools/render_qft_block_structure.py
+    # a different operator / output location
     python tools/render_qft_block_structure.py \
-        --base results/training/2_direct_training/random_seed/div2k_8q
-    # just recompute the JSON (no figures)
-    python tools/render_qft_block_structure.py --compute-only \
-        --base ... --orderings bg --seeds 50,51 --out /tmp/bs.json
-    # re-render figures from the committed JSON (no recompute)
-    python tools/render_qft_block_structure.py --from-json --base ...
+        --basis results/final/div2k_8q/by_basis/qft/trained_qft.json \
+        --out-base results/training/2_direct_training/random_seed/div2k_8q
 """
 from __future__ import annotations
 
@@ -35,106 +36,71 @@ os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 
 import numpy as np
 
-DEFAULT_BASE = Path("results/training/2_direct_training/random_seed/div2k_8q")
-ALL_ORDERINGS = ("bg", "lr", "rl")
+DEFAULT_BASIS = Path("results/final/div2k_8q/by_basis/qft/trained_qft.json")
+DEFAULT_OUTBASE = Path("results/training/2_direct_training/random_seed/div2k_8q")
 BLOCK_SIZES = (2, 4, 8, 16, 32, 64, 128)
 
 
-def _parse_seeds(spec):
-    if not spec:
-        return None
-    out = set()
-    for part in spec.split(","):
-        part = part.strip()
-        if not part:
-            continue
-        if "-" in part:
-            lo, hi = part.split("-", 1)
-            out.update(range(int(lo), int(hi) + 1))
-        else:
-            out.add(int(part))
-    return sorted(out)
-
-
-def _operator_records(base, orderings, seeds):
-    """Load each trained_seed operator and compute its per-op metric record."""
+def _metrics(d):
+    """Single-operator block-structure metrics from a trained_*.json dict."""
     import jax.numpy as jnp
     import pdft
     from pdft_benchmarks import block_structure as bs
 
-    records = []
-    for ordr in orderings:
-        rundir = base / "_runs" / ordr
-        files = (sorted(rundir.glob("trained_seed_*.json")) if seeds is None
-                 else [rundir / f"trained_seed_{s:03d}.json" for s in seeds])
-        for p in files:
-            if not p.exists():
-                continue
-            d = json.loads(p.read_text())
-            tensors = d["tensors"]
-            g = bs.gate_summary(tensors, m=int(d["m"]), n=int(d["n"]))
-            T = [jnp.asarray(np.asarray(t["real"]) + 1j * np.asarray(t["imag"]),
-                             dtype=jnp.complex128) for t in tensors]
-            basis = pdft.QFTBasis(m=int(d["m"]), n=int(d["n"]), tensors=T)
-            W = bs.materialize_factor(basis.forward_transform,
-                                      N=2 ** int(d["m"]), axis=0)
-            sweep = bs.leakage_sweep(W, BLOCK_SIZES)
-            rec = {"ordering": ordr, "seed": int(d["seed"]), **g,
-                   "leakage_sweep": sweep,
-                   "eff_block": bs.effective_block_size(W),
-                   "eff_leakage": float(sweep[16])}
-            records.append(rec)
-            print(f"[block] {ordr} seed {d['seed']:>3}: "
-                  f"n_mix={g['n_mix_row']}/{g['n_mix_col']} "
-                  f"eff_block={rec['eff_block']} leak16={rec['eff_leakage']:.4f}")
-    return records
-
-
-def _compute(args):
-    from pdft_benchmarks import block_structure as bs
-    base = Path(args.base)
-    orderings = args.orderings.split(",") if args.orderings else list(ALL_ORDERINGS)
-    seeds = _parse_seeds(args.seeds)
-    recs = _operator_records(base, orderings, seeds)
-    if not recs:
-        raise SystemExit("[block] no operators found")
-    agg = bs.aggregate(recs, BLOCK_SIZES)
-    agg["dataset"] = base.name
-    agg["per_op"] = recs
-    return agg
+    m, n = int(d["m"]), int(d["n"])
+    g = bs.gate_summary(d["tensors"], m=m, n=n)
+    T = [jnp.asarray(np.asarray(t["real"]) + 1j * np.asarray(t["imag"]),
+                     dtype=jnp.complex128) for t in d["tensors"]]
+    W = bs.materialize_factor(pdft.QFTBasis(m=m, n=n, tensors=T).forward_transform,
+                              N=2 ** m, axis=0)
+    sweep = bs.leakage_sweep(W, BLOCK_SIZES)
+    return {
+        "basis": d.get("key", "qft"),
+        "seed": d.get("seed"),
+        "m": m, "n": n,
+        **g,
+        "leakage_sweep": {str(int(b)): float(v) for b, v in sweep.items()},
+        "eff_block": bs.effective_block_size(W),
+        "eff_leakage": float(sweep[16]),
+    }, W, sweep
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--base", default=str(DEFAULT_BASE))
-    ap.add_argument("--orderings", default=None, help="comma list, default bg,lr,rl")
-    ap.add_argument("--seeds", default=None, help="e.g. 1-100 or 50,51 (default: all)")
-    ap.add_argument("--out", default=None, help="JSON path (default: <base>/block_structure.json)")
+    ap.add_argument("--basis", default=str(DEFAULT_BASIS),
+                    help="trained_*.json operator to analyze.")
+    ap.add_argument("--out-base", default=str(DEFAULT_OUTBASE),
+                    help="dir whose figures/ subdir receives the panels; also "
+                         "where block_structure.json is written.")
+    ap.add_argument("--out", default=None,
+                    help="metrics JSON path (default: <out-base>/block_structure.json).")
     ap.add_argument("--compute-only", action="store_true", default=False)
-    ap.add_argument("--from-json", action="store_true", default=False)
     ap.add_argument("--no-freq", action="store_true", default=False,
                     help="skip the DIV2K mean-power-spectrum panel (needs the dataset).")
     args = ap.parse_args()
 
-    base = Path(args.base)
+    base = Path(args.out_base)
     out = Path(args.out) if args.out else base / "block_structure.json"
 
-    if args.from_json:
-        agg = json.loads(out.read_text())
-    else:
-        agg = _compute(args)
-        out.write_text(json.dumps(agg, indent=2))
-        print(f"[block] wrote {out}")
+    d = json.loads(Path(args.basis).read_text())
+    metrics, W, sweep = _metrics(d)
+    out.write_text(json.dumps(metrics, indent=2))
+    print(f"[block] {metrics['basis']} seed {metrics['seed']}: "
+          f"n_mix={metrics['n_mix_row']}/{metrics['n_mix_col']} "
+          f"block={metrics['block_row']}x{metrics['block_col']} "
+          f"leak16={metrics['eff_leakage'] * 100:.3f}% "
+          f"cp_active={metrics['cp_active_frac']:.3f}")
+    print(f"[block] wrote {out}")
 
     if args.compute_only:
         return 0
 
-    from render_qft_block_structure_figs import render_all, render_freq_spectrum
-    render_all(agg, base)
+    from render_qft_block_structure_figs import render_core, render_freq_spectrum
+    render_core(d, base, W=W, sweep=sweep)
     if not args.no_freq:
         try:
-            render_freq_spectrum(agg, base)
+            render_freq_spectrum(d, base)
         except Exception as e:  # noqa: BLE001 -- dataset optional; core figs already done
             print(f"[block] skipped freq-spectrum panel "
                   f"({type(e).__name__}: {e}); core figures rendered.")

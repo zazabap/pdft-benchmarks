@@ -147,38 +147,41 @@ summary of location and spread, not a claim of Gaussianity.
   above. #olab.lr *(b)* is intermediate.])
 
 #let blk = json("div2k_8q/block_structure.json")
-#let blkpool = blk.pooled
-#let frozen_per_dim = f1((16 - blkpool.n_mix_row.mean - blkpool.n_mix_col.mean) / 2)
+#let frozen_per_dim = (16 - blk.n_mix_row - blk.n_mix_col) / 2
+#let cp_active = calc.round(blk.cp_active_frac * 56)
 
 = Emergent block structure of the trained QFT
 
-The same #(nseed)-seed operators let us test, robustly across random init, the
-paper's central structural claim (sec5.3): the trained full-image QFT factors
-itself into a block code with no block prior. We read each converged
-`QFTBasis(8,8)` directly. Of the 16 Hadamard-role gates (8 per dimension),
-about #frozen_per_dim per dimension collapse to non-mixing *Pauli-Z/X* gates
-(mixing $2|a||b| approx 0.3%$) — classical block indices — while all 56
-controlled-phase gates stay fully active, so the intra-block transform remains
-rich. The dense operator is consequently block-diagonal: its off-block energy is
-only #str(calc.round(blkpool.eff_leakage.mean * 100, digits: 3))% at a 16-pixel
-block — essentially exact — with a modal effective block of $16 times 16$.
+We close by reading the *canonical published* trained QFT
+(`QFTBasis(8,8)`, seed #blk.seed) directly, making the paper's central
+structural claim concrete (sec5.3): the trained full-image QFT factors itself
+into a block code with no block prior. Of its 16 Hadamard-role gates (8 per
+dimension), #frozen_per_dim per dimension collapse to non-mixing *Pauli-Z/X*
+gates (the off-diagonal/diagonal modulus drops to $approx 0.3%$) — classical
+block indices — while #cp_active of the 56 controlled-phase gates stay active, so
+the intra-block transform stays rich. The #blk.n_mix_row still-mixing row qubits
+and #blk.n_mix_col column qubits leave an effective
+$#blk.block_row times #blk.block_col$-pixel block.
 
 #figure(
   image("div2k_8q/figures/block_gate_collapse.svg", width: 100%),
-  caption: [Per-Hadamard freeze probability across all seeds, one row per
-  unfreeze ordering (row qubits r1..8 | col qubits c1..8). Roughly half of each
-  dimension's Hadamards reliably freeze to Pauli-Z/X (non-mixing), the rest stay
-  frequency-mixing.])
+  caption: [Hadamard-role gates of the trained QFT, one cell per qubit and
+  dimension, shaded by the mixing score $2|a||b|$ (1 = Hadamard, 0 = frozen) and
+  labelled by type. Four of the eight Hadamards per dimension keep mixing
+  frequencies; the other four freeze to Pauli-Z (or X) and act as classical block
+  indices.])
+
+The factorization shows directly in the dense operator and its spectrum.
 
 #figure(
   grid(columns: (1.05fr, 1fr), column-gutter: 8pt, align: horizon,
     image("div2k_8q/figures/block_operator_heatmap.svg", width: 100%),
     image("div2k_8q/figures/block_leakage_sweep.svg", width: 100%)),
-  caption: [*Left:* $log|W|$ of the representative seed's 1-D operator factor,
-  block-diagonal at the emergent 16-pixel block. *Right:* block-leakage vs
-  candidate block size — the knee at $b=16$ (dotted) shows the operator is
-  block-structured at that specific scale and not below; the untrained
-  closed-form QFT (not shown) stays high at every scale.])
+  caption: [*Left:* $log|W|$ of the trained QFT's 1-D operator factor,
+  block-diagonal at the emergent 16-pixel block (off-block energy below $0.01%$).
+  *Right:* off-block energy vs candidate block size — the knee at $b=16$ (dotted)
+  shows the operator is block-structured at that specific scale and not below; the
+  untrained closed-form QFT (not shown) stays high at every scale.])
 
 The same factorization is visible directly in frequency space.
 
@@ -186,17 +189,8 @@ The same factorization is visible directly in frequency space.
   image("div2k_8q/figures/block_freq_spectrum.svg", width: 100%),
   caption: [Mean test-set power spectrum (peak-normalized
   $log_10 overline(|F|^2)$, averaged over the 50 DIV2K test images) of the
-  untrained *global QFT* (left) and the *trained QFT* (right, representative
-  seed). The global transform packs energy into a single low-frequency lobe; the
-  trained transform tiles into a $16 times 16$ grid of repeated sub-spectra — the
-  block-periodic signature of a block transform, the same structure the $8
-  times 8$ block references produce in Fig. 4 of the main text.])
-
-Across all #(nseed * 3) operators the structure is stable: the per-seed
-block-leakage stays negligible (below $0.01%$) and the pooled modal effective
-block is $16 times 16$, so the block factorization is a robust property of the
-trained QFT rather than a one-run artifact. The tightly-converged #olab.bg and
-#olab.lr orderings concentrate at $16 times 16$, while the high-variance
-#olab.rl ordering freezes fewer column Hadamards (the lighter c5\/c6 cells in the
-freeze map above), giving larger, more variable column blocks — the one axis
-along which the emergent block loosens.
+  untrained *global QFT* (left) and the *trained QFT* (right). The global
+  transform packs energy into a single low-frequency lobe; the trained transform
+  tiles into a $16 times 16$ grid of repeated sub-spectra — the block-periodic
+  signature of a block transform, the same structure the $8 times 8$ block
+  references produce in Fig. 4 of the main text.])
