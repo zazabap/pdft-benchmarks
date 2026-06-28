@@ -49,6 +49,48 @@ def qft_unfreeze_orders(m: int, n: int) -> dict[str, list[int]]:
     return {"bg": bg, "lr": lr, "rl": rl}
 
 
+def dct4_unfreeze_orders(m: int, n: int) -> dict[str, list[int]]:
+    """Three unfreeze orderings as lists of indices into ``DCT4Basis(m, n).tensors``.
+
+    DCT4Basis stores gates Hadamard-first BY VALUE (only the branch-H merges
+    equal the Hadamard; the R_y rotations are kind "H" but are not), so we read
+    the storage permutation from the builder's value-based ``_hadamard_first_perm``
+    instead of the QFT kind-based key.
+
+      - lr: emission order
+      - rl: reverse emission order
+      - bg: block growth — group by stage (the largest within-axis builder qubit
+        a gate touches; = sub-block size, since the DCT-IV on qubits 1..k IS the
+        size-2^k block), row axis before col, emission order within. Unfreezing
+        stages 1..k completes the blocked DCT-IV(k, k).
+    """
+    from pdft.bases.circuit.dct4 import _dct4_gates_1d
+    from pdft.circuit.builder import _hadamard_first_perm
+
+    gates = _dct4_gates_1d(m, offset=0) + _dct4_gates_1d(n, offset=m)
+    G = len(gates)
+    perm = _hadamard_first_perm([g["tensor"] for g in gates])
+    emission_to_storage = [0] * G
+    for storage_pos, emission_idx in enumerate(perm):
+        emission_to_storage[emission_idx] = storage_pos
+
+    def axis_of(q: int) -> int:
+        return 0 if q <= m else 1
+
+    def within(q: int) -> int:
+        return q if q <= m else q - m
+
+    keys = []  # (stage, axis, emission_idx)
+    for e, g in enumerate(gates):
+        within_qs = [within(q) for q in g["qubits"]]
+        keys.append((max(within_qs), axis_of(g["qubits"][0]), e))
+
+    lr = [emission_to_storage[e] for e in range(G)]
+    rl = list(reversed(lr))
+    bg = [emission_to_storage[k[2]] for k in sorted(keys)]
+    return {"bg": bg, "lr": lr, "rl": rl}
+
+
 def _plateau_reason(grad_norm, loss, loss_prev, *, step, min_steps, grad_tol, loss_tol):
     """Return the trigger reason ("grad_norm" | "loss_delta") or None.
 

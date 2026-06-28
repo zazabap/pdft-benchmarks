@@ -1,24 +1,27 @@
 #!/usr/bin/env python3
 """Drive the 8-stage progressive block-size sweep on DIV2K-8q.
 
-Supports six circuit families via --family: `qft` (default), `rich`,
-`real_rich`, `tebd`, `entangled_qft`, `mera`. Every family supports both
+Supports seven circuit families via --family: `qft` (default), `rich`,
+`real_rich`, `tebd`, `entangled_qft`, `mera`, `dct4`. Every family supports both
 `--init identity` and `--init random`, and three datasets via --dataset:
 div2k_8q / tuberlin_8q (m=n=8) and quickdraw_5q (m=n=5). The curriculum is
 identical across families; only the per-stage inner basis and its valid k range
-change: `qft`/`rich`/`real_rich` run k=1..m, `tebd`/`entangled_qft` run k=2..m,
-and `mera` runs only k a power of 2 in [2, m].
+change: `qft`/`rich`/`real_rich`/`dct4` run k=1..m, `tebd`/`entangled_qft` run
+k=2..m, and `mera` runs only k a power of 2 in [2, m].
 
 For each stage k, train INDEPENDENTLY from a per-family init:
   - basis = BlockedBasis(<family>(k, k), m-k, m-k)  for k < m
           = bare <family>(m, m)                     for k = m
-  - inner init (--init identity, the default, for qft/rich/real_rich):
+  - inner init (--init identity, the default, for qft/rich/real_rich/dct4):
         qft       : H -> I_2, CP -> phase 0
         rich      : H -> I_2, U4 -> I_4 (complex U(2)/U(4) manifolds)
         real_rich : H -> I_2, U4 -> I_4 (real SO(2)/SO(4) manifolds)
+        dct4      : H/R_y -> I_2, U4 -> I_4, Delta CP -> phase 0 (real-orthogonal)
     inner init (--init random):
         rich      : Haar-random complex U(2)/U(4) gates, seeded by --seed
         real_rich : Haar-random real SO(2)/SO(4) gates, seeded by --seed
+        dct4      : Haar real SO(2)/SO(4) gates, Delta CP at its real sign,
+                    seeded by --seed
         tebd      : native seeded random brick-wall (tebd has no identity
                     init; it REQUIRES --init random)
   - train under the headline preset for --epochs-per-stage epochs
@@ -122,7 +125,7 @@ def main() -> int:
                         help="GPU index. Sets CUDA_VISIBLE_DEVICES before any pdft/jax import.")
     parser.add_argument("--family", type=str, default="qft",
                         choices=["qft", "rich", "real_rich", "tebd",
-                                 "entangled_qft", "mera"],
+                                 "entangled_qft", "mera", "dct4"],
                         help="Circuit family for the per-stage inner basis. "
                              "Default qft. All families support --init "
                              "{identity,random}. mera only trains at k in "
@@ -175,6 +178,7 @@ def main() -> int:
         "tebd": pdft.TEBDBasis,
         "entangled_qft": pdft.EntangledQFTBasis,
         "mera": pdft.MERABasis,
+        "dct4": pdft.DCT4Basis,
     }[family]
 
     # Per-stage inner-basis builder, dispatched by (family, init) via the

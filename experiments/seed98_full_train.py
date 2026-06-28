@@ -15,9 +15,12 @@ to the paper, so the only thing the seed moves is the trained operator.
 
 Basis keys (this driver's vocabulary):
     qft, entangled_qft, tebd, mera   — bare full-image families
+    dct4                             — bare full-image DCT-IV (real-orthogonal)
     rich_full                        — bare full-image RichBasis (U(4) gates)
     rich_8                           — RichBasis wrapped into fixed 8×8 blocks
                                        (inner 3-qubit RichBasis, seed-98 init)
+    dct4_b3                          — DCT-IV wrapped into fixed 8×8 blocks
+                                       (inner 3-qubit DCT-IV, seed-98 init)
 
 MERA is unavailable on QuickDraw (m+n=10 is not a power of two); pass a basis
 list that omits it there.
@@ -64,8 +67,8 @@ def _atomic_write_json(path: Path, obj) -> None:
     os.replace(tmp, path)
 
 
-BARE_FAMILIES = ("qft", "entangled_qft", "tebd", "mera")
-BLOCK_FAMILIES = ("qft", "entangled_qft", "tebd", "mera", "rich")
+BARE_FAMILIES = ("qft", "entangled_qft", "tebd", "mera", "dct4")
+BLOCK_FAMILIES = ("qft", "entangled_qft", "tebd", "mera", "rich", "dct4")
 
 
 def _is_pow2(x: int) -> bool:
@@ -121,9 +124,9 @@ def main() -> int:
                     help="GPU index; sets CUDA_VISIBLE_DEVICES before JAX import.")
     ap.add_argument("--dataset", required=True, choices=list(DATASET_CFG))
     ap.add_argument("--bases", required=True,
-                    help="Comma-separated keys: qft|entangled_qft|tebd|mera|"
+                    help="Comma-separated keys: qft|entangled_qft|tebd|mera|dct4|"
                          "rich_full, or block variants <family>_b<innerq> "
-                         "(e.g. qft_b2=4x4, rich_b3=8x8, mera_b4=16x16).")
+                         "(e.g. qft_b2=4x4, rich_b3=8x8, dct4_b3=8x8, mera_b4=16x16).")
     ap.add_argument("--seed", type=int, default=98,
                     help="Init + training-RNG seed (test set stays seed-42).")
     ap.add_argument("--epochs", type=int, default=112,
