@@ -613,6 +613,167 @@ def _qft_random_basis(m: int, n: int, seed: int):
                          code=base.code, inv_code=base.inv_code)
 
 
+# ---------------------------------------------------------------------------
+# DCT-IV identity / random / inner-outer / warm-start helpers.
+#
+# DCT4Basis stores EVERY gate (R_y / branch-H / CR_y / mirror-Q CNOT / Delta)
+# as a learnable leaf, sorted Hadamard-first BY VALUE (compile_circuit's
+# _hadamard_first_perm). Unlike the QFT helpers we cannot key the storage sort
+# on ``kind != "H"`` — the R_y rotations are kind "H" but are NOT Hadamard-
+# valued — so these helpers read the storage order straight from the builder
+# (sorted_gate_program / _hadamard_first_perm) and then map by gate KIND.
+# ---------------------------------------------------------------------------
+
+
+def dct4_identity_basis(m: int, n: int) -> "pdft.DCT4Basis":
+    """Construct a ``DCT4Basis(m, n)`` whose operator is the identity.
+
+    Every gate is pinned to the identity element of its slot, keyed by gate
+    kind: H / R_y -> I_2, U4 (CR_y, mirror-Q) -> I_4, CP (Delta) -> phase 0.
+    With all gates trivial the circuit is a no-op, so ``forward(x) == x``.
+    """
+    import jax.numpy as jnp
+    from pdft.bases.circuit.dct4 import _dct4_gates_1d
+    from pdft.circuit.builder import controlled_phase_diag, sorted_gate_program
+
+    gates = _dct4_gates_1d(m, offset=0) + _dct4_gates_1d(n, offset=m)
+    ident = {
+        "H": jnp.eye(2, dtype=jnp.complex128),
+        "U4": jnp.eye(4, dtype=jnp.complex128).reshape(2, 2, 2, 2),
+        "CP": controlled_phase_diag(0.0),
+    }
+    new_tensors = [ident[kind] for kind, _q in sorted_gate_program(gates)]
+    base = pdft.DCT4Basis(m=m, n=n)
+    return pdft.DCT4Basis(m=m, n=n, tensors=new_tensors,
+                          code=base.code, inv_code=base.inv_code)
+
+
+def _dct4_random_basis(m: int, n: int, seed: int) -> "pdft.DCT4Basis":
+    """Haar-random real-orthogonal init on the DCT-IV topology.
+
+    H / R_y slots -> Haar SO(2), U4 slots (CR_y, mirror-Q) -> Haar SO(4); the
+    Delta CP slot keeps its real sign ``controlled_phase_diag(pi)`` (its only
+    real-orthogonal value — a real objective leaves it stationary anyway).
+    Seeded, reproducible; mirrors ``_circuit_random_basis`` for RealRichBasis.
+    """
+    import jax.numpy as jnp
+    import numpy as np
+    from pdft.bases.circuit.dct4 import _dct4_gates_1d
+    from pdft.circuit.builder import controlled_phase_diag, sorted_gate_program
+
+    gates = _dct4_gates_1d(m, offset=0) + _dct4_gates_1d(n, offset=m)
+    rng = np.random.default_rng(seed)
+    cp_pi = jnp.asarray(controlled_phase_diag(float(np.pi)), dtype=jnp.complex128)
+    new_tensors = []
+    for kind, _q in sorted_gate_program(gates):
+        if kind == "H":
+            new_tensors.append(jnp.asarray(_haar_special_orthogonal(2, rng), dtype=jnp.complex128))
+        elif kind == "U4":
+            u = _haar_special_orthogonal(4, rng).reshape(2, 2, 2, 2)
+            new_tensors.append(jnp.asarray(u, dtype=jnp.complex128))
+        elif kind == "CP":
+            new_tensors.append(cp_pi)
+        else:
+            raise AssertionError(f"unexpected DCT-IV gate kind {kind!r}")
+    base = pdft.DCT4Basis(m=m, n=n)
+    return pdft.DCT4Basis(m=m, n=n, tensors=new_tensors,
+                          code=base.code, inv_code=base.inv_code)
+
+
+def dct4_inner_outer_indices(
+    m: int, n: int, inner_m: int, inner_n: int,
+) -> tuple[list[int], list[int]]:
+    """Return (inner_indices, outer_indices) into ``DCT4Basis(m, n).tensors``.
+
+    A gate is "inner" iff every qubit it touches lies in the inner block:
+    axis-1 builder qubits {1..inner_m}, axis-2 {m+1..m+inner_n} — the LOW
+    qubits BlockedBasis tiles the inner DCT-IV over. Indices are into the
+    value-sorted (Hadamard-first) storage order DCT4Basis uses.
+    """
+    from pdft.bases.circuit.dct4 import _dct4_gates_1d
+    from pdft.circuit.builder import sorted_gate_program
+
+    if not (0 <= inner_m <= m and 0 <= inner_n <= n):
+        raise ValueError(
+            f"dct4_inner_outer_indices: invalid inner (inner_m={inner_m}, "
+            f"inner_n={inner_n}) for m={m}, n={n}"
+        )
+    gates = _dct4_gates_1d(m, offset=0) + _dct4_gates_1d(n, offset=m)
+
+    def _is_inner_q(q: int) -> bool:
+        return q <= inner_m if q <= m else (q - m) <= inner_n
+
+    inner: list[int] = []
+    outer: list[int] = []
+    for i, (_kind, qubits) in enumerate(sorted_gate_program(gates)):
+        (inner if all(_is_inner_q(q) for q in qubits) else outer).append(i)
+    return inner, outer
+
+
+def dct4_warm_from_trained_blocked(trained_blocked: "pdft.BlockedBasis") -> "pdft.DCT4Basis":
+    """Embed a trained ``BlockedBasis(DCT4Basis(m_i, n_i), block_log_m, block_log_n)``
+    into a full ``DCT4Basis(m, n)`` whose initial operator equals the trained
+    blocked one bit-exactly.
+
+    Inner-block gates (all qubits in the inner block) take the TRAINED inner
+    tensor; every outer gate is pinned to its kind's identity (H -> I_2,
+    U4 -> I_4, CP -> phase 0), which collapses the outer recursion levels to a
+    no-op so the full operator reduces to the tiled inner = the blocked basis.
+    All m+n axis parameters stay trainable for the subsequent re-train.
+    """
+    import jax.numpy as jnp
+    from pdft.bases.circuit.dct4 import _dct4_gates_1d
+    from pdft.circuit.builder import _hadamard_first_perm, controlled_phase_diag
+
+    inner = trained_blocked.inner
+    if not isinstance(inner, pdft.DCT4Basis):
+        raise TypeError(
+            f"dct4_warm_from_trained_blocked: inner must be DCT4Basis, "
+            f"got {type(inner).__name__}"
+        )
+    m_i, n_i = inner.m, inner.n
+    m_o = m_i + trained_blocked.block_log_m
+    n_o = n_i + trained_blocked.block_log_n
+
+    # The full DCT-IV's inner-level gates (touching only inner qubits) form a
+    # contiguous emission block equal, gate-for-gate, to the standalone inner
+    # DCT-IV's emission — so pair them POSITIONALLY. (A (kind, qubits) dict
+    # would collide: each level emits two identical mirror-Q CNOTs and an R_y +
+    # branch-H on the same qubit.) inner.tensors is value-sorted storage order,
+    # so first invert that back to emission order.
+    inner_gates = _dct4_gates_1d(m_i, offset=0) + _dct4_gates_1d(n_i, offset=m_i)
+    inner_perm = _hadamard_first_perm([g["tensor"] for g in inner_gates])
+    emit_to_storage = [0] * len(inner_gates)
+    for storage_pos, emit_idx in enumerate(inner_perm):
+        emit_to_storage[emit_idx] = storage_pos
+    inner_emit = [inner.tensors[emit_to_storage[j]] for j in range(len(inner_gates))]
+
+    outer_identity = {
+        "H": jnp.eye(2, dtype=jnp.complex128),
+        "U4": jnp.eye(4, dtype=jnp.complex128).reshape(2, 2, 2, 2),
+        "CP": controlled_phase_diag(0.0),
+    }
+
+    def _is_inner_q(q: int) -> bool:
+        return q <= m_i if q <= m_o else (q - m_o) <= n_i
+
+    outer_gates = _dct4_gates_1d(m_o, offset=0) + _dct4_gates_1d(n_o, offset=m_o)
+    temporal, ip = [], 0
+    for g in outer_gates:
+        if all(_is_inner_q(q) for q in g["qubits"]):
+            temporal.append(inner_emit[ip])
+            ip += 1
+        else:
+            temporal.append(outer_identity[g["kind"]])
+    if ip != len(inner_emit):
+        raise AssertionError(
+            f"consumed {ip} inner gates != {len(inner_emit)} trained inner tensors"
+        )
+    perm = _hadamard_first_perm([g["tensor"] for g in outer_gates])
+    sorted_tensors = [jnp.asarray(temporal[i], dtype=jnp.complex128) for i in perm]
+    return pdft.DCT4Basis(m=m_o, n=n_o, tensors=sorted_tensors)
+
+
 _FAMILY_CLASS = {
     "qft": pdft.QFTBasis,
     "rich": pdft.RichBasis,
@@ -620,6 +781,7 @@ _FAMILY_CLASS = {
     "tebd": pdft.TEBDBasis,
     "entangled_qft": pdft.EntangledQFTBasis,
     "mera": pdft.MERABasis,
+    "dct4": pdft.DCT4Basis,
 }
 
 
@@ -627,8 +789,11 @@ def family_identity_basis(family: str, m: int, n: int):
     """Identity-operator init for a circuit family (bare, unblocked).
 
     Rich/RealRich use shape-based identity (U(2)/U(4)); QFT/TEBD/EntangledQFT/
-    MERA use value-based identity (Hadamard -> I_2, controlled-phase -> phase 0).
+    MERA use value-based identity (Hadamard -> I_2, controlled-phase -> phase 0);
+    DCT-IV keys by gate kind (H/R_y -> I_2, U4 -> I_4, Delta CP -> phase 0).
     """
+    if family == "dct4":
+        return dct4_identity_basis(m, n)
     cls = _FAMILY_CLASS[family]
     if family in ("rich", "real_rich"):
         return _circuit_identity_basis(cls, m, n)
@@ -639,9 +804,12 @@ def family_random_basis(family: str, m: int, n: int, seed: int):
     """Random (Haar / native-seed) init for a circuit family (bare, unblocked).
 
     QFT -> Haar U(2) on H slots + uniform phase on CP slots; Rich/RealRich ->
-    Haar U/SO on every gate; TEBD/EntangledQFT/MERA -> the constructor's own
+    Haar U/SO on every gate; DCT-IV -> Haar SO(2)/SO(4) on H/U4 slots, Delta CP
+    kept at its real sign; TEBD/EntangledQFT/MERA -> the constructor's own
     seeded random init. Seeded; reproduces the family×init sweep's random cells.
     """
+    if family == "dct4":
+        return _dct4_random_basis(m, n, seed)
     cls = _FAMILY_CLASS[family]
     if family in ("tebd", "entangled_qft", "mera"):
         return cls(m=m, n=n, seed=seed)
@@ -653,4 +821,6 @@ def family_random_basis(family: str, m: int, n: int, seed: int):
 __all__ = ["BASIS_FACTORIES", "BasisFactory", "qft_identity_basis",
            "identity_basis_for", "qft_warm_from_smaller_qft",
            "qft_inner_outer_indices",
+           "dct4_identity_basis", "dct4_inner_outer_indices",
+           "dct4_warm_from_trained_blocked",
            "family_identity_basis", "family_random_basis"]
