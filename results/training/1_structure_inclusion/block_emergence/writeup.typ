@@ -109,31 +109,39 @@ flat-valley / discrete-basin picture in the seed-robustness study.
 
 = Which Hadamards freeze
 
-#let gf = json("gate_freezing.json")
+#let gf = json("gate_freezing.json")             // this run (seed 0, block 32)
+#let gf16 = json("gate_freezing_16px.json")      // canonical (seed 98, block 16)
 #let froz_per_dim = int(gf.n_frozen / 2)
+#let froz16 = int(gf16.n_frozen / 2)
 
-The block code is set by a specific handful of gates. Each of the
-#(gf.m + gf.n) Hadamard-role gates is classified by its mixing score
-$s = 2 abs(a) abs(b)$ (Hadamard if $s > 0.5$, else frozen to Pauli-Z when
-$abs(a) >= abs(b)$ or Pauli-X otherwise). The Haar start is all-mixing
-(#gf.init.H Hadamards, #(gf.init.Z + gf.init.X) frozen); training collapses
-#gf.n_frozen of them to Pauli — #gf.final.Z Pauli-Z and #gf.final.X Pauli-X —
-leaving #gf.final.H still mixing.
+The block code is set by a specific handful of gates. Each H-role gate is
+classified by its mixing score $s = 2 abs(a) abs(b)$ (Hadamard if $s > 0.5$,
+else frozen to Pauli-Z when $abs(a) >= abs(b)$ or Pauli-X otherwise). The
+freezing is *positional*: it is always the most-significant qubits per dimension
+that collapse to a Pauli — classical block-index bits — while the low qubits
+keep mixing as the intra-block transform.
 
-The freezing is *positional*: in each dimension it is the
-#froz_per_dim most-significant qubits (q5, q6, q7) that collapse to a Pauli,
-while the low qubits q0#sym.dash.en q4 keep mixing — so the #froz_per_dim frozen
-qubits act as classical block-index bits and the #(gf.m - froz_per_dim) mixing
-ones carry the intra-block transform, giving the $#gf.block_row$-pixel block.
+*This run* (seed #gf.seed, @fig-gate-freeze top): all #(gf.m + gf.n) gates start
+Hadamard; #gf.n_frozen freeze (#gf.final.Z Pauli-Z, #gf.final.X Pauli-X), namely
+q5#sym.dash.en q7 in both dimensions, leaving the $#gf.block_row$-pixel block.
+*The canonical seed* (seed #gf16.seed, @fig-gate-freeze bottom): one more qubit
+per dimension freezes — q4#sym.dash.en q7 — so #gf16.n_frozen go Pauli
+(#gf16.final.Z Pauli-Z, #gf16.final.X Pauli-X), leaving the finer
+$#gf16.block_row$-pixel block. Same mechanism one rung deeper: the *number* of
+frozen qubits, hence the block scale, is what the initialisation selects.
 
 #figure(
-  image("figures/gate_freezing.svg", width: 96%),
-  caption: [*Left:* H-role gate classification, initial vs final — all
-  #(gf.m + gf.n) gates begin as Hadamards and #gf.n_frozen freeze
-  (#gf.final.Z to Pauli-Z, #gf.final.X to Pauli-X). *Right:* the exact locations
-  — the most-significant qubits (q5#sym.dash.en q7) collapse to Pauli (the
-  classical block index) in both row and column dimensions, while q0#sym.dash.en
-  q4 stay Hadamard (the intra-block transform).])
+  stack(spacing: 9pt,
+    image("figures/gate_freezing.svg", width: 94%),
+    image("figures/gate_freezing_16px.svg", width: 94%)),
+  caption: [Gate freezing for two initialisations. *Top:* seed #gf.seed —
+  #gf.n_frozen gates freeze (q5#sym.dash.en q7 per dimension) into the
+  $#gf.block_row$-px block. *Bottom:* seed #gf16.seed, the canonical paper
+  operator — #gf16.n_frozen freeze (q4#sym.dash.en q7) into the finer
+  $#gf16.block_row$-px block. Left panels: H / Pauli-Z / Pauli-X counts, initial
+  vs final; right panels: the exact frozen qubit positions. The most-significant
+  qubits always collapse to Pauli; the initialisation sets how many.])
+  <fig-gate-freeze>
 
 = Initial-value dependence
 
