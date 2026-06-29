@@ -107,6 +107,34 @@ flat-valley / discrete-basin picture in the seed-robustness study.
   #s.b_star pixels. This is the operator-space twin of the frequency-space
   spectrogram above: the off-block energy draining away *is* the comb sharpening.])
 
+= Which Hadamards freeze
+
+#let gf = json("gate_freezing.json")
+#let froz_per_dim = int(gf.n_frozen / 2)
+
+The block code is set by a specific handful of gates. Each of the
+#(gf.m + gf.n) Hadamard-role gates is classified by its mixing score
+$s = 2 abs(a) abs(b)$ (Hadamard if $s > 0.5$, else frozen to Pauli-Z when
+$abs(a) >= abs(b)$ or Pauli-X otherwise). The Haar start is all-mixing
+(#gf.init.H Hadamards, #(gf.init.Z + gf.init.X) frozen); training collapses
+#gf.n_frozen of them to Pauli — #gf.final.Z Pauli-Z and #gf.final.X Pauli-X —
+leaving #gf.final.H still mixing.
+
+The freezing is *positional*: in each dimension it is the
+#froz_per_dim most-significant qubits (q5, q6, q7) that collapse to a Pauli,
+while the low qubits q0#sym.dash.en q4 keep mixing — so the #froz_per_dim frozen
+qubits act as classical block-index bits and the #(gf.m - froz_per_dim) mixing
+ones carry the intra-block transform, giving the $#gf.block_row$-pixel block.
+
+#figure(
+  image("figures/gate_freezing.svg", width: 96%),
+  caption: [*Left:* H-role gate classification, initial vs final — all
+  #(gf.m + gf.n) gates begin as Hadamards and #gf.n_frozen freeze
+  (#gf.final.Z to Pauli-Z, #gf.final.X to Pauli-X). *Right:* the exact locations
+  — the most-significant qubits (q5#sym.dash.en q7) collapse to Pauli (the
+  classical block index) in both row and column dimensions, while q0#sym.dash.en
+  q4 stay Hadamard (the intra-block transform).])
+
 = Initial-value dependence
 
 The *existence* of a block factorisation is robust — every Haar start we have
