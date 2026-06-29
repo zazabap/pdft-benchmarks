@@ -56,5 +56,25 @@ only), and (b) avoiding gradient computation through frozen gates. Those are the
 genuine forward/backward-cost levers; the parametrization change alone moves
 parameters, not wall-clock.
 
+## Full 1008-step run (training dynamics)
+
+Both variants trained to the headline 1008-step budget (parallel, separate Ada
+cards; loss is card-independent). Trajectories in
+`figures/training_dynamics.{pdf,svg}`, traces in `trace_dct4_*.json`.
+
+| metric | dct4 O(4) | dct4 controlled (O(2)) |
+|---|---:|---:|
+| final train loss | 114.07 | 122.70 |
+| validation-loss plateau | ~102 (still creeping down) | ~110 (flat from ~epoch 40) |
+| PSNR@0.10 | 29.28 dB | 28.85 dB (−0.43) |
+| wall-clock (1008 steps, Ada) | 26.9 min (1.60 s/step) | 31.3 min (1.87 s/step) |
+
+At full convergence the gap is a bit wider than the 198-step snapshot (−0.43 vs
+−0.12 dB PSNR): the controlled basis (408 params) **plateaus** at val ≈110 around
+epoch 40, while the O(4) basis (2872 params) keeps inching down to ≈102. So the
+dense-O(4) capacity *does* buy a little at convergence — but the structured basis
+still lands within ~0.43 dB using 7× fewer parameters. It remains ~17% slower per
+step (same reasons as above).
+
 Per-step cost decomposition for the O(4) DCT-IV (forward/backward/optimizer split,
 why it is ~7× the QFT) is in `results/profiling/`.
