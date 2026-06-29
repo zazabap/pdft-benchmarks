@@ -20,6 +20,10 @@ results/**/trained_*.json
 results/**/loss_history/
 results/**/run.log
 results/**/failures/
+# per-step block-emergence training snapshots (bulky raw blobs; the curated
+# block_emergence_spectrogram.json + figures are tracked instead)
+results/**/checkpoints/
+results/**/block_emergence*/loss_history.json
 
 # Local virtualenv (created for runs; not part of the repo)
 .venv/
