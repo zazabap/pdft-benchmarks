@@ -1,0 +1,190 @@
+{
+"seed": 98,
+"m": 8,
+"n": 8,
+"step_final": 1008,
+"init": {
+"H": 13,
+"Z": 2,
+"X": 1
+},
+"final": {
+"H": 8,
+"Z": 6,
+"X": 2
+},
+"n_frozen": 8,
+"block_row": 16,
+"gates": [
+{
+"dim": "row",
+"qubit": 0,
+"init": "H",
+"final": "H",
+"s_final": 1.0
+},
+{
+"dim": "row",
+"qubit": 1,
+"init": "H",
+"final": "H",
+"s_final": 1.0
+},
+{
+"dim": "row",
+"qubit": 2,
+"init": "H",
+"final": "H",
+"s_final": 1.0
+},
+{
+"dim": "row",
+"qubit": 3,
+"init": "H",
+"final": "H",
+"s_final": 1.0
+},
+{
+"dim": "row",
+"qubit": 4,
+"init": "X",
+"final": "X",
+"s_final": 0.0015
+},
+{
+"dim": "row",
+"qubit": 5,
+"init": "Z",
+"final": "Z",
+"s_final": 0.0014
+},
+{
+"dim": "row",
+"qubit": 6,
+"init": "H",
+"final": "Z",
+"s_final": 0.0005
+},
+{
+"dim": "row",
+"qubit": 7,
+"init": "H",
+"final": "X",
+"s_final": 0.0012
+},
+{
+"dim": "col",
+"qubit": 0,
+"init": "H",
+"final": "H",
+"s_final": 1.0
+},
+{
+"dim": "col",
+"qubit": 1,
+"init": "H",
+"final": "H",
+"s_final": 1.0
+},
+{
+"dim": "col",
+"qubit": 2,
+"init": "Z",
+"final": "H",
+"s_final": 1.0
+},
+{
+"dim": "col",
+"qubit": 3,
+"init": "H",
+"final": "H",
+"s_final": 1.0
+},
+{
+"dim": "col",
+"qubit": 4,
+"init": "H",
+"final": "Z",
+"s_final": 0.003
+},
+{
+"dim": "col",
+"qubit": 5,
+"init": "H",
+"final": "Z",
+"s_final": 0.0021
+},
+{
+"dim": "col",
+"qubit": 6,
+"init": "H",
+"final": "Z",
+"s_final": 0.0008
+},
+{
+"dim": "col",
+"qubit": 7,
+"init": "H",
+"final": "Z",
+"s_final": 0.0002
+}
+],
+"frozen": [
+{
+"dim": "row",
+"qubit": 4,
+"init": "X",
+"final": "X",
+"s_final": 0.0015
+},
+{
+"dim": "row",
+"qubit": 5,
+"init": "Z",
+"final": "Z",
+"s_final": 0.0014
+},
+{
+"dim": "row",
+"qubit": 6,
+"init": "H",
+"final": "Z",
+"s_final": 0.0005
+},
+{
+"dim": "row",
+"qubit": 7,
+"init": "H",
+"final": "X",
+"s_final": 0.0012
+},
+{
+"dim": "col",
+"qubit": 4,
+"init": "H",
+"final": "Z",
+"s_final": 0.003
+},
+{
+"dim": "col",
+"qubit": 5,
+"init": "H",
+"final": "Z",
+"s_final": 0.0021
+},
+{
+"dim": "col",
+"qubit": 6,
+"init": "H",
+"final": "Z",
+"s_final": 0.0008
+},
+{
+"dim": "col",
+"qubit": 7,
+"init": "H",
+"final": "Z",
+"s_final": 0.0002
+}
+]
+}
