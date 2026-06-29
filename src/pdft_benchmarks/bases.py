@@ -650,7 +650,25 @@ def family_random_basis(family: str, m: int, n: int, seed: int):
     return _circuit_random_basis(cls, m, n, seed)
 
 
+def dct4_controlled_basis(m: int, n: int):
+    """Structured (O(2)) DCT-IV basis + the mirror-CNOT indices to freeze.
+
+    Returns ``(basis, frozen_indices)`` where ``basis`` is
+    ``pdft.DCT4Basis(m, n, parametrization="controlled")`` (twiddle gates train
+    on O(2), no dense O(4)) and ``frozen_indices`` are the mirror ``Q``/``R``
+    CNOT gates — the only remaining ``(2,2,2,2)`` gates — to pass as
+    ``train_basis_batched(frozen_indices=...)`` so they stay fixed routing.
+    """
+    import pdft
+
+    basis = pdft.DCT4Basis(m=m, n=n, parametrization="controlled")
+    frozen_indices = [i for i, t in enumerate(basis.tensors)
+                      if tuple(t.shape) == (2, 2, 2, 2)]
+    return basis, frozen_indices
+
+
 __all__ = ["BASIS_FACTORIES", "BasisFactory", "qft_identity_basis",
            "identity_basis_for", "qft_warm_from_smaller_qft",
            "qft_inner_outer_indices",
-           "family_identity_basis", "family_random_basis"]
+           "family_identity_basis", "family_random_basis",
+           "dct4_controlled_basis"]
