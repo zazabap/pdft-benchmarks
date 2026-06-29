@@ -36,6 +36,9 @@ def main() -> int:
     ap.add_argument("--xmax", type=int, default=360,
                     help="linear step axis upper bound; crop to the emergence region "
                          "(structure is flat well past this).")
+    ap.add_argument("--compact", action="store_true",
+                    help="single-column layout: narrower figure + larger fonts so axes "
+                         "stay legible when included at \\columnwidth in a 2-col paper.")
     args = ap.parse_args()
 
     import matplotlib
@@ -58,9 +61,19 @@ def main() -> int:
     max_step = float(steps.max())
     xmax = float(args.xmax)
 
-    fig = plt.figure(figsize=(8.4, 4.7))
-    gs = GridSpec(2, 2, height_ratios=[1, 4.2], width_ratios=[34, 1],
-                  hspace=0.07, wspace=0.18)
+    # font sizes + figure size: compact = narrower with larger fonts so the axes
+    # stay legible after LaTeX scales the PDF down to a single column.
+    if args.compact:
+        figsize, FS = (5.2, 3.4), dict(lab=12, tick=11, cb=11, cbt=10, t2=11,
+                                       t2t=10, ll=11, llt=10, leg=9.5, ann=9)
+        gw = 26
+    else:
+        figsize, FS = (8.4, 4.7), dict(lab=10, tick=10, cb=8, cbt=7, t2=10,
+                                       t2t=7, ll=8, llt=7, leg=6.5, ann=6.5)
+        gw = 34
+    fig = plt.figure(figsize=figsize)
+    gs = GridSpec(2, 2, height_ratios=[1, 4.2], width_ratios=[gw, 1],
+                  hspace=0.08, wspace=0.20)
     ax_loss = fig.add_subplot(gs[0, 0])
     ax = fig.add_subplot(gs[1, 0], sharex=ax_loss)
     cax = fig.add_subplot(gs[1, 1])
@@ -73,18 +86,19 @@ def main() -> int:
     ax.axvline(es, color="white", ls="--", lw=0.9, alpha=0.85)
     ax.set_xlim(0, xmax)
     ax.set_ylim(0, N - 1)
-    ax.set_xlabel("training step")
-    ax.set_ylabel("coefficient frequency index")
+    ax.set_xlabel("training step", fontsize=FS["lab"])
+    ax.set_ylabel("coefficient frequency index", fontsize=FS["lab"])
     ax.set_xticks(range(0, int(xmax) + 1, 60))
     ax.set_yticks(range(0, N + 1, b_star * 2))
+    ax.tick_params(labelsize=FS["tick"])
     if max_step > xmax:                                   # the tail is flat; say so
         ax.text(xmax, 4, "structure stable\n"
-                fr"$\to$ step {int(max_step)}", color="white", fontsize=6.5,
+                fr"$\to$ step {int(max_step)}", color="white", fontsize=FS["ann"],
                 ha="right", va="bottom", alpha=0.85)
 
     cb = fig.colorbar(pcm, cax=cax)
-    cb.set_label(r"$\log_{10}\,\overline{|F|^2}$ (peak-norm)", fontsize=8)
-    cb.ax.tick_params(labelsize=7)
+    cb.set_label(r"$\log_{10}\,\overline{|F|^2}$ (peak-norm)", fontsize=FS["cb"])
+    cb.ax.tick_params(labelsize=FS["cbt"])
 
     # --- block-size cascade on a right twin-axis (the gate-based order param) ---
     # The Haar operator is dense at init (block N); the gate classifier is noisy
@@ -107,19 +121,19 @@ def main() -> int:
              path_effects=halo, label="block (col)")
     ax2.set_yticks([b_star, 2 * b_star, 4 * b_star, N])
     ax2.set_yticklabels([str(b_star), str(2 * b_star), str(4 * b_star), str(N)])
-    ax2.set_ylabel("effective block size (px)", color=WONG_ORANGE)
-    ax2.tick_params(axis="y", colors=WONG_ORANGE, labelsize=7)
-    ax2.legend(loc="lower left", fontsize=6.5, framealpha=0.85, handlelength=1.6)
+    ax2.set_ylabel("effective block size (px)", color=WONG_ORANGE, fontsize=FS["t2"])
+    ax2.tick_params(axis="y", colors=WONG_ORANGE, labelsize=FS["t2t"])
+    ax2.legend(loc="lower left", fontsize=FS["leg"], framealpha=0.85, handlelength=1.6)
 
     # --- loss strip (shared x) ---
     ax_loss.plot(loss_s, loss_v, color=WONG_BLUE, lw=1.2)
     ax_loss.axvline(es, color="0.4", ls="--", lw=0.9, alpha=0.85)
-    ax_loss.set_ylabel("train\nloss", fontsize=8)
-    ax_loss.tick_params(labelsize=7, labelbottom=False)
+    ax_loss.set_ylabel("train\nloss", fontsize=FS["ll"])
+    ax_loss.tick_params(labelsize=FS["llt"], labelbottom=False)
     ax_loss.margins(x=0)
     ax_loss.set_ylim(0, float(loss_v.max()) * 1.05)
     ax_loss.text(es, float(loss_v.max()) * 0.92,
-                 f" {b_star}px block by step {es}", fontsize=7, color="0.3",
+                 f" {b_star}px block by step {es}", fontsize=FS["ann"], color="0.3",
                  ha="left", va="top")
 
     figdir = base / "figures"
