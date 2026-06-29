@@ -44,6 +44,13 @@ def main() -> int:
     train, test = load_div2k(n_train=preset.n_train, n_test=preset.n_test, seed=42, size=2 ** m)
     ds = [jax.device_put(np.asarray(x).astype(np.complex128), dev) for x in train]
 
+    # train_basis_batched counts EPOCHS, not optimizer steps. Convert the
+    # requested step budget to whole epochs given the per-epoch batch count
+    # (n_train after the validation split, ceil-divided by batch_size).
+    n_val = int(np.clip(round(len(ds) * preset.validation_split), 0, len(ds) - 1))
+    n_batches = max(1, -(-(len(ds) - n_val) // preset.batch_size))
+    epochs = max(1, round(args.steps / n_batches))
+
     def n_trainable(basis, frozen):
         fs = set(frozen)
         return sum(int(jnp.asarray(t).size) for i, t in enumerate(basis.tensors) if i not in fs)
@@ -51,7 +58,7 @@ def main() -> int:
     def run(tag, basis, frozen):
         t0 = time.perf_counter()
         res = pdft.train_basis_batched(
-            basis, dataset=ds, loss=loss, epochs=args.steps, batch_size=preset.batch_size,
+            basis, dataset=ds, loss=loss, epochs=epochs, batch_size=preset.batch_size,
             optimizer=preset.optimizer, validation_split=preset.validation_split,
             early_stopping_patience=10 ** 9, warmup_frac=preset.warmup_frac,
             lr_peak=preset.lr_peak, lr_final=preset.lr_final, max_grad_norm=preset.max_grad_norm,
@@ -70,7 +77,8 @@ def main() -> int:
     ctl = run("dct4_controlled", cb, frozen)
 
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
-    summary = {"device": str(dev), "steps": args.steps, "k": k, "o4": o4, "controlled": ctl,
+    summary = {"device": str(dev), "target_steps": args.steps, "epochs": epochs, "k": k,
+               "o4": o4, "controlled": ctl,
                "speedup_per_step": o4["s_per_step"] / ctl["s_per_step"],
                "param_ratio": o4["n_trainable_params"] / max(1, ctl["n_trainable_params"])}
     (out / "compare.json").write_text(json.dumps(summary, indent=2))
