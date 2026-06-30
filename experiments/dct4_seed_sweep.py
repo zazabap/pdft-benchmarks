@@ -219,7 +219,7 @@ def main() -> int:
     m_q, loader_name, size_kw = DATASET_CFG[args.dataset]
     m = n = m_q
     seeds = _parse_seeds(args.seeds)
-    keep_ratios = (0.05, 0.10, 0.15, 0.20)
+    keep_ratios = (0.01, 0.05, 0.10, 0.20)
     _dataset_tag = f"{args.dataset}_controlled" if _controlled else args.dataset
     out_base = Path(args.out) if args.out else \
         Path(f"results/training/2_direct_training/random_seed/dct_{_dataset_tag}")
