@@ -95,6 +95,35 @@ def render_recovery(base: Path, ss: dict) -> None:
     _save(fig, base, "disturbance_recovery")
 
 
+def render_init_loss(base: Path, ss: dict) -> None:
+    """Top-k MSE loss on the train pool vs disturbance rate: at the perturbed
+    init (rising) and after training (flat), showing recovery in loss space."""
+    fractions = [f"{f:g}" for f in ss["fractions"]]
+    xs = np.array([_pct(fk) for fk in fractions])
+    fig, ax = plt.subplots(figsize=(5.2, 3.6))
+    im = np.array([ss["agg_init_loss"][fk]["mean"] for fk in fractions])
+    isd = np.array([ss["agg_init_loss"][fk]["std"] for fk in fractions])
+    fm = np.array([ss["agg_final_loss"][fk]["mean"] for fk in fractions])
+    fsd = np.array([ss["agg_final_loss"][fk]["std"] for fk in fractions])
+    ax.plot(xs, im, "-", color="#D55E00", marker="o", ms=4, lw=1.6,
+            label="at init (perturbed)")
+    ax.fill_between(xs, im - isd, im + isd, color="#D55E00", alpha=0.18, lw=0)
+    ax.plot(xs, fm, "--", color="#009E73", marker="s", ms=4, lw=1.6,
+            label="after training")
+    ax.fill_between(xs, fm - fsd, fm + fsd, color="#009E73", alpha=0.18, lw=0)
+    if ss.get("baseline") and ss["baseline"].get("init_loss") is not None:
+        ax.axhline(ss["baseline"]["init_loss"], color="k", ls=":", lw=0.9, alpha=0.55,
+                   label="exact init")
+    ax.set_xscale("log")
+    ax.set_xlabel("disturbed parameters (% of 2200 gate entries)")
+    ax.set_ylabel("top-$k$ MSE loss (train pool)")
+    ax.set_xticks(xs)
+    ax.set_xticklabels([f"{v:g}" for v in xs])
+    ax.grid(True, which="both", ls=":", lw=0.4, alpha=0.5)
+    ax.legend(frameon=False, fontsize=8)
+    _save(fig, base, "disturbance_init_loss")
+
+
 def render_table(base: Path, ss: dict) -> None:
     fractions = [f"{f:g}" for f in ss["fractions"]]
     lines = [r"\begin{tabular}{lrrrr}", r"\toprule",
@@ -125,6 +154,7 @@ def main() -> int:
     plt.rcParams.update({"font.size": 9, "axes.titlesize": 9})
     render_main(base, ss)
     render_recovery(base, ss)
+    render_init_loss(base, ss)
     render_table(base, ss)
     print(f"[render] wrote figures/ + tables/ under {base}")
     return 0

@@ -139,6 +139,16 @@ def aggregate(out_base: Path, seeds, sigma, topk_ratio, epochs) -> dict:
                     out[fk][rk] = _stats(vals)
         return out
 
+    def agg_scalar(field: str) -> dict:
+        """Aggregate a per-cell scalar (e.g. init_loss/final_loss) over seeds."""
+        out: dict[str, dict] = {}
+        for f in fractions:
+            vals = [c[field] for c in per_cell.values()
+                    if c.get("f") == f and c.get(field) is not None]
+            if vals:
+                out[_fkey(f)] = _stats(vals)
+        return out
+
     summary = {
         "dataset": "div2k_8q", "parametrization": "controlled", "sigma": sigma,
         "topk_ratio": topk_ratio, "epochs": epochs,
@@ -148,6 +158,8 @@ def aggregate(out_base: Path, seeds, sigma, topk_ratio, epochs) -> dict:
         "baseline": baseline,
         "agg_trained": agg_over("psnr_trained"),
         "agg_untrained": agg_over("psnr_untrained"),
+        "agg_init_loss": agg_scalar("init_loss"),
+        "agg_final_loss": agg_scalar("final_loss"),
         "per_cell": per_cell,
     }
     _atomic_write_json(out_base / "disturbance_sweep.json", summary)

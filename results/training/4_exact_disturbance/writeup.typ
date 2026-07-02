@@ -7,6 +7,7 @@
 #let ss = json("disturbance_sweep.json")
 #let ref = json("reference/classical_dct4.json")
 #let f2(x) = str(calc.round(x, digits: 2))
+#let f1(x) = str(calc.round(x, digits: 1))
 #let tr(fk, rk) = ss.agg_trained.at(fk).at(rk)
 #let base20 = ss.baseline.psnr_trained.at("0.2")
 #let sig = ss.sigma
@@ -43,6 +44,35 @@ shuffle seed so only the perturbation varies), then scored for test PSNR at four
 keep ratios $rho$ on the fixed canonical 50-image test set. $f = 0$ is the
 undisturbed exact-init reference (its untrained PSNR reproduces the classical
 DCT-IV: #f2(ref.canonical_dct4.psnr.at("0.2")) dB @ $rho{=}.20$).
+
+= Disturbance procedure
+
+The jitter treats the exact DCT-IV's 214 gate tensors as one flat vector of 2200
+real entries and acts *per gate*. For disturbance rate $f$ and jitter scale
+$sigma$:
+
+```
+select round(f * 2200) of the 2200 real gate entries, uniform, no replacement
+for each gate G that owns >= 1 selected entry:
+    add  N(0, sigma)  to G's selected entries only            # Gaussian jitter
+    re-project the noised gate back onto its manifold:
+        (2,2,2,2) mirror-U4    ->  nearest orthogonal, SVD polar U V^T   [O(4)]
+        (2,2) Delta-sign gate  ->  phi <- pi + sigma*z ; controlled_phase_diag(phi)
+        (2,2) rotation / H     ->  nearest orthogonal, SVD polar U V^T   [O(2)]
+gates with no selected entry are copied unchanged             # f = 0 = identity
+```
+
+The noise is plain additive i.i.d. Gaussian $N(0, sigma)$ on the *selected raw
+entries only*; the per-gate *re-projection* is what turns it into an on-manifold
+perturbation. Each gate is real-orthogonal, so the nearest valid gate to the
+noised one is its SVD polar factor $U V^T$ (drop the singular values) — this
+keeps the operator a genuine real-orthogonal DCT-IV, so the perturbed init's
+untrained PSNR is meaningful rather than an artefact of a non-orthogonal matrix.
+The $Delta$-sign gate is not a rotation but a phase stub (its lower-right entry
+is $e^(i phi)$, $phi = pi$ at init), so it is jittered in its phase $phi$ instead.
+Because a gate moves only when one of its entries is selected, small $f$ nudges a
+few gates while $f = 100%$ jitters *every* gate; the *magnitude* each touched gate
+travels is set by $sigma$, not by $f$.
 
 = Final PSNR vs. disturbance
 
@@ -85,6 +115,31 @@ DCT-IV: #f2(ref.canonical_dct4.psnr.at("0.2")) dB @ $rho{=}.20$).
   caption: [Per-$rho$ panels: the perturbed *init* PSNR (dotted) drops with $f$,
   while the *trained* PSNR (solid) stays close to the exact-init reference — the
   gap between the two curves is the amount training recovers.],
+)
+
+= Initialisation loss
+
+#let il0 = ss.baseline.init_loss
+#let il100 = ss.agg_init_loss.at("1").mean
+#let fl100 = ss.agg_final_loss.at("1").mean
+
+The same recovery shows up in loss space. The perturbed init's top-$k$ MSE loss
+on the 500-image train pool — the value the optimiser sees at step 0 — rises with
+the disturbance rate, from #f2(il0) at the exact init to #f2(il100) at
+$f = 100%$ (a #f1(il100 / il0)#sym.times increase): flat below #sym.tilde 1%, then
+climbing steeply, with a seed spread that widens as more gates are hit. After
+#ss.epochs steps every perturbed init converges back to essentially the
+exact-init training loss (#f2(fl100) at $f = 100%$ vs #f2(ss.baseline.final_loss)
+at $f = 0$) — training erases the initialisation deficit in the loss just as it
+does in test PSNR.
+
+#figure(
+  image("figures/disturbance_init_loss.svg", width: 72%),
+  caption: [Top-$k$ MSE loss on the 500-image train pool vs. disturbance rate
+  (log-x, linear y): at the perturbed *init* (rising, vermilion) and *after*
+  #ss.epochs training steps (flat, green), mean $plus.minus sigma$ over #nseed
+  seeds; the dotted line marks the exact-init loss. Training returns every
+  perturbed init to the exact-init loss.],
 )
 
 = Reading
