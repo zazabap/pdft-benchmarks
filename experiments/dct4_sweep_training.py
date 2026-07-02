@@ -27,12 +27,18 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "src"))
 
 KEEP_RATIOS = (0.01, 0.05, 0.10, 0.20)
 RHO_KEYS = ("0.01", "0.05", "0.1", "0.2")  # evaluate_basis_shared uses str(kr)
 RUNS = [("exact", "fwd"), ("exact", "rev"), ("random", "fwd"), ("random", "rev")]
-CLASSICAL_REF = Path("results/training/5_sweep_training_dct/reference/classical_dct4.json")
+BACKTRACK_TS = (1.0, 0.5, 0.25, 0.125)
+CLASSICAL_REF = REPO / "results/training/5_sweep_training_dct/reference/classical_dct4.json"
+
+# Resuming with any of these changed would silently mix incompatible runs.
+RESUME_GUARD_KEYS = ("init", "order", "init_seed", "topk_ratio", "batch_n",
+                     "rel_tol", "max_visits")
 
 
 def _atomic_write_json(path: Path, obj) -> None:
@@ -110,7 +116,8 @@ def main() -> int:
                    help="Fixed train batch = first N pool images.")
     p.add_argument("--max-visits", type=int, default=None,
                    help="Debug/smoke: visit only the first N gates per sweep.")
-    p.add_argument("--out", default="results/training/5_sweep_training_dct/div2k_8q")
+    p.add_argument("--out",
+                   default=str(REPO / "results/training/5_sweep_training_dct/div2k_8q"))
     p.add_argument("--resume", action="store_true", default=False)
     p.add_argument("--aggregate-only", action="store_true", default=False)
     p.add_argument("--list-runs", action="store_true", default=False)
@@ -119,12 +126,12 @@ def main() -> int:
     out_base = Path(args.out)
     if args.list_runs:
         for init, order in RUNS:
-            print(f"--init {init} --order {order}")
+            print(f"--init {init} --order {order}", flush=True)
         return 0
     if args.aggregate_only:
         m = aggregate(out_base)
         print(f"[dct4_sweep] aggregated {len(m['runs'])}/4 runs -> "
-              f"{out_base / 'manifest.json'}")
+              f"{out_base / 'manifest.json'}", flush=True)
         return 0
     if args.init is None or args.order is None:
         p.error("--init and --order are required (or --aggregate-only/--list-runs)")
@@ -134,12 +141,56 @@ def main() -> int:
         os.environ.setdefault("CUDA_DEVICE_ORDER", "PCI_BUS_ID")
         os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 
+    # --- resume bookkeeping (cheap: pure JSON, before any JAX/data work) ---
+    run_dir = out_base / args.init / args.order
+    last_path = run_dir / "trained_last.json"
+    trace_path = run_dir / "trace.json"
+    env_path = run_dir / "env.json"
+    start_sweep = 1
+    ckpt = None  # tensors loaded from checkpoint after JAX import on resume
+    prev_visits: list = []
+    prev_sweeps: list = []
+    prev_converged = False
+    prev_wall_s = 0.0
+    if args.resume and (last_path.exists() != trace_path.exists()):
+        have = last_path if last_path.exists() else trace_path
+        print(f"[dct4_sweep] WARNING: --resume but only {have.name} exists in "
+              f"{run_dir}; resume is IMPOSSIBLE — starting fresh and "
+              f"OVERWRITING previous outputs.", file=sys.stderr, flush=True)
+    elif args.resume and last_path.exists() and trace_path.exists():
+        prev_trace = json.loads(trace_path.read_text())
+        current = {"init": args.init, "order": args.order,
+                   "init_seed": args.seed, "topk_ratio": args.topk_ratio,
+                   "batch_n": args.batch_n, "rel_tol": args.rel_tol,
+                   "max_visits": args.max_visits}
+        mismatched = [k for k in RESUME_GUARD_KEYS
+                      if prev_trace.get(k) != current[k]]
+        if mismatched:
+            for k in mismatched:
+                print(f"[dct4_sweep] FATAL: --resume config mismatch on {k!r}: "
+                      f"checkpoint={prev_trace.get(k)!r} vs current={current[k]!r}",
+                      file=sys.stderr, flush=True)
+            return 4
+        prev_converged = bool(prev_trace.get("converged"))
+        if prev_converged:
+            print("[dct4_sweep] already converged; nothing to do", flush=True)
+            return 0
+        ckpt = json.loads(last_path.read_text())
+        prev_visits = prev_trace["visits"]
+        prev_sweeps = prev_trace["sweeps"]
+        start_sweep = (prev_sweeps[-1]["sweep"] + 1) if prev_sweeps else 1
+        if env_path.exists():
+            prev_wall_s = float(json.loads(env_path.read_text()).get("wall_s", 0.0))
+        print(f"[dct4_sweep] resuming at sweep {start_sweep} "
+              f"({len(prev_visits)} visits done)", flush=True)
+
     import jax
     import jax.numpy as jnp
     import numpy as np
     import pdft
     import pdft.io  # noqa: F401
     from pdft.bases.circuit.dct4 import _dct4_gates_1d
+    from pdft.circuit.builder import sorted_gate_program
     from pdft.loss import loss_function
     from pdft_benchmarks.bases import dct4_random_controlled_basis
     from pdft_benchmarks.datasets.div2k import load_div2k
@@ -149,18 +200,17 @@ def main() -> int:
 
     if not hasattr(pdft, "DCT4Basis"):
         print(f"[dct4_sweep] FATAL: pdft at {pdft.__file__} lacks DCT4Basis.",
-              file=sys.stderr)
+              file=sys.stderr, flush=True)
         return 3
     chosen = jax.devices()[0]
     print(f"[dct4_sweep] device={chosen} platform={chosen.platform!r} "
-          f"pdft={pdft.__version__} @ {Path(pdft.__file__).parent}")
+          f"pdft={pdft.__version__} @ {Path(pdft.__file__).parent}", flush=True)
     if args.gpu is not None and chosen.platform not in ("gpu", "cuda"):
         print("[dct4_sweep] FATAL: --gpu requested but JAX sees CPU.",
-              file=sys.stderr)
+              file=sys.stderr, flush=True)
         return 2
 
     m = n = 8
-    run_dir = out_base / args.init / args.order
     run_dir.mkdir(parents=True, exist_ok=True)
     k_train = max(1, round(2 ** (m + n) * args.topk_ratio))
     loss = pdft.MSELoss(k=k_train)
@@ -173,12 +223,17 @@ def main() -> int:
         basis = pdft.DCT4Basis(m, n, parametrization="controlled")
     else:
         basis = dct4_random_controlled_basis(m, n, args.seed)
+    tensors0 = (_tensors_from_json(ckpt["tensors"]) if ckpt is not None
+                else list(basis.tensors))
 
+    # basis.tensors is in compile_circuit's Hadamard-first SORTED order;
+    # sorted_gate_program applies the same permutation to the gate metadata.
     gates_meta = (_dct4_gates_1d(m, offset=0, parametrization="controlled")
                   + _dct4_gates_1d(n, offset=m, parametrization="controlled"))
     assert len(gates_meta) == len(basis.tensors), \
         f"gate metadata mismatch: {len(gates_meta)} vs {len(basis.tensors)}"
-    labels = [f"{g['kind']}[{','.join(str(q) for q in g['qubits'])}]" for g in gates_meta]
+    prog = sorted_gate_program(gates_meta)
+    labels = [f"{k}[{','.join(str(q) for q in qs)}]" for k, qs in prog]
 
     def rebuild(tensors):
         return pdft.DCT4Basis(m, n, tensors=list(tensors),
@@ -192,13 +247,13 @@ def main() -> int:
 
     psnr_untrained = psnr(list(basis.tensors))
     print(f"[dct4_sweep] {args.init}/{args.order} untrained "
-          f"PSNR@.20={psnr_untrained['0.2']:.3f} dB")
+          f"PSNR@.20={psnr_untrained['0.2']:.3f} dB", flush=True)
     if args.init == "exact" and CLASSICAL_REF.exists():
         ref = json.loads(CLASSICAL_REF.read_text())["canonical_dct4"]["psnr"]["0.2"]
         if abs(psnr_untrained["0.2"] - ref) > 0.05:
             print(f"[dct4_sweep] WARNING: exact-init PSNR@.20 "
                   f"{psnr_untrained['0.2']:.3f} != classical ref {ref:.3f}",
-                  file=sys.stderr)
+                  file=sys.stderr, flush=True)
 
     def per_image(ts, img):
         return jnp.real(loss_function(ts, m, n, basis.code, img, loss,
@@ -214,28 +269,11 @@ def main() -> int:
         "m": m, "n": n, "parametrization": "controlled",
         "topk_ratio": args.topk_ratio, "k_train": k_train,
         "batch_n": args.batch_n, "max_sweeps": args.max_sweeps,
-        "rel_tol": args.rel_tol, "backtrack_ts": [1.0, 0.5, 0.25, 0.125],
+        "rel_tol": args.rel_tol, "backtrack_ts": list(BACKTRACK_TS),
         "max_visits": args.max_visits, "data_seed_fixed_test": 42,
         "gate_labels": labels, "psnr_untrained": psnr_untrained,
         "device": str(chosen), "git_sha": git_sha(short=False),
     }
-
-    start_sweep, tensors0 = 1, list(basis.tensors)
-    prev_visits: list = []
-    prev_sweeps: list = []
-    prev_converged = False
-    last_path = run_dir / "trained_last.json"
-    trace_path = run_dir / "trace.json"
-    if args.resume and last_path.exists() and trace_path.exists():
-        prev_trace = json.loads(trace_path.read_text())
-        ckpt = json.loads(last_path.read_text())
-        tensors0 = _tensors_from_json(ckpt["tensors"])
-        prev_visits = prev_trace["visits"]
-        prev_sweeps = prev_trace["sweeps"]
-        prev_converged = bool(prev_trace.get("converged"))
-        start_sweep = (prev_sweeps[-1]["sweep"] + 1) if prev_sweeps else 1
-        print(f"[dct4_sweep] resuming at sweep {start_sweep} "
-              f"({len(prev_visits)} visits done)")
 
     def write_trace(converged):
         _atomic_write_json(trace_path, {
@@ -249,11 +287,13 @@ def main() -> int:
     live_sweeps: list = list(prev_sweeps)  # dicts from the loaded trace
 
     def on_sweep_end(s, tensors, stats):
-        p = psnr(tensors)
-        live_sweeps.append({**asdict(stats), "psnr": p})
+        # Checkpoint the tensors FIRST so a crash inside the 50-image PSNR
+        # eval can't lose a completed sweep.
         _atomic_write_json(last_path, {
             "init": args.init, "order": args.order, "m": m, "n": n,
             "sweep": s, "tensors": _tensors_to_json(tensors)})
+        p = psnr(tensors)
+        live_sweeps.append({**asdict(stats), "psnr": p})
         write_trace(False)
         print(f"[dct4_sweep] {args.init}/{args.order} sweep {s}: "
               f"loss={stats.loss_end:.6f} acc={stats.n_accepted} "
@@ -270,6 +310,7 @@ def main() -> int:
     res = sweep_train(
         tensors0, vag, loss_fn, order=args.order,
         max_sweeps=args.max_sweeps, rel_tol=args.rel_tol,
+        backtrack_ts=BACKTRACK_TS,
         max_visits=args.max_visits, on_sweep_end=on_sweep_end,
         start_sweep=start_sweep, visits=_VisitLog(), sweeps=[])
 
@@ -279,18 +320,19 @@ def main() -> int:
         "init": args.init, "order": args.order, "m": m, "n": n,
         "tensors": _tensors_to_json(res.tensors)})
     psnr_final = live_sweeps[-1]["psnr"] if live_sweeps else psnr(res.tensors)
-    _atomic_write_json(run_dir / "env.json", {
+    _atomic_write_json(env_path, {
         **{k: config[k] for k in ("experiment", "dataset", "init", "order",
                                   "init_seed", "topk_ratio", "k_train",
                                   "batch_n", "max_sweeps", "rel_tol",
                                   "device", "git_sha")},
         "jax": jax.__version__, "pdft": pdft.__version__,
         "pdft_path": str(Path(pdft.__file__).parent),
-        "wall_s": time.perf_counter() - t_run,
+        "wall_s": prev_wall_s + (time.perf_counter() - t_run),
     })
     print(f"[dct4_sweep] DONE {args.init}/{args.order}: "
           f"final_loss={res.final_loss:.6f} converged={converged} "
-          f"sweeps={len(live_sweeps)} PSNR@.20={psnr_final['0.2']:.3f} dB")
+          f"sweeps={len(live_sweeps)} PSNR@.20={psnr_final['0.2']:.3f} dB",
+          flush=True)
     return 0
 
 
