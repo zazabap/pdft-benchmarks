@@ -19,6 +19,9 @@ side effects (PSNR eval, checkpointing) happen in an ``on_sweep_end`` callback.
 """
 from __future__ import annotations
 
+import time
+from dataclasses import dataclass, field
+
 import numpy as np
 
 
@@ -87,3 +90,126 @@ def interpolated(gate, candidate, kind: str, t: float) -> np.ndarray:
     g1 = np.real(np.asarray(candidate)).astype(np.float64)
     d = 4 if g0.shape == (2, 2, 2, 2) else 2
     return _polar(((1.0 - t) * g0 + t * g1).reshape(d, d)).reshape(g0.shape)
+
+
+@dataclass
+class Visit:
+    sweep: int
+    pos: int
+    gate: int
+    kind: str
+    loss_before: float
+    loss_after: float
+    t: float | None
+    accepted: bool
+    skip_reason: str | None = None
+
+
+@dataclass
+class SweepStats:
+    sweep: int
+    loss_end: float
+    n_accepted: int
+    n_skipped: int
+    wall_s: float
+
+
+@dataclass
+class SweepResult:
+    tensors: list
+    visits: list[Visit] = field(default_factory=list)
+    sweeps: list[SweepStats] = field(default_factory=list)
+    converged: bool = False
+    final_loss: float = float("nan")
+
+    @property
+    def n_accepted_total(self) -> int:
+        return sum(s.n_accepted for s in self.sweeps)
+
+
+def sweep_train(
+    tensors,
+    value_and_grad_fn,
+    loss_fn,
+    *,
+    order: str = "fwd",
+    max_sweeps: int = 20,
+    rel_tol: float = 1e-5,
+    backtrack_ts: tuple[float, ...] = (1.0, 0.5, 0.25, 0.125),
+    env_tol: float = 1e-12,
+    max_visits: int | None = None,
+    on_sweep_end=None,
+    start_sweep: int = 1,
+    visits=None,
+    sweeps=None,
+) -> SweepResult:
+    """Gauss-Seidel environment sweeps until plateau or ``max_sweeps``.
+
+    ``value_and_grad_fn(tensors) -> (loss, grads)`` and
+    ``loss_fn(tensors) -> loss`` are injected jitted closures over a fixed
+    batch. ``on_sweep_end(sweep_idx, tensors, stats)`` runs after each sweep
+    (PSNR eval / checkpointing). ``start_sweep``/``visits``/``sweeps`` support
+    resuming from a checkpoint; when provided, the lists are extended IN PLACE
+    (callers may mirror appends). ``max_visits`` truncates each sweep (debug /
+    smoke only). The fixed-batch loss is monotone non-increasing by
+    construction (strict-decrease acceptance).
+    """
+    import jax.numpy as jnp
+
+    tensors = [jnp.asarray(t, dtype=jnp.complex128) for t in tensors]
+    kinds = [classify_gate(np.asarray(t)) for t in tensors]
+    idx = sweep_order(len(tensors), order)
+    if max_visits is not None:
+        idx = idx[:max_visits]
+    all_visits = visits if visits is not None else []
+    all_sweeps = sweeps if sweeps is not None else []
+    converged = False
+
+    for s in range(start_sweep, max_sweeps + 1):
+        t_sweep = time.perf_counter()
+        n_acc = n_skip = 0
+        loss_start = None
+        for pos, gi in enumerate(idx):
+            l0_raw, grads = value_and_grad_fn(tensors)
+            l0 = float(l0_raw)
+            if loss_start is None:
+                loss_start = l0
+            env = np.conj(np.asarray(grads[gi]))
+            kind = kinds[gi]
+            env_mag = (abs(env[1, 1]) if kind == "phase"
+                       else float(np.abs(np.real(env)).max()))
+            if env_mag < env_tol:
+                all_visits.append(Visit(s, pos, gi, kind, l0, l0, None, False,
+                                        "zero_env"))
+                n_skip += 1
+                continue
+            cand = phase_candidate(env) if kind == "phase" else polar_candidate(env)
+            accepted = False
+            for t in backtrack_ts:
+                gnew = interpolated(np.asarray(tensors[gi]), cand, kind, t)
+                trial = list(tensors)
+                trial[gi] = jnp.asarray(gnew, dtype=jnp.complex128)
+                l1 = float(loss_fn(trial))
+                if l1 < l0:
+                    tensors = trial
+                    all_visits.append(Visit(s, pos, gi, kind, l0, l1, t, True))
+                    n_acc += 1
+                    accepted = True
+                    break
+            if not accepted:
+                all_visits.append(Visit(s, pos, gi, kind, l0, l0, None, False,
+                                        "no_decrease"))
+                n_skip += 1
+        loss_end = float(loss_fn(tensors))
+        stats = SweepStats(s, loss_end, n_acc, n_skip,
+                           time.perf_counter() - t_sweep)
+        all_sweeps.append(stats)
+        if on_sweep_end is not None:
+            on_sweep_end(s, tensors, stats)
+        rel = (loss_start - loss_end) / max(abs(loss_start), 1e-30)
+        if n_acc == 0 or rel < rel_tol:
+            converged = True
+            break
+
+    return SweepResult(tensors=tensors, visits=all_visits, sweeps=all_sweeps,
+                       converged=converged, final_loss=float(loss_fn(tensors)))
