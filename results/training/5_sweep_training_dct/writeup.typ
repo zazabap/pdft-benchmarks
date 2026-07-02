@@ -8,7 +8,10 @@
 #let cls = json("reference/classical_dct4.json")
 #let adx = json("reference/adam_exact_baseline.json")
 #let adr = json("reference/adam_random_seed_sweep.json")
-#let f1(x) = str(calc.round(x, digits: 1))
+#let f1(x) = {
+  let s = str(calc.round(x, digits: 1))
+  if s.contains(".") { s } else { s + ".0" }
+}
 #let f2(x) = str(calc.round(x, digits: 2))
 #let f4(x) = str(calc.round(x, digits: 4))
 #let rhos = ("0.05", "0.1", "0.2")
@@ -29,10 +32,10 @@
 *What a sweep update is.* For a circuit in which gate $G_i$ enters linearly,
 the derivative of the loss w.r.t. that gate *is its environment* $E_i$ — the
 network contracted with everything except $G_i$. To first order,
-$Delta L prop angle.l E_i, Delta G angle.r$, and the orthogonal matrix
+$Delta L prop chevron.l E_i, Delta G chevron.r$, and the orthogonal matrix
 minimizing the linearized loss is closed-form: with SVD $E_i = U Sigma V^top$,
 $G_i^* = -U V^top$ (for the $Delta$-sign phase gate,
-$phi^* = pi + arg E_(11)$). We visit the #man.runs.at("exact/fwd").n_visits
+$phi^* = pi + arg E_(11)$). We visit the 214
 gate slots one at a time (Gauss-Seidel — each visit re-derives $E_i$ with all
 previous updates in place), jump to $G_i^*$ behind a backtracking acceptance
 check ($t in {1, 1/2, 1/4, 1/8}$ along $"polar"((1-t) G_i + t G_i^*)$, accept
@@ -127,9 +130,58 @@ choice at $lt.eq 0.07$ dB.])
 
 = Reading
 
-// FILL AFTER RESULTS: 2-3 paragraphs. Address, with the actual numbers:
-// (i) does the sweep from the exact init hold/improve the classical DCT-IV
-// and match Adam-exact? (ii) how close does the random-init sweep get to the
-// Adam-random band — same basin or short of it, and does fwd vs rev matter?
-// (iii) which gates carry the largest drops (from the dynamics labels), and
-// how fast does the accepted fraction dry up?
+*From the exact init the sweep barely moves — and only the mirror gates move.*
+Both orders converge (#f1(man.runs.at("exact/fwd").n_sweeps) and
+#f1(man.runs.at("exact/rev").n_sweeps) sweeps; the accepted fraction falls to
+$approx 0$ in the right panel of the convergence figure) to
+$approx#f1(man.runs.at("exact/fwd").psnr_final.at("0.2")) "dB"$ \@$rho{=}.20$,
+just #f2(man.runs.at("exact/fwd").psnr_final.at("0.2") - man.runs.at("exact/fwd").psnr_untrained.at("0.2")) dB
+above the analytic DCT-IV (#f2(man.runs.at("exact/fwd").psnr_untrained.at("0.2")) dB)
+and essentially *schedule-independent* — `fwd` and `rev` finish within
+#f2(calc.abs(man.runs.at("exact/fwd").psnr_final.at("0.2") - man.runs.at("exact/rev").psnr_final.at("0.2"))) dB
+of each other and overlap in the dynamics staircase. Every one of the twenty
+largest single-visit drops is an *O(4) mirror-CNOT* (`U4`) gate, led by
+`U4[8,7]`: from the analytic init all the improvement the sweep can find lives
+in the nominally "fixed-routing" mirror block, while the single-qubit
+Hadamards and CRY twiddles — already optimal in the exact DCT-IV — never carry
+a large drop. Yet this converged endpoint sits *#f1(adx.psnr.at("0.2") - man.runs.at("exact/fwd").psnr_final.at("0.2")) dB below Adam*
+from the same init (#f1(adx.psnr.at("0.2")) dB), and still
+#f1(adx.psnr.at("0.1") - man.runs.at("exact/fwd").psnr_final.at("0.1")) dB below
+at the *matched* top-10% rate $rho{=}.10$: the closed-form local optimum is a
+genuinely shallower basin than the one scheduled Adam reaches, not a rate
+artifact.
+
+*From the random init the sweep descends fast but never finishes.* The loss
+plunges two orders of magnitude in the first few sweeps — now the largest drops
+spread across *all* gate kinds (Hadamards, CRY twiddles, mirror CNOTs, and the
+$Delta$-sign phase), led by `H[8]`, `CRY[5,8]`, `CRY[6,8]` — and PSNR climbs
+from #f1(man.runs.at("random/fwd").psnr_untrained.at("0.2")) to
+$approx#f1(man.runs.at("random/rev").psnr_final.at("0.2"))$ dB \@$rho{=}.20$.
+But neither run *converges*: at the #f1(man.max_sweeps)-sweep cap both are still
+accepting $approx 20%$ of visits per sweep (the random curves plateau near
+$0.2$, not $0$, in the accepted-fraction panel) and the loss is still falling,
+so #f2(man.runs.at("random/fwd").psnr_final.at("0.2"))–#f2(man.runs.at("random/rev").psnr_final.at("0.2")) dB
+is a *lower bound*, not a plateau. Even so it already trails Adam from random
+init (#f1(adr.psnr_mean.at("0.2")) $plus.minus$ #f1(adr.psnr_std.at("0.2")) dB)
+by $approx 2$ dB and is closing that gap only by hundredths of a dB per sweep by
+sweep #f1(man.max_sweeps). Order matters slightly here
+(`rev` #f2(man.runs.at("random/rev").psnr_final.at("0.2")) $>$ `fwd`
+#f2(man.runs.at("random/fwd").psnr_final.at("0.2")) dB), unlike the exact case.
+
+*Same conclusion from both ends.* The environment sweep is exactly what its
+construction promises — monotone, hyperparameter-free, and robust to
+initialization and order — but on this DCT-IV landscape it is a *weaker
+optimizer* than Riemannian Adam. Solving each gate's linearized subproblem to
+its closed-form manifold optimum still gets trapped: from the exact init it
+converges into a basin $approx 2.3$ dB short of Adam, and from random it
+descends steadily but far too slowly to reach Adam's endpoint within a
+comparable budget. The deficit is not explained by the fixed
+#(man.batch_n)-image batch or the top-$k$ rate (it is
+#f1(adx.psnr.at("0.1") - man.runs.at("exact/fwd").psnr_final.at("0.1")) dB even
+at the matched $rho{=}.10$); it is the difference between simultaneous,
+momentum-assisted, schedule-annealed updates and greedy one-gate-at-a-time
+solves. For this family the sweep is a reliable way to *polish or sanity-check*
+an operator, not to train one from scratch to Adam quality — and every learned
+DCT-IV here, sweep and Adam alike, still sits below the classical *block-DCT
+8×8* (#f1(cls.block_dct_8.psnr.at("0.2")) dB \@$rho{=}.20$), the strongest
+transform in the table.
