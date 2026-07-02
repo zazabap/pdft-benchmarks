@@ -131,8 +131,8 @@ choice at $lt.eq 0.07$ dB.])
 = Reading
 
 *From the exact init the sweep barely moves — and only the mirror gates move.*
-Both orders converge (#f1(man.runs.at("exact/fwd").n_sweeps) and
-#f1(man.runs.at("exact/rev").n_sweeps) sweeps; the accepted fraction falls to
+Both orders converge (#str(man.runs.at("exact/fwd").n_sweeps) and
+#str(man.runs.at("exact/rev").n_sweeps) sweeps; the accepted fraction falls to
 $approx 0$ in the right panel of the convergence figure) to
 $approx#f1(man.runs.at("exact/fwd").psnr_final.at("0.2")) "dB"$ \@$rho{=}.20$,
 just #f2(man.runs.at("exact/fwd").psnr_final.at("0.2") - man.runs.at("exact/fwd").psnr_untrained.at("0.2")) dB
@@ -157,14 +157,14 @@ spread across *all* gate kinds (Hadamards, CRY twiddles, mirror CNOTs, and the
 $Delta$-sign phase), led by `H[8]`, `CRY[5,8]`, `CRY[6,8]` — and PSNR climbs
 from #f1(man.runs.at("random/fwd").psnr_untrained.at("0.2")) to
 $approx#f1(man.runs.at("random/rev").psnr_final.at("0.2"))$ dB \@$rho{=}.20$.
-But neither run *converges*: at the #f1(man.max_sweeps)-sweep cap both are still
+But neither run *converges*: at the #str(man.max_sweeps)-sweep cap both are still
 accepting $approx 20%$ of visits per sweep (the random curves plateau near
 $0.2$, not $0$, in the accepted-fraction panel) and the loss is still falling,
 so #f2(man.runs.at("random/fwd").psnr_final.at("0.2"))–#f2(man.runs.at("random/rev").psnr_final.at("0.2")) dB
 is a *lower bound*, not a plateau. Even so it already trails Adam from random
 init (#f1(adr.psnr_mean.at("0.2")) $plus.minus$ #f1(adr.psnr_std.at("0.2")) dB)
 by $approx 2$ dB and is closing that gap only by hundredths of a dB per sweep by
-sweep #f1(man.max_sweeps). Order matters slightly here
+sweep #str(man.max_sweeps). Order matters slightly here
 (`rev` #f2(man.runs.at("random/rev").psnr_final.at("0.2")) $>$ `fwd`
 #f2(man.runs.at("random/fwd").psnr_final.at("0.2")) dB), unlike the exact case.
 

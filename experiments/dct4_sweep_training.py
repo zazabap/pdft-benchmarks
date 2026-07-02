@@ -23,7 +23,6 @@ import argparse
 import json
 import os
 import sys
-import time
 from dataclasses import asdict
 from pathlib import Path
 
@@ -151,7 +150,6 @@ def main() -> int:
     prev_visits: list = []
     prev_sweeps: list = []
     prev_converged = False
-    prev_wall_s = 0.0
     if args.resume and (last_path.exists() != trace_path.exists()):
         have = last_path if last_path.exists() else trace_path
         print(f"[dct4_sweep] WARNING: --resume but only {have.name} exists in "
@@ -179,8 +177,6 @@ def main() -> int:
         prev_visits = prev_trace["visits"]
         prev_sweeps = prev_trace["sweeps"]
         start_sweep = (prev_sweeps[-1]["sweep"] + 1) if prev_sweeps else 1
-        if env_path.exists():
-            prev_wall_s = float(json.loads(env_path.read_text()).get("wall_s", 0.0))
         print(f"[dct4_sweep] resuming at sweep {start_sweep} "
               f"({len(prev_visits)} visits done)", flush=True)
 
@@ -282,7 +278,6 @@ def main() -> int:
             "sweeps": live_sweeps,
         })
 
-    t_run = time.perf_counter()
     live_visits: list = []
     live_sweeps: list = list(prev_sweeps)  # dicts from the loaded trace
 
@@ -327,7 +322,10 @@ def main() -> int:
                                   "device", "git_sha")},
         "jax": jax.__version__, "pdft": pdft.__version__,
         "pdft_path": str(Path(pdft.__file__).parent),
-        "wall_s": prev_wall_s + (time.perf_counter() - t_run),
+        # Sum of per-sweep wall times (each checkpointed in the trace), so the
+        # figure is crash/resume-safe and matches manifest.wall_s_total; the
+        # raw driver-process clock would drop a killed segment's time.
+        "wall_s": sum(s["wall_s"] for s in live_sweeps),
     })
     print(f"[dct4_sweep] DONE {args.init}/{args.order}: "
           f"final_loss={res.final_loss:.6f} converged={converged} "
