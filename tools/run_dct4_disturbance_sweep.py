@@ -22,7 +22,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 DRIVER = REPO / "experiments" / "dct4_disturbance_sweep.py"
-FRACTIONS = (0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.10)
+FRACTIONS = (0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.50, 1.00)
 
 
 def _fkey(f):

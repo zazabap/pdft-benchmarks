@@ -32,7 +32,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-FRACTIONS = (0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.10)
+FRACTIONS = (0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.50, 1.00)
 KEEP_RATIOS = (0.01, 0.05, 0.10, 0.20)
 RHO_KEYS = ("0.01", "0.05", "0.1", "0.2")  # evaluate_basis_shared uses str(kr)
 
@@ -113,14 +113,19 @@ def _stats(vals):
             "min": float(a.min()), "max": float(a.max()), "n": int(a.size)}
 
 
-def aggregate(out_base: Path, fractions, seeds, sigma, topk_ratio, epochs) -> dict:
+def aggregate(out_base: Path, seeds, sigma, topk_ratio, epochs) -> dict:
     per_cell: dict[str, dict] = {}
     baseline = None
+    found: set[float] = set()
     for cell in sorted((out_base / "_runs").glob("f*_seed*.json")):
         data = json.loads(cell.read_text())
         per_cell[cell.stem] = data
-        if data.get("f", None) == 0.0:
+        fv = data.get("f", None)
+        if fv == 0.0:
             baseline = data
+        elif fv is not None:
+            found.add(fv)
+    fractions = sorted(found)
 
     def agg_over(kind: str) -> dict:
         out: dict[str, dict] = {}
@@ -137,7 +142,7 @@ def aggregate(out_base: Path, fractions, seeds, sigma, topk_ratio, epochs) -> di
     summary = {
         "dataset": "div2k_8q", "parametrization": "controlled", "sigma": sigma,
         "topk_ratio": topk_ratio, "epochs": epochs,
-        "fractions": list(fractions), "seeds": seeds,
+        "fractions": fractions, "seeds": seeds,
         "keep_ratios": list(KEEP_RATIOS), "rho_keys": list(RHO_KEYS),
         "data_seed_fixed_test": 42, "train_shuffle_seed": 42,
         "baseline": baseline,
@@ -174,7 +179,7 @@ def main() -> int:
     (out_base / "_runs").mkdir(parents=True, exist_ok=True)
 
     if args.aggregate_only:
-        s = aggregate(out_base, FRACTIONS, seeds, args.sigma, args.topk_ratio, args.epochs)
+        s = aggregate(out_base, seeds, args.sigma, args.topk_ratio, args.epochs)
         nt = sum(len(v) for v in s["agg_trained"].values())
         print(f"[dct4_dist] aggregated {len(s['per_cell'])} cells "
               f"({nt} f x rho trained points) -> {out_base/'disturbance_sweep.json'}")
@@ -271,7 +276,7 @@ def main() -> int:
         })
         _release_claim(cell)
 
-    aggregate(out_base, FRACTIONS, seeds, args.sigma, args.topk_ratio, args.epochs)
+    aggregate(out_base, seeds, args.sigma, args.topk_ratio, args.epochs)
     print(f"[dct4_dist] done. Summary: {out_base/'disturbance_sweep.json'}")
     return 0
 
