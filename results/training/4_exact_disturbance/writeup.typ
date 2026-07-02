@@ -24,6 +24,17 @@
   #text(size: 9pt, fill: rgb("#555"))[Generated #datetime.today().display("[year]-[month]-[day]")]
 ]
 
+#block(fill: rgb("#eef4fb"), stroke: 0.5pt + rgb("#9db8dd"), inset: 8pt,
+       radius: 3pt, width: 100%)[
+*What "disturbance" means.* A disturbance rate $f$ randomly jitters an
+*$f$-fraction of the DCT-IV's 2200 real gate-tensor entries* — *not* of its 214
+gates — with additive Gaussian noise $N(0, sigma)$, re-projecting each touched
+gate back onto its manifold; unselected entries keep their exact value. So
+$f = 0.1%$ perturbs $round(0.001 dot 2200) = 2$ entries (2 of 214 gates),
+$f = 100%$ perturbs all 2200 (every gate), and $f = 0$ is the exact analytic
+DCT-IV.
+]
+
 = Setup
 
 Starting from the *exact* analytic DCT-IV (`DCT4Basis(8, 8, parametrization:
