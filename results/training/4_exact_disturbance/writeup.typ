@@ -74,6 +74,22 @@ Because a gate moves only when one of its entries is selected, small $f$ nudges 
 few gates while $f = 100%$ jitters *every* gate; the *magnitude* each touched gate
 travels is set by $sigma$, not by $f$.
 
+#block(fill: luma(246), inset: 8pt, radius: 3pt, width: 100%)[
+*Worked example* ($sigma = 0.1$).#h(4pt) Rotation / branch-H gate
+$G arrow.r M = G + N(0, sigma) arrow.r G' = U V^T$:
+$ mat(delim: "[", 0.707, 0.707; 0.707, -0.707) quad arrow.long.r quad
+  mat(delim: "[", 0.720, 0.694; 0.771, -0.697) quad arrow.long.r quad
+  mat(delim: "[", 0.695, 0.719; 0.719, -0.695) $
+$Delta$-sign gate — phase jitter, $phi' = pi + sigma z = 3.088$:
+$ mat(delim: "[", 1, 1; 1, -1) quad arrow.long.r quad mat(delim: "[", 1, 1; 1, -0.999) $
+Mirror-CNOT — noise then polar on the $4 times 4$ reshape:
+$ mat(delim: "[", 1,0,0,0; 0,1,0,0; 0,0,0,1; 0,0,1,0) quad arrow.long.r quad
+  mat(delim: "[", 0.99, 0.13, 0.06, -0.02; -0.13, 0.99, -0.02, -0.06;
+      0.01, 0.06, -0.03, 1.00; -0.06, 0.02, 1.00, 0.03) $
+Every output is orthogonal (the polar factor drops the SVD singular values); each
+gate moves by $O(sigma)$.
+]
+
 = Final PSNR vs. disturbance
 
 #figure(
