@@ -47,32 +47,29 @@ DCT-IV: #f2(ref.canonical_dct4.psnr.at("0.2")) dB @ $rho{=}.20$).
 
 = Disturbance procedure
 
-The jitter treats the exact DCT-IV's 214 gate tensors as one flat vector of 2200
-real entries and acts *per gate*. For disturbance rate $f$ and jitter scale
-$sigma$:
+The jitter treats the exact DCT-IV's 214 gate tensors as one flat vector of
+$N = 2200$ real entries and acts *per gate*. Draw a selection $S$ of them; for each
+gate $G$ it touches, jitter then re-project onto the gate's manifold ($M_G$ masks
+$G$'s selected entries, $dot.o$ elementwise, $Z_(i j) tilde.op cal(N)(0, 1)$):
 
-```
-select round(f * 2200) of the 2200 real gate entries, uniform, no replacement
-for each gate G that owns >= 1 selected entry:
-    add  N(0, sigma)  to G's selected entries only            # Gaussian jitter
-    re-project the noised gate back onto its manifold:
-        (2,2,2,2) mirror-U4    ->  nearest orthogonal, SVD polar U V^T   [O(4)]
-        (2,2) Delta-sign gate  ->  phi <- pi + sigma*z ; controlled_phase_diag(phi)
-        (2,2) rotation / H     ->  nearest orthogonal, SVD polar U V^T   [O(2)]
-gates with no selected entry are copied unchanged             # f = 0 = identity
-```
+$ S subset.eq {1, dots, N}, quad |S| = round(f N), quad "uniform, no replacement" $
 
-The noise is plain additive i.i.d. Gaussian $N(0, sigma)$ on the *selected raw
-entries only*; the per-gate *re-projection* is what turns it into an on-manifold
-perturbation. Each gate is real-orthogonal, so the nearest valid gate to the
-noised one is its SVD polar factor $U V^T$ (drop the singular values) — this
-keeps the operator a genuine real-orthogonal DCT-IV, so the perturbed init's
-untrained PSNR is meaningful rather than an artefact of a non-orthogonal matrix.
-The $Delta$-sign gate is not a rotation but a phase stub (its lower-right entry
-is $e^(i phi)$, $phi = pi$ at init), so it is jittered in its phase $phi$ instead.
-Because a gate moves only when one of its entries is selected, small $f$ nudges a
-few gates while $f = 100%$ jitters *every* gate; the *magnitude* each touched gate
-travels is set by $sigma$, not by $f$.
+$ hat(G) = G + sigma (Z dot.o M_G) $
+
+$ G' = cases(
+    U V^T & "rotation / U4 gate," med hat(G) = U Sigma V^T,
+    mat(delim: "[", 1, 1; 1, e^(i (pi + sigma z))) & Delta"-sign gate",
+    G & "gate with no selected entry"
+  ) $
+
+The re-projection is what makes the additive Gaussian an *on-manifold*
+perturbation: $U V^T$ is the nearest real-orthogonal gate to $hat(G)$ (its SVD
+polar factor, dropping $Sigma$), so the operator stays a genuine real-orthogonal
+DCT-IV and the perturbed init's untrained PSNR is meaningful. The $Delta$-sign
+gate is a phase stub ($phi = pi$ at init), jittered in its phase instead. A gate
+moves only if one of its entries is selected — small $f$ nudges a few gates,
+$f = 100%$ jitters *every* gate — and the *magnitude* each moves is set by
+$sigma$, not $f$.
 
 #block(fill: luma(246), inset: 8pt, radius: 3pt, width: 100%)[
 *Worked example* ($sigma = 0.1$).#h(4pt) Rotation / branch-H gate
