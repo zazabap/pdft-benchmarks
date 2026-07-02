@@ -140,6 +140,7 @@ def test_sweep_decreases_loss_from_random_init():
     res = sweep_train(list(basis.tensors), vag, loss_fn, order="fwd", max_sweeps=3)
     assert res.n_accepted_total > 0          # sign conventions wired correctly
     assert res.final_loss < l0
+    assert [v.gate for v in res.visits if v.sweep == 1] == list(range(16))
     for v in res.visits:                     # per-visit monotone
         assert v.loss_after <= v.loss_before + 1e-12
     seq = [v.loss_after for v in res.visits]  # globally monotone
@@ -151,6 +152,7 @@ def test_sweep_gates_stay_on_manifold():
 
     basis, loss_fn, vag = _tiny_setup("random")
     res = sweep_train(list(basis.tensors), vag, loss_fn, order="rev", max_sweeps=2)
+    assert [v.gate for v in res.visits if v.sweep == 1] == list(range(15, -1, -1))
     for t in res.tensors:
         a = np.asarray(t)
         kind = classify_gate(a)
@@ -194,3 +196,50 @@ def test_sweep_resume_state_roundtrip():
                           visits=one.visits, sweeps=one.sweeps)
     assert np.isclose(resumed.final_loss, full.final_loss, rtol=0, atol=1e-12)
     assert len(resumed.sweeps) == len(full.sweeps) == 2
+
+
+def test_env_conjugation_matches_finite_difference():
+    # Pins env = conj(raw jax grad): put one phase gate at a generic angle so
+    # E11 is genuinely complex, then check the analytic phase derivative
+    # dL/dphi = Re[conj(E11) * d(e^{i phi})/dphi] against finite differences.
+    # Dropping the conj flips the sign of Im(E11) and breaks the match.
+    import jax
+    import jax.numpy as jnp
+    from pdft.circuit.builder import controlled_phase_diag
+    from pdft.loss import loss_function
+
+    m = n = 2
+    basis = pdft.DCT4Basis(m, n, parametrization="controlled")
+    tensors = [jnp.asarray(t, dtype=jnp.complex128) for t in basis.tensors]
+    gi = next(i for i, t in enumerate(tensors)
+              if classify_gate(np.asarray(t)) == "phase")
+    phi0 = 0.7
+    tensors[gi] = jnp.asarray(controlled_phase_diag(phi0), dtype=jnp.complex128)
+
+    rng = np.random.default_rng(11)
+    batch = jnp.asarray(rng.standard_normal((8, 4, 4)), dtype=jnp.complex128)
+    loss = pdft.MSELoss(k=2)
+
+    def per_image(ts, img):
+        return jnp.real(loss_function(ts, m, n, basis.code, img, loss,
+                                      inverse_code=basis.inv_code))
+
+    def loss_of(ts):
+        return float(jnp.mean(jax.vmap(per_image, in_axes=(None, 0))(ts, batch)))
+
+    grads = jax.grad(
+        lambda ts: jnp.mean(jax.vmap(per_image, in_axes=(None, 0))(ts, batch))
+    )(tensors)
+    env = np.conj(np.asarray(grads[gi]))
+
+    # dL/dphi = Re[conj(E11) * 1j * e^{i phi0}]
+    analytic = float(np.real(np.conj(env[1, 1]) * 1j * np.exp(1j * phi0)))
+    eps = 1e-6
+
+    def at(phi):
+        ts = list(tensors)
+        ts[gi] = jnp.asarray(controlled_phase_diag(phi), dtype=jnp.complex128)
+        return loss_of(ts)
+
+    fd = (at(phi0 + eps) - at(phi0 - eps)) / (2 * eps)
+    assert np.isclose(analytic, fd, rtol=1e-5, atol=1e-9)

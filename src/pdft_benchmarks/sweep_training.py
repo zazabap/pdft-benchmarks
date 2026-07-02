@@ -153,6 +153,17 @@ def sweep_train(
     (callers may mirror appends). ``max_visits`` truncates each sweep (debug /
     smoke only). The fixed-batch loss is monotone non-increasing by
     construction (strict-decrease acceptance).
+
+    Caveats:
+      - Resuming with ``start_sweep > max_sweeps`` runs zero sweeps and
+        returns the checkpoint tensors unchanged, but reports
+        ``converged=False`` — the caller must preserve the checkpointed
+        converged state itself.
+      - ``l0`` comes from ``value_and_grad_fn`` and ``l1`` from ``loss_fn``
+        — two separately-compiled XLA programs that can differ at ~1e-16 on
+        identical inputs — so with ``rel_tol=0`` noise-level accepts can
+        defer termination all the way to ``max_sweeps``. Irrelevant at the
+        default tolerances.
     """
     import jax.numpy as jnp
 
@@ -169,8 +180,13 @@ def sweep_train(
         t_sweep = time.perf_counter()
         n_acc = n_skip = 0
         loss_start = None
+        cached = None  # (l0_raw, grads) from the last skipped visit
         for pos, gi in enumerate(idx):
-            l0_raw, grads = value_and_grad_fn(tensors)
+            # A skipped visit leaves the tensors unchanged, so the previous
+            # value_and_grad result is still valid (the closures are
+            # deterministic); reuse it instead of recomputing.
+            l0_raw, grads = (cached if cached is not None
+                             else value_and_grad_fn(tensors))
             l0 = float(l0_raw)
             if loss_start is None:
                 loss_start = l0
@@ -182,34 +198,46 @@ def sweep_train(
                 all_visits.append(Visit(s, pos, gi, kind, l0, l0, None, False,
                                         "zero_env"))
                 n_skip += 1
+                cached = (l0_raw, grads)
                 continue
             cand = phase_candidate(env) if kind == "phase" else polar_candidate(env)
             accepted = False
             for t in backtrack_ts:
                 gnew = interpolated(np.asarray(tensors[gi]), cand, kind, t)
+                if np.allclose(gnew, np.asarray(tensors[gi]), atol=1e-14):
+                    break  # no-op candidate: smaller t only gets closer; skip
                 trial = list(tensors)
                 trial[gi] = jnp.asarray(gnew, dtype=jnp.complex128)
                 l1 = float(loss_fn(trial))
                 if l1 < l0:
                     tensors = trial
-                    all_visits.append(Visit(s, pos, gi, kind, l0, l1, t, True))
+                    all_visits.append(Visit(s, pos, gi, kind, l0, l1, float(t),
+                                            True))
                     n_acc += 1
                     accepted = True
                     break
-            if not accepted:
+            if accepted:
+                cached = None
+            else:
                 all_visits.append(Visit(s, pos, gi, kind, l0, l0, None, False,
                                         "no_decrease"))
                 n_skip += 1
+                cached = (l0_raw, grads)
         loss_end = float(loss_fn(tensors))
         stats = SweepStats(s, loss_end, n_acc, n_skip,
                            time.perf_counter() - t_sweep)
         all_sweeps.append(stats)
         if on_sweep_end is not None:
             on_sweep_end(s, tensors, stats)
+        if loss_start is None:  # zero visits (max_visits=0 / no gates)
+            loss_start = loss_end
         rel = (loss_start - loss_end) / max(abs(loss_start), 1e-30)
         if n_acc == 0 or rel < rel_tol:
             converged = True
             break
 
-    return SweepResult(tensors=tensors, visits=all_visits, sweeps=all_sweeps,
-                       converged=converged, final_loss=float(loss_fn(tensors)))
+    return SweepResult(
+        tensors=tensors, visits=all_visits, sweeps=all_sweeps,
+        converged=converged,
+        final_loss=(all_sweeps[-1].loss_end if all_sweeps
+                    else float(loss_fn(tensors))))
