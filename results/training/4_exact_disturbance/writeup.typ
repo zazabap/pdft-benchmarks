@@ -27,14 +27,15 @@
 
 Starting from the *exact* analytic DCT-IV (`DCT4Basis(8, 8, parametrization:
 "controlled")` — the O(2)-twiddle form of pdft PR \#24, commit `5365a5a`, whose
-`CRY` twiddle is applied to the control${=}1$ half only), we perturb a
+`CRY` twiddle is applied to the control $=$ 1 half only), we perturb a
 random fraction $f$ of its *2200 real gate-tensor entries* with on-manifold
 Gaussian jitter: add $N(0, #f2(sig))$ to the selected entries and re-project
 each touched gate onto its manifold (nearest-orthogonal O(4)/O(2) via SVD; the
 $Delta$-sign gate by a phase jitter), so the perturbed init stays a valid
 real-orthogonal DCT-IV and its untrained PSNR is interpretable. The disturbed
-counts are $round(f dot 2200) = {2, 4, 11, 22, 44, 110, 220}$ entries for
-$f in {0.1, 0.2, 0.5, 1, 2, 5, 10}%$.
+counts are $round(f dot 2200) = {2, 4, 11, 22, 44, 110, 220, 440, 1100, 2200}$
+entries for $f in {0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100}%$; at $f = 100%$
+*every* gate is jittered.
 
 Each perturbed init (#nseed seeds per $f$) is trained for #ss.epochs steps of
 top-#topk_pct% MSE on the full 500-image DIV2K-8q pool (mini-batch 50, a *fixed*
@@ -90,23 +91,27 @@ DCT-IV: #f2(ref.canonical_dct4.psnr.at("0.2")) dB @ $rho{=}.20$).
 
 #let exact_un = ref.canonical_dct4.psnr.at("0.2")
 #let un_lo = ss.agg_untrained.at("0.001").at("0.2").mean
-#let un_hi = ss.agg_untrained.at("0.1").at("0.2").mean
+#let un_100 = ss.agg_untrained.at("1").at("0.2").mean
+#let tr_100 = ss.agg_trained.at("1").at("0.2").mean
 
-At $rho{=}.20$ the undisturbed exact init trains to #f2(base20) dB. Disturbing it
-barely moves that endpoint: across the whole range — up to *10%* of the 2200 gate
-entries jittered ($sigma = #f2(sig)$) — trained PSNR stays #f2(base20)#sym.dash.en
-33.4 dB at $rho{=}.20$ and is equally flat at $rho{=}.01\/.05\/.10$, never
-departing from the undisturbed reference by more than #sym.tilde 0.14 dB (within
-seed scatter; the faint 2#sym.dash.en 5% bumps are basin noise in the very-flat
-top-$k$ MSE valley, not a trend). The perturbed *init*, by contrast, degrades
-monotonically — from #f2(un_lo) dB at 0.1% to #f2(un_hi) dB at 10% — i.e. up to
-#f2(exact_un - un_hi) dB below the exact init (#f2(exact_un) dB), yet #ss.epochs
-steps of top-#topk_pct% training close that gap entirely.
+At $rho{=}.20$ the undisturbed exact init trains to #f2(base20) dB, and *no amount
+of disturbance moves that endpoint*: across the entire range — from 0.1% up to
+*100%* of the 2200 gate entries jittered ($sigma = #f2(sig)$), i.e. every gate
+perturbed — trained PSNR stays 33.2#sym.dash.en 33.4 dB at $rho{=}.20$ and is
+equally flat at $rho{=}.01\/.05\/.10$, never leaving the undisturbed reference by
+more than #sym.tilde 0.2 dB (within seed scatter). The perturbed *init*, by
+contrast, collapses monotonically — from #f2(un_lo) dB at 0.1% to #f2(un_100) dB
+at 100%, an #f2(exact_un - un_100) dB fall below the exact init (#f2(exact_un) dB)
+that leaves the untrained operator barely above the $rho{=}.20$ floor — yet
+#ss.epochs steps of top-#topk_pct% training recover it to #f2(tr_100) dB, the
+exact-init endpoint.
 
-The exact DCT-IV init therefore sits in a *wide, flat basin*: within a
-several-percent on-manifold neighbourhood the precise gate values are not what the
-trained model depends on — training re-optimises them to the same optimum. This is
-the local-robustness counterpart to the random-init seed study, where a *fully*
-Haar-random controlled DCT-IV instead settles into a lower basin below the exact
-transform; the lever is staying near the exact init, not the exact values
-themselves.
+So the exact DCT-IV init sits in a *very wide, flat basin*: a per-gate jitter of
+$sigma = #f2(sig)$ applied to *all* its parameters still drains to the same
+trained optimum. What the trained model depends on is the DCT-IV *topology* plus
+the top-$k$ objective, not the precise gate values — provided each gate is only
+locally perturbed. The lever that would break recovery is thus the jitter
+*magnitude* $sigma$ (fixed here), not the disturbed *fraction*: contrast the
+random-init seed study, where fully Haar-random gates (an $O(1)$, not
+$sigma {=} #f2(sig)$, per-gate displacement) settle into a lower basin below the
+exact transform.
