@@ -65,8 +65,11 @@ reconstruction MSE ($k = #man.k_train$) on a *fixed* batch of the first
 every run is deterministic. Test PSNR on the canonical 50-image test set.
 Random init: haar-SO per gate (seed #man.runs.at("random/fwd").init_seed,
 shared across orders), the same init family as the seed sweep. Sweeps stop at
-relative per-sweep improvement $< #man.rel_tol$ or zero accepted visits
-(cap #man.max_sweeps).
+relative per-sweep improvement $< #man.rel_tol$ or zero accepted visits; all
+four runs stopped on this plateau criterion (the exact runs within
+#str(man.runs.at("exact/rev").n_sweeps) sweeps, the random runs — extended after
+an initial 20-sweep pass — within #str(man.runs.at("random/rev").n_sweeps)),
+none at a sweep cap.
 
 #figure(image("reference/dct4_sweep_ordering.svg", width: 100%),
   caption: [The *2-D* DCT-IV$(3, 3)$ — two independent DCT-IV$(3)$ blocks, one per
@@ -166,37 +169,41 @@ at the *matched* top-10% rate $rho{=}.10$: the closed-form local optimum is a
 genuinely shallower basin than the one scheduled Adam reaches, not a rate
 artifact.
 
-*From the random init the sweep descends fast but never finishes.* The loss
-plunges two orders of magnitude in the first few sweeps — now the largest drops
-spread across *all* gate kinds (Hadamards, CRY twiddles, mirror CNOTs, and the
-$Delta$-sign phase), led by `H[8]`, `CRY[5,8]`, `CRY[6,8]` — and PSNR climbs
-from #f1(man.runs.at("random/fwd").psnr_untrained.at("0.2")) to
-$approx#f1(man.runs.at("random/rev").psnr_final.at("0.2"))$ dB \@$rho{=}.20$.
-But neither run *converges*: at the #str(man.max_sweeps)-sweep cap both are still
-accepting $approx 20%$ of visits per sweep (the random curves plateau near
-$0.2$, not $0$, in the accepted-fraction panel) and the loss is still falling,
-so #f2(man.runs.at("random/fwd").psnr_final.at("0.2"))–#f2(man.runs.at("random/rev").psnr_final.at("0.2")) dB
-is a *lower bound*, not a plateau. Even so it already trails Adam from random
-init (#f1(adr.psnr_mean.at("0.2")) $plus.minus$ #f1(adr.psnr_std.at("0.2")) dB)
-by $approx 2$ dB and is closing that gap only by hundredths of a dB per sweep by
-sweep #str(man.max_sweeps). Order matters slightly here
-(`rev` #f2(man.runs.at("random/rev").psnr_final.at("0.2")) $>$ `fwd`
-#f2(man.runs.at("random/fwd").psnr_final.at("0.2")) dB), unlike the exact case.
+*From the random init the sweep descends fast, then converges — well short of
+Adam.* The loss plunges two orders of magnitude in the first few sweeps — the
+largest drops now spread across *all* gate kinds (Hadamards, CRY twiddles,
+mirror CNOTs, and the $Delta$-sign phase), led by `H[8]`, `CRY[5,8]`, `CRY[6,8]`
+— and test PSNR climbs from #f1(man.runs.at("random/fwd").psnr_untrained.at("0.2"))
+to $approx#f1(man.runs.at("random/rev").psnr_final.at("0.2"))$ dB \@$rho{=}.20$,
+where it *flattens*: the accepted fraction decays toward $0$ and test PSNR
+plateaus even as the training loss keeps inching down — mild overfitting of the
+*fixed* 50-image batch, exactly as in the exact case. `fwd` converges
+(#str(man.runs.at("random/fwd").n_sweeps) sweeps) at
+#f2(man.runs.at("random/fwd").psnr_final.at("0.2")) dB and `rev` settles at
+#f2(man.runs.at("random/rev").psnr_final.at("0.2")) dB — both $approx 1.7$–$2$ dB
+below Adam from random init (#f1(adr.psnr_mean.at("0.2")) $plus.minus$
+#f1(adr.psnr_std.at("0.2")) dB). This is a *converged* gap, not the
+stopping artifact it would have been at the original 20-sweep cap (the random
+curves reach $approx 0$ accepted-fraction in the convergence figure, not the
+$0.2$ plateau of a truncated run). Order matters more here than for the exact
+init (`rev` #f2(man.runs.at("random/rev").psnr_final.at("0.2")) $>$ `fwd`
+#f2(man.runs.at("random/fwd").psnr_final.at("0.2")) dB).
 
-*Same conclusion from both ends.* The environment sweep is exactly what its
-construction promises — monotone, hyperparameter-free, and robust to
-initialization and order — but on this DCT-IV landscape it is a *weaker
-optimizer* than Riemannian Adam. Solving each gate's linearized subproblem to
-its closed-form manifold optimum still gets trapped: from the exact init it
-converges into a basin $approx 2.3$ dB short of Adam, and from random it
-descends steadily but far too slowly to reach Adam's endpoint within a
-comparable budget. The deficit is not explained by the fixed
-#(man.batch_n)-image batch or the top-$k$ rate (it is
+*Same conclusion from both ends.* Run to its plateau, the environment sweep
+*converges below* Riemannian Adam from either init — $approx 2.3$ dB short from
+exact, $approx 2$ dB from random — even though it is monotone, hyperparameter-free,
+and robust to initialization and order. Two candidate causes; one is ruled out.
+The top-$k$ rate does *not* explain the gap: the exact-init deficit is
 #f1(adx.psnr.at("0.1") - man.runs.at("exact/fwd").psnr_final.at("0.1")) dB even
-at the matched $rho{=}.10$); it is the difference between simultaneous,
-momentum-assisted, schedule-annealed updates and greedy one-gate-at-a-time
-solves. For this family the sweep is a reliable way to *polish or sanity-check*
-an operator, not to train one from scratch to Adam quality — and every learned
+at the *matched* $rho{=}.10$. The *fixed #(man.batch_n)-image batch*, however, is
+a genuine confound — on both inits the training loss keeps falling while test
+PSNR plateaus (the deterministic sweep overfits its batch), whereas the Adam
+references mini-batched over the full 500-image pool. So part of the deficit is
+regularization rather than optimizer quality, and cleanly separating the two
+needs a larger-batch sweep (deferred). What is unambiguous is that greedy,
+one-gate-at-a-time closed-form solves land in *shallower basins* than
+simultaneous, momentum-assisted, schedule-annealed updates. For this family the
+sweep is a reliable way to *polish or sanity-check* an operator; every learned
 DCT-IV here, sweep and Adam alike, still sits below the classical *block-DCT
 8×8* (#f1(cls.block_dct_8.psnr.at("0.2")) dB \@$rho{=}.20$), the strongest
 transform in the table.
