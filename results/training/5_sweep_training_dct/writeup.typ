@@ -177,9 +177,10 @@ mirror CNOTs, and the $Delta$-sign phase), led by `H[8]`, `CRY[5,8]`, `CRY[6,8]`
 to $approx#f1(man.runs.at("random/rev").psnr_final.at("0.2"))$ dB \@$rho{=}.20$,
 where it *flattens*: the accepted fraction decays toward $0$ and test PSNR
 plateaus even as the training loss keeps inching down — mild overfitting of the
-*fixed* 50-image batch, exactly as in the exact case. `fwd` converges
-(#str(man.runs.at("random/fwd").n_sweeps) sweeps) at
-#f2(man.runs.at("random/fwd").psnr_final.at("0.2")) dB and `rev` settles at
+*fixed* 50-image batch, exactly as in the exact case. Both orders converge:
+`fwd` in #str(man.runs.at("random/fwd").n_sweeps) sweeps to
+#f2(man.runs.at("random/fwd").psnr_final.at("0.2")) dB, `rev` in
+#str(man.runs.at("random/rev").n_sweeps) sweeps to
 #f2(man.runs.at("random/rev").psnr_final.at("0.2")) dB — both $approx 1.7$–$2$ dB
 below Adam from random init (#f1(adr.psnr_mean.at("0.2")) $plus.minus$
 #f1(adr.psnr_std.at("0.2")) dB). This is a *converged* gap, not the
@@ -203,7 +204,9 @@ regularization rather than optimizer quality, and cleanly separating the two
 needs a larger-batch sweep (deferred). What is unambiguous is that greedy,
 one-gate-at-a-time closed-form solves land in *shallower basins* than
 simultaneous, momentum-assisted, schedule-annealed updates. For this family the
-sweep is a reliable way to *polish or sanity-check* an operator; every learned
-DCT-IV here, sweep and Adam alike, still sits below the classical *block-DCT
-8×8* (#f1(cls.block_dct_8.psnr.at("0.2")) dB \@$rho{=}.20$), the strongest
-transform in the table.
+sweep is a reliable way to *polish or sanity-check* an operator. At the headline
+$rho{=}.20$ every learned DCT-IV here — sweep and Adam alike — still sits below
+the classical *block-DCT 8×8* (#f1(cls.block_dct_8.psnr.at("0.2")) dB), the
+strongest transform at that rate; only at the sparsest $rho{=}.05$ does a
+learned basis edge it (Adam-from-exact #f1(adx.psnr.at("0.05")) vs block-DCT
+#f1(cls.block_dct_8.psnr.at("0.05")) dB).
