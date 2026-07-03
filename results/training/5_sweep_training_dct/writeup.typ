@@ -59,7 +59,7 @@ the classic tensor-network sweep — land in the same place? From both a
 
 `DCT4Basis(8, 8, parametrization: "controlled")` (pdft PR \#24, commit
 `5365a5a`): 214 gates / 2200 real entries — O(2) singles and CRY twiddle
-leaves, O(4) mirror gates, $Delta$-sign phase gates. Loss: top-#(str(calc.round(man.topk_ratio * 100)))%
+leaves, O(4) mirror gates, $Delta$-sign phase gates (@fig-order). Loss: top-#(str(calc.round(man.topk_ratio * 100)))%
 reconstruction MSE ($k = #man.k_train$) on a *fixed* batch of the first
 #man.batch_n images of the canonical seed-42 DIV2K-8q train pool — fixed, so
 every run is deterministic. Test PSNR on the canonical 50-image test set.
@@ -67,6 +67,20 @@ Random init: haar-SO per gate (seed #man.runs.at("random/fwd").init_seed,
 shared across orders), the same init family as the seed sweep. Sweeps stop at
 relative per-sweep improvement $< #man.rel_tol$ or zero accepted visits
 (cap #man.max_sweeps).
+
+#figure(image("reference/dct4_sweep_ordering.svg", width: 100%),
+  caption: [The *2-D* DCT-IV$(3, 3)$ — two independent DCT-IV$(3)$ blocks, one per
+  image axis (*axis 0* = $q_1..q_3$, rows; *axis 1* = $q_4..q_6$, columns) — a
+  small stand-in for the DIV2K DCT-IV$(8, 8)$ (214 gates, axis 1 = $q_9..q_(16)$).
+  The four trainable gate kinds are the labels that appear at the drops in
+  @fig-dynamics: *H* branch Hadamard (1q), *U4* mirror-CNOT (2q), *CRY*
+  single-angle twiddle (2q), *CP* $Delta$-sign controlled-phase (2q).
+  Superscripts give the *sweep visit order* (the basis' tensor-slot order): a
+  `fwd` sweep visits gates $1 arrow.r N$, `rev` visits $N arrow.r 1$, and — unlike
+  the one-gate-per-stage unfreeze study — the whole sweep repeats with *every*
+  gate revisited on *every* pass (Gauss–Seidel) until the accepted fraction
+  falls to $approx 0$.])
+  <fig-order>
 
 = Sweep dynamics
 
@@ -76,6 +90,7 @@ relative per-sweep improvement $< #man.rel_tol$ or zero accepted visits
   sweep boundaries). Labels mark the largest single-visit drops (gate kind
   [qubits]); endpoints are annotated with test PSNR\@$rho{=}.20$. Every
   accepted visit decreases the loss by construction.])
+  <fig-dynamics>
 
 #figure(image("figures/sweep_convergence.svg", width: 100%),
   caption: [Per-sweep endpoint loss, test PSNR\@$rho{=}.20$, and accepted-visit
