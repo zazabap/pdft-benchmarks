@@ -38,3 +38,14 @@ def test_quantize_all_zero():
     codes, scale = _quantize(np.zeros(10), 8)
     assert scale == 0.0
     np.testing.assert_array_equal(_dequantize(codes, 8, scale), np.zeros(10))
+
+
+def test_pack_uint_is_msb_first_fixed_vector():
+    # Pins the on-disk contract: value bits land MSB-first in the stream.
+    assert _pack_uint(np.array([0b1010], dtype=np.uint32), 4) == bytes([0b10100000])
+    assert _pack_uint(np.array([1, 2], dtype=np.uint32), 8) == bytes([1, 2])
+
+
+def test_pack_unpack_roundtrip_bits16_boundary():
+    vals = np.array([0, 1, 2 ** 16 - 1, 12345], dtype=np.uint32)
+    np.testing.assert_array_equal(_unpack_uint(_pack_uint(vals, 16), 4, 16), vals)
