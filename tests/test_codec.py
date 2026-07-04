@@ -49,3 +49,73 @@ def test_pack_uint_is_msb_first_fixed_vector():
 def test_pack_unpack_roundtrip_bits16_boundary():
     vals = np.array([0, 1, 2 ** 16 - 1, 12345], dtype=np.uint32)
     np.testing.assert_array_equal(_unpack_uint(_pack_uint(vals, 16), 4, 16), vals)
+
+
+from pdft_benchmarks.codec import TransformPair, block_dct_pair, encode, decode
+
+
+def _smooth_image(h=32, w=32, seed=0):
+    """Deterministic smooth test image in [0,1] (compressible, unlike noise)."""
+    rng = np.random.default_rng(seed)
+    y, x = np.mgrid[0:h, 0:w].astype(np.float64)
+    img = 0.4 + 0.3 * np.sin(2 * np.pi * x / w) * np.cos(2 * np.pi * y / h)
+    cy, cx = rng.uniform(8, h - 8), rng.uniform(8, w - 8)
+    img += 0.25 * np.exp(-((y - cy) ** 2 + (x - cx) ** 2) / 18.0)
+    return np.clip(img, 0.0, 1.0)
+
+
+def test_block_dct_pair_is_orthonormal_roundtrip():
+    img = _smooth_image()
+    pair = block_dct_pair(8)
+    coeffs = pair.forward(img)
+    assert coeffs.shape == img.shape and not pair.is_complex
+    back = pair.inverse(coeffs)
+    np.testing.assert_allclose(back, img, atol=1e-10)
+
+
+def test_encode_decode_real_roundtrip_quality():
+    img = _smooth_image()
+    pair = block_dct_pair(8)
+    blob = encode(img, pair, keep_ratio=0.3, bits=10)
+    assert isinstance(blob, bytes)
+    # A 32x32 image at 30% keep / 10 bits must actually be smaller than raw.
+    assert len(blob) < 32 * 32
+    rec = decode(blob, pair)
+    assert rec.shape == img.shape
+    mse = float(np.mean((img - np.clip(rec, 0, 1)) ** 2))
+    assert 10 * np.log10(1.0 / mse) > 30.0  # smooth image, generous budget
+
+
+def test_decode_is_deterministic_and_blob_selfcontained(tmp_path):
+    img = _smooth_image(seed=3)
+    pair = block_dct_pair(8)
+    blob = encode(img, pair, keep_ratio=0.1, bits=8)
+    p = tmp_path / "img.bin"
+    p.write_bytes(blob)
+    # decode strictly from the file + a freshly constructed pair
+    rec1 = decode(p.read_bytes(), block_dct_pair(8))
+    rec2 = decode(blob, pair)
+    np.testing.assert_array_equal(rec1, rec2)
+
+
+def test_encode_rejects_bad_args():
+    img = _smooth_image()
+    pair = block_dct_pair(8)
+    with pytest.raises(ValueError):
+        encode(img, pair, keep_ratio=0.0, bits=8)
+    with pytest.raises(ValueError):
+        encode(img, pair, keep_ratio=0.1, bits=1)
+    with pytest.raises(ValueError):
+        decode(b"nonsense-not-zlib", pair)
+
+
+def test_decode_rejects_truncated_payload():
+    # A truncated-but-valid-zlib payload must raise, not silently zero-pad.
+    import zlib as _zlib
+    img = _smooth_image(seed=4)
+    pair = block_dct_pair(8)
+    blob = encode(img, pair, keep_ratio=0.2, bits=10)
+    payload = _zlib.decompress(blob)
+    truncated = _zlib.compress(payload[:len(payload) - 8], 9)
+    with pytest.raises(ValueError, match="truncated"):
+        decode(truncated, pair)
