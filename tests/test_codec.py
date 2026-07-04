@@ -240,3 +240,20 @@ def test_encode_rejects_upper_bounds():
         encode(img, pair, keep_ratio=1.5, bits=8)
     with pytest.raises(ValueError):
         encode(img, pair, keep_ratio=0.1, bits=17)
+
+
+def test_codec_ties_back_to_block_dct_compress():
+    """At fine quantization the codec must match baselines.block_dct_compress
+    (the function behind committed block_dct_8 metrics) within 0.2 dB."""
+    from pdft_benchmarks.baselines import block_dct_compress
+
+    def psnr(a, b):
+        mse = float(np.mean((a - np.clip(b, 0, 1)) ** 2))
+        return 10 * np.log10(1.0 / mse)
+
+    pair = block_dct_pair(8)
+    for seed in range(5):
+        img = _smooth_image(seed=seed)
+        ref = block_dct_compress(img, 0.1, block=8)
+        rec = decode(encode(img, pair, keep_ratio=0.1, bits=14), pair)
+        assert abs(psnr(img, ref) - psnr(img, rec)) < 0.2
