@@ -1,0 +1,114 @@
+{
+ "meta": {
+  "dataset": "quickdraw_5q",
+  "n_train": 500,
+  "n_test": 50,
+  "image_shape": [
+   32,
+   32
+  ],
+  "raw_bytes_total": 563200,
+  "raw_bytes_per_image": 1024,
+  "deflate_raw_total": 148885,
+  "png_total": 217701,
+  "seed": 42,
+  "keep_ratios": [
+   0.05,
+   0.1,
+   0.15,
+   0.2,
+   0.3,
+   0.4,
+   0.5
+  ],
+  "bits": [
+   6,
+   8,
+   10
+  ]
+ },
+ "budget_bytes": 281600.0,
+ "by_basis": {
+  "real_rich": {
+   "keep_ratio": 0.4,
+   "bits": 8,
+   "blob_bytes_total": 264992,
+   "basis_bytes": 7169,
+   "total_bytes": 272161,
+   "bytes_per_image": 494.8381818181818,
+   "ratio_vs_raw": 0.48324041193181816,
+   "train": {
+    "mean_mse": 4.898377313057504e-05,
+    "std_mse": 5.255479871599499e-05,
+    "mean_psnr": 45.181102494687785,
+    "std_psnr": 4.233699734939961,
+    "mean_ssim": 0.9936583612572194,
+    "std_ssim": 0.004763757020132934,
+    "nan_count": 0
+   },
+   "test": {
+    "mean_mse": 4.765716649898089e-05,
+    "std_mse": 3.836987921743154e-05,
+    "mean_psnr": 44.68764170990605,
+    "std_psnr": 3.6800474163843475,
+    "mean_ssim": 0.9931834849067934,
+    "std_ssim": 0.0037937016403761055,
+    "nan_count": 0
+   }
+  },
+  "rich": {
+   "keep_ratio": 0.2,
+   "bits": 6,
+   "blob_bytes_total": 236793,
+   "basis_bytes": 9215,
+   "total_bytes": 246008,
+   "bytes_per_image": 447.28727272727275,
+   "ratio_vs_raw": 0.4368039772727273,
+   "train": {
+    "mean_mse": 0.0009909179846328184,
+    "std_mse": 0.0008639564211655932,
+    "mean_psnr": 31.642094114018285,
+    "std_psnr": 3.9159020712052532,
+    "mean_ssim": 0.9654926034450952,
+    "std_ssim": 0.012391663625864451,
+    "nan_count": 0
+   },
+   "test": {
+    "mean_mse": 0.0010068408657549618,
+    "std_mse": 0.0006175657387185494,
+    "mean_psnr": 30.87660147602478,
+    "std_psnr": 2.9593943592995053,
+    "mean_ssim": 0.9630970843567994,
+    "std_ssim": 0.011692650463265121,
+    "nan_count": 0
+   }
+  },
+  "block_dct_8": {
+   "keep_ratio": 0.4,
+   "bits": 8,
+   "blob_bytes_total": 266533,
+   "basis_bytes": 0,
+   "total_bytes": 266533,
+   "bytes_per_image": 484.60545454545456,
+   "ratio_vs_raw": 0.47324751420454547,
+   "train": {
+    "mean_mse": 0.00037454155081005473,
+    "std_mse": 0.0004045940423854595,
+    "mean_psnr": 37.91754961111164,
+    "std_psnr": 6.583805680757269,
+    "mean_ssim": 0.975163869174787,
+    "std_ssim": 0.01783132397633304,
+    "nan_count": 0
+   },
+   "test": {
+    "mean_mse": 0.00036161991449015405,
+    "std_mse": 0.00032216218360945194,
+    "mean_psnr": 36.881393528674444,
+    "std_psnr": 5.260405229432881,
+    "mean_ssim": 0.9721929470681877,
+    "std_ssim": 0.015540533760408422,
+    "nan_count": 0
+   }
+  }
+ }
+}
