@@ -59,7 +59,10 @@ def _smooth_image(h=32, w=32, seed=0):
     rng = np.random.default_rng(seed)
     y, x = np.mgrid[0:h, 0:w].astype(np.float64)
     img = 0.4 + 0.3 * np.sin(2 * np.pi * x / w) * np.cos(2 * np.pi * y / h)
-    cy, cx = rng.uniform(8, h - 8), rng.uniform(8, w - 8)
+    # Margin scales with image size (== 8 at the 32x32 default, preserving
+    # existing behavior exactly) so small images (e.g. 8x8) stay valid.
+    my, mx = max(1, h // 4), max(1, w // 4)
+    cy, cx = rng.uniform(my, h - my), rng.uniform(mx, w - mx)
     img += 0.25 * np.exp(-((y - cy) ** 2 + (x - cx) ** 2) / 18.0)
     return np.clip(img, 0.0, 1.0)
 
@@ -119,3 +122,121 @@ def test_decode_rejects_truncated_payload():
     truncated = _zlib.compress(payload[:len(payload) - 8], 9)
     with pytest.raises(ValueError, match="truncated"):
         decode(truncated, pair)
+
+
+def test_encode_decode_complex_roundtrip():
+    """A complex transform must store re+im and survive the round trip."""
+    rng = np.random.default_rng(7)
+    d = 64
+    # Random unitary via QR — a stand-in complex orthonormal transform.
+    a = rng.normal(size=(d, d)) + 1j * rng.normal(size=(d, d))
+    q, _ = np.linalg.qr(a)
+
+    pair = TransformPair(
+        forward=lambda img: (q @ img.ravel()).reshape(img.shape),
+        inverse=lambda c: np.real(q.conj().T @ c.ravel()).reshape(c.shape),
+        is_complex=True,
+    )
+    img = _smooth_image(8, 8, seed=5)
+    blob = encode(img, pair, keep_ratio=1.0, bits=12)
+    rec = decode(blob, pair)
+    # keep_ratio=1.0 at 12 bits: only quantization noise remains.
+    assert float(np.max(np.abs(rec - img))) < 1e-2
+
+
+def test_complex_partial_keep_pins_value_position_mapping():
+    """At keep_ratio<1 a permuted re/im-to-position mapping would corrupt
+    the reconstruction badly; a correct one stays close to the unquantized
+    top-k reconstruction."""
+    rng = np.random.default_rng(13)
+    d = 64
+    a = rng.normal(size=(d, d)) + 1j * rng.normal(size=(d, d))
+    q, _ = np.linalg.qr(a)
+    pair = TransformPair(
+        forward=lambda img: (q @ img.ravel()).reshape(img.shape),
+        inverse=lambda c: np.real(q.conj().T @ c.ravel()).reshape(c.shape),
+        is_complex=True,
+    )
+    img = _smooth_image(8, 8, seed=6)
+    # Reference: exact top-k (k = floor(64*0.5) = 32) reconstruction.
+    c = pair.forward(img).ravel()
+    k = 32
+    top = np.argpartition(np.abs(c), -k)[-k:]
+    kept = np.zeros(d, dtype=np.complex128)
+    kept[top] = c[top]
+    ref = pair.inverse(kept.reshape(img.shape))
+    rec = decode(encode(img, pair, keep_ratio=0.5, bits=14), pair)
+    assert float(np.max(np.abs(rec - ref))) < 1e-2
+
+
+def test_complex_blob_is_larger_than_real_blob_at_same_k():
+    """Honest accounting: complex coefficients cost ~2x the value payload."""
+    img = _smooth_image(seed=11)
+    real_pair = block_dct_pair(8)
+    fake_complex = TransformPair(
+        forward=lambda im: real_pair.forward(im).astype(np.complex128),
+        inverse=lambda c: real_pair.inverse(np.real(c)),
+        is_complex=True,
+    )
+    real_blob = encode(img, real_pair, keep_ratio=0.3, bits=10)
+    cplx_blob = encode(img, fake_complex, keep_ratio=0.3, bits=10)
+    assert len(cplx_blob) > len(real_blob)
+
+
+def test_decode_rejects_complex_mismatch():
+    img = _smooth_image()
+    blob = encode(img, block_dct_pair(8), keep_ratio=0.1, bits=8)
+    wrong = TransformPair(
+        forward=block_dct_pair(8).forward,
+        inverse=block_dct_pair(8).inverse,
+        is_complex=True,
+    )
+    with pytest.raises(ValueError, match="is_complex|truncated"):
+        decode(blob, wrong)
+
+
+def test_basis_pair_real_rich_smoke():
+    """basis_pair on an untrained RealRichBasis: real coeffs, exact roundtrip."""
+    import pdft
+
+    from pdft_benchmarks.codec import basis_pair
+
+    b = pdft.RealRichBasis(3, 3)  # 8x8
+    pair = basis_pair(b, is_complex=False)
+    img = _smooth_image(8, 8, seed=2)
+    coeffs = pair.forward(img)
+    assert coeffs.dtype == np.float64
+    np.testing.assert_allclose(pair.inverse(coeffs), img, atol=1e-10)
+    rec = decode(encode(img, pair, keep_ratio=1.0, bits=12), pair)
+    assert float(np.max(np.abs(rec - img))) < 1e-2
+
+
+def test_encode_accepts_precomputed_coeffs():
+    img = _smooth_image()
+    pair = block_dct_pair(8)
+    c = pair.forward(img)
+    a = encode(img, pair, keep_ratio=0.2, bits=8)
+    b = encode(img, pair, keep_ratio=0.2, bits=8, coeffs=c)
+    assert a == b
+
+
+def test_encode_rejects_mismatched_coeffs_shape():
+    img = _smooth_image()
+    pair = block_dct_pair(8)
+    with pytest.raises(ValueError, match="coeffs shape"):
+        encode(img, pair, keep_ratio=0.2, bits=8, coeffs=np.zeros((8, 8)))
+
+
+def test_decode_rejects_valid_zlib_bad_magic():
+    import zlib as _zlib
+    with pytest.raises(ValueError, match="magic"):
+        decode(_zlib.compress(b"XXXX" + b"\x00" * 32, 9), block_dct_pair(8))
+
+
+def test_encode_rejects_upper_bounds():
+    img = _smooth_image()
+    pair = block_dct_pair(8)
+    with pytest.raises(ValueError):
+        encode(img, pair, keep_ratio=1.5, bits=8)
+    with pytest.raises(ValueError):
+        encode(img, pair, keep_ratio=0.1, bits=17)

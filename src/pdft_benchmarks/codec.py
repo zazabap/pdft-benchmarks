@@ -155,9 +155,16 @@ def encode(
         raise ValueError(f"keep_ratio must be in (0, 1], got {keep_ratio}")
     if not (2 <= bits <= 16):
         raise ValueError(f"bits must be in [2, 16], got {bits}")
-    img = np.asarray(image, dtype=np.float64)
-    h, w = img.shape
-    flat = (pair.forward(img) if coeffs is None else np.asarray(coeffs)).ravel()
+    h, w = np.asarray(image).shape
+    if coeffs is None:
+        flat = pair.forward(np.asarray(image, dtype=np.float64)).ravel()
+    else:
+        coeffs = np.asarray(coeffs)
+        if coeffs.shape != (h, w):
+            raise ValueError(
+                f"coeffs shape {coeffs.shape} != image shape {(h, w)}"
+            )
+        flat = coeffs.ravel()
     d = flat.size
     k = max(1, int(np.floor(d * keep_ratio)))
 
