@@ -25,17 +25,30 @@ from pdft_benchmarks.experiment_utils import apply_preset_overrides
 from pdft_benchmarks.pipeline import run_experiment
 
 
+DEFAULT_BASES = ("qft", "entangled_qft", "tebd", "mera",
+                 "blocked", "rich", "real_rich")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--preset", default="generalized",
                         choices=["smoke", "moderate", "generalized"])
     parser.add_argument("--gpu", type=int, default=None)
     parser.add_argument("--out", default=None)
+    parser.add_argument("--bases", default=",".join(DEFAULT_BASES),
+                        help=f"Comma-separated subset of {DEFAULT_BASES}. "
+                             f"Default: all.")
     parser.add_argument("--no-early-stop", action="store_true",
                         help="Disable early-stopping-on-validation-plateau.")
     parser.add_argument("--epochs", type=int, default=None,
                         help="Override preset.epochs.")
     args = parser.parse_args()
+
+    bases = [b.strip() for b in args.bases.split(",") if b.strip()]
+    unknown = [b for b in bases if b not in DEFAULT_BASES]
+    if unknown:
+        raise SystemExit(f"unknown basis name(s): {unknown}; "
+                         f"choices: {sorted(DEFAULT_BASES)}")
 
     preset = apply_preset_overrides(
         args.preset, dataset="quickdraw", tag="quickdraw",
@@ -45,8 +58,7 @@ def main():
     res = run_experiment(
         dataset="quickdraw",
         m=5, n=5,
-        bases=["qft", "entangled_qft", "tebd", "mera",
-               "blocked", "rich", "real_rich"],
+        bases=bases,
         baselines=["fft", "dct", "block_fft_8", "block_dct_8"],
         preset=preset,
         output_dir=args.out,
