@@ -151,30 +151,6 @@ raises the matched-rate PSNR by *$lt.eq 0.07$ dB* (controlled all-at-once probe,
 `reference/rate_matched_div2k.json`) — the operator's energy compaction is
 essentially rate-agnostic, so the top-$k$ choice is not the issue.
 
-#let ss = json("reference/random_seed_sweep_div2k.json")
-#let ss20 = ss.agg.at("0.2")
-#let f2(x) = str(calc.round(x, digits: 2))
-#let n_top = ss.per_seed.values().filter(v => calc.abs(v.at("0.2") - ss20.max) < 5e-3).len()
-#let id20 = man("div2k_8q", "identity").orderings.bg.final_psnr.at("0.2")
-*Seed robustness (random init).* Across *#ss20.n* random-init seeds (block-growth),
-*#n_top land at #f2(ss20.max) dB* \@$rho{=}.20$ (mean #f2(ss20.mean), $sigma =
-#f2(ss20.std)$, max #f2(ss20.max)); a single seed dipped to #f2(ss20.min). So the
-random endpoint is seed-invariant and *never exceeds* the #f2(ss20.max) attractor —
-the optimum is a stable basin, not a lucky draw, and reseeding cannot reach the
-identity result (#f2(id20)) or the 8×8-block #f2(bmax.at(3))
-(`reference/random_seed_sweep_div2k.json`, $n = #ss20.n$).
-
-#figure(image("figures/seed_robustness.svg", width: 100%),
-  caption: [*Random-init seed sweep* (block-growth, DIV2K, $n = #ss20.n$).
-  *Left:* every seed's test PSNR\@$rho{=}.20$: #n_top sit on the
-  #f2(ss20.max)-dB attractor (grey band $=$ mean $plus.minus sigma$) and the
-  lone outlier (seed 2) at #f2(ss20.min) — none reach the identity-init
-  (#f2(id20)) or 8×8-block (#f2(bmax.at(3))) reference. *Right:* the random min–max band is
-  negligible at every $rho$ — yet identity init is *worse* at low $rho$
-  (#f1(man("div2k_8q", "identity").orderings.bg.final_psnr.at("0.05")) dB
-  \@$rho{=}.05$ vs #f1(ss.agg.at("0.05").mean)), crossing above only near
-  $rho{=}.20$.])
-
 = Reading
 
 The staircase shows each gate's marginal value: the big drops are the *early*
