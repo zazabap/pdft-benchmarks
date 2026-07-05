@@ -66,7 +66,7 @@ def _series(seed: int, d: dict, from_trace: bool, run_o_dir: Path):
     return list(range(1, len(ys) + 1)), ys
 
 
-def _draw_ordering(ax, o, cells, from_trace, run_o_dir, ylabel=True):
+def _draw_ordering(ax, o, cells, from_trace, run_o_dir, ylabel=True, short_title=False):
     """Draw one ordering's per-seed staircase overlay + bold mean into ax."""
     color, lab = STYLE[o]
     n = len(cells)
@@ -89,9 +89,14 @@ def _draw_ordering(ax, o, cells, from_trace, run_o_dir, ylabel=True):
     if ylabel:
         ax.set_ylabel("training top-$k$ MSE loss", fontsize=8.5)
     psnrs = np.array(finals) if finals else np.array([np.nan])
-    ax.set_title(f"{lab}  (n={n}, PSNR@.20 "
-                 f"{np.nanmean(psnrs):.2f}$\\pm${np.nanstd(psnrs):.2f})",
-                 fontsize=9)
+    if short_title:
+        # Paper figures: just the ordering name; n / PSNR go in the LaTeX caption
+        # (the full title overflows the narrow two-column panels).
+        ax.set_title(lab)
+    else:
+        ax.set_title(f"{lab}  (n={n}, PSNR@.20 "
+                     f"{np.nanmean(psnrs):.2f}$\\pm${np.nanstd(psnrs):.2f})",
+                     fontsize=9)
     ax.legend(frameon=False, fontsize=7.5, loc="upper right")
 
 
@@ -117,7 +122,15 @@ def main() -> int:
                     help="Emit one standalone figure per ordering "
                          "(seed_dynamics_{bg,lr,rl}) with a shared y-range, "
                          "instead of the composite.")
+    ap.add_argument("--paper-style", action="store_true", default=False,
+                    help="Publication style + paper-width figsize; PDF to figures/paper/.")
     args = ap.parse_args()
+    if args.paper_style:
+        import sys as _sys
+        from pathlib import Path as _P
+        _sys.path.insert(0, str(_P(__file__).resolve().parent))
+        from paper_style import apply_paper_style, PAPER_TEXTWIDTH
+        apply_paper_style()
 
     base = Path(args.base)
     runs = base / "_runs"
@@ -147,19 +160,27 @@ def main() -> int:
             plt.close(fig)
         return 0
 
-    fig, axes = plt.subplots(1, len(orderings), figsize=(4.3 * len(orderings), 3.6),
+    _w = PAPER_TEXTWIDTH if args.paper_style else 4.3 * len(orderings)
+    _h = 2.5 if args.paper_style else 3.6
+    fig, axes = plt.subplots(1, len(orderings), figsize=(_w, _h),
                              sharey=True, squeeze=False)
     axes = axes[0]
     for i, (ax, o) in enumerate(zip(axes, orderings)):
         _draw_ordering(ax, o, _load_cells(runs / o), args.from_trace,
-                       runs / o, ylabel=(i == 0))
+                       runs / o, ylabel=(i == 0), short_title=args.paper_style)
 
     fig.tight_layout()
     stem = "seed_training_dynamics" + suffix
-    for ext in ("pdf", "svg"):
-        out = figdir / f"{stem}.{ext}"
+    if args.paper_style:
+        pdir = figdir / "paper"; pdir.mkdir(parents=True, exist_ok=True)
+        out = pdir / f"{stem}.pdf"
         fig.savefig(out, bbox_inches="tight")
         print(f"[render] wrote {out}")
+    else:
+        for ext in ("pdf", "svg"):
+            out = figdir / f"{stem}.{ext}"
+            fig.savefig(out, bbox_inches="tight")
+            print(f"[render] wrote {out}")
     plt.close(fig)
     return 0
 

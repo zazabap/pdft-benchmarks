@@ -145,3 +145,84 @@ summary of location and spread, not a claim of Gaussianity.
   stays tight, whereas #olab.rl *(c)* starts far higher and its seeds remain
   spread until the final stages — visually accounting for the endpoint variances
   above. #olab.lr *(b)* is intermediate.])
+
+#let blk = json("div2k_8q/block_structure.json")
+#let frozen_per_dim = (16 - blk.n_mix_row - blk.n_mix_col) / 2
+#let cp_active = calc.round(blk.cp_active_frac * 56)
+
+= Emergent block structure of the trained QFT
+
+We close by reading the *canonical published* trained QFT
+(`QFTBasis(8,8)`, seed #blk.seed) directly, making the paper's central
+structural claim concrete (sec5.3): the trained full-image QFT factors itself
+into a block code with no block prior. Of its 16 Hadamard-role gates (8 per
+dimension), #frozen_per_dim per dimension collapse to non-mixing *Pauli-Z/X*
+gates (the off-diagonal/diagonal modulus drops to $approx 0.3%$) — classical
+block indices — while #cp_active of the 56 controlled-phase gates stay active, so
+the intra-block transform stays rich. The #blk.n_mix_row still-mixing row qubits
+and #blk.n_mix_col column qubits leave an effective
+$#blk.block_row times #blk.block_col$-pixel block.
+
+#figure(
+  image("div2k_8q/figures/block_gate_collapse.svg", width: 100%),
+  caption: [Hadamard-role gates of the trained QFT, one cell per qubit and
+  dimension, shaded by the mixing score $2|a||b|$ (1 = Hadamard, 0 = frozen) and
+  labelled by type. Four of the eight Hadamards per dimension keep mixing
+  frequencies; the other four freeze to Pauli-Z (or X) and act as classical block
+  indices.])
+
+The factorization is a statement about the trained operator itself. The transform
+is separable, $Y = W X W^top$, so its block structure lives in the single
+$N times N$ ($N = 2^8 = 256$) one-dimensional factor $W$. Acting on an input row
+$x$ it returns the coefficient row
+
+$ y = W x, quad y_i = sum_(j=0)^(N-1) W_(i j) x_j, $
+
+where $j$ indexes the input pixel and $i$ the output coefficient; the $j$-th
+column of $W$ is the operator's response to a single input pixel, $W e_j$.
+Grouping the $256$ indices into sixteen contiguous $16$-pixel blocks
+$B_p = {16 p, dots, 16 p + 15}$, the trained $W$ is *block-diagonal up to a block
+permutation* $sigma$: $j in B_q$ implies $W_(i j) = 0$ for all
+$i in.not B_(sigma(q))$, i.e.
+
+$ P^top W = W^((0)) plus.o dots.c plus.o W^((15)), quad
+  W^((p)) in CC^(16 times 16), $
+
+a direct sum of sixteen $16 times 16$ within-block transforms $W^((p))$ (the
+permutation $sigma$, and the off-diagonal placement of the blocks, come from the
+QFT bit-reversal and the frozen-X gates). Each input pixel therefore drives only
+the $16$ output coefficients of its own block. Figure 5 shows this two ways: the
+full matrix $|W|$ (left) and three of its columns $W e_j$ (right). The untrained
+global QFT, by contrast, has $|W_(i j)| = 1\/sqrt(N)$ for every $i, j$, so a
+single pixel spreads across all $256$ coefficients — no blocks.
+
+#figure(
+  grid(columns: (1fr, 1.25fr), column-gutter: 8pt, align: horizon,
+    image("div2k_8q/figures/block_operator_heatmap.svg", width: 100%),
+    image("div2k_8q/figures/block_io_demo.svg", width: 100%)),
+  caption: [*Left:* $log|W|$ of the trained QFT's 1-D operator factor,
+  block-diagonal at the emergent 16-pixel block (off-block energy below $0.01%$).
+  *Right:* the same operator read one input at a time — a single input pixel
+  (top) produces output (bottom) confined to a single 16-coefficient block
+  ($>99.99%$ of its energy), zero elsewhere. The output block is permuted from the
+  input one by the QFT bit-reversal and the frozen-X gates; a global transform
+  would instead spread each pixel across all 256 coefficients. The heatmap is
+  these per-pixel responses stacked side by side.])
+
+#figure(
+  image("div2k_8q/figures/block_leakage_sweep.svg", width: 72%),
+  caption: [Off-block energy vs candidate block size — the knee at $b=16$ (dotted)
+  shows the operator is block-structured at that specific scale and not below; the
+  untrained closed-form QFT (not shown) stays high at every scale.])
+
+The same factorization is visible directly in frequency space.
+
+#figure(
+  image("div2k_8q/figures/block_freq_spectrum.svg", width: 100%),
+  caption: [Mean test-set power spectrum (peak-normalized
+  $log_10 overline(|F|^2)$, averaged over the 50 DIV2K test images) of the
+  untrained *global QFT* (left) and the *trained QFT* (right). The global
+  transform packs energy into a single low-frequency lobe; the trained transform
+  tiles into a $16 times 16$ grid of repeated sub-spectra — the block-periodic
+  signature of a block transform, the same structure the $8 times 8$ block
+  references produce in Fig. 4 of the main text.])
