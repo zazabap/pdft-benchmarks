@@ -613,26 +613,76 @@ def _qft_random_basis(m: int, n: int, seed: int):
                          code=base.code, inv_code=base.inv_code)
 
 
-_FAMILY_CLASS = {
-    "qft": pdft.QFTBasis,
-    "rich": pdft.RichBasis,
-    "real_rich": pdft.RealRichBasis,
-    "tebd": pdft.TEBDBasis,
-    "entangled_qft": pdft.EntangledQFTBasis,
-    "mera": pdft.MERABasis,
-}
+def dct4_random_basis(m: int, n: int, seed: int):
+    """Haar real-orthogonal init of the learnable DCT-IV circuit (`DCT4Basis`).
+
+    The QFT-study init policy (`_qft_random_basis`: Haar U(2) on Hadamard slots,
+    uniform phase on controlled-phase slots) translated to the **real-orthogonal**
+    DCT-IV setting, so the random init stays a real-orthogonal operator (DCT-IV's
+    defining property) rather than drifting complex like the QFT one:
+
+      - U(4) gate (mirror-Q CNOT, controlled-R_y; tensor shape (2,2,2,2))
+        -> Haar SO(4), reshaped.
+      - controlled-phase "Delta" sign gate (tensor shape (2,2) in the
+        `controlled_phase_diag` diag-stack form, row 0 == [1, 1])
+        -> `controlled_phase_diag(random {0, pi})` (a random real sign).
+      - any other (2,2) gate (affine R_y rotation, branch Hadamard)
+        -> Haar SO(2).
+
+    Built on the canonical `DCT4Basis(m, n)` so the gate topology +
+    `code`/`inv_code` (and therefore each gate's auto-selected Riemannian
+    manifold) are unchanged; only the gate *values* are reseeded. Seeded and
+    reproducible via `np.random.default_rng(seed)`. Used by the DCT-IV
+    seed-variance study (the normal-training analog of the QFT seed sweep).
+    """
+    import jax.numpy as jnp
+    import numpy as np
+    from pdft.circuit.builder import controlled_phase_diag
+
+    base = pdft.DCT4Basis(m=m, n=n)
+    rng = np.random.default_rng(seed)
+    new_tensors = []
+    for t in base.tensors:
+        t = jnp.asarray(t)
+        if t.shape == (2, 2, 2, 2):
+            u = _haar_special_orthogonal(4, rng)
+            new_tensors.append(jnp.asarray(u.reshape(2, 2, 2, 2), dtype=jnp.complex128))
+        elif t.shape == (2, 2):
+            # controlled_phase_diag(phi) == [[1, 1], [1, e^{i phi}]]; the CP
+            # "Delta" sign gate is the only (2,2) gate whose row 0 is [1, 1].
+            if bool(jnp.allclose(t[0], jnp.ones(2, dtype=t.dtype), atol=1e-9)):
+                phi = float(rng.choice([0.0, np.pi]))
+                new_tensors.append(jnp.asarray(controlled_phase_diag(phi), dtype=jnp.complex128))
+            else:
+                u = _haar_special_orthogonal(2, rng)
+                new_tensors.append(jnp.asarray(u, dtype=jnp.complex128))
+        else:
+            raise AssertionError(
+                f"DCT4Basis: unexpected gate tensor shape {t.shape}; "
+                "dct4_random_basis only handles (2,2) and (2,2,2,2)"
+            )
+    return pdft.DCT4Basis(m=m, n=n, tensors=new_tensors,
+                          code=base.code, inv_code=base.inv_code)
 
 
 def dct4_random_controlled_basis(m: int, n: int, seed: int):
     """Haar real-orthogonal init of the *controlled* (O(2)-twiddle) DCT-IV.
 
-    Same init policy as ``dct4_random_basis`` (Delta-sign phase gate ->
-    random {0, pi}; other (2,2) -> Haar SO(2)), adapted to the controlled
-    parametrization of `DCT4Basis`: the mirror Q/R CNOTs are fixed-routing
-    (2,2,2,2) index flips (zero gradient, kept exact) rather than dense O(4)
-    gates. Reproducible via `np.random.default_rng(seed)`. Ported from
-    `feat/dct4-exact-disturbance` — needed as a random-init test fixture for
-    the sweep-training engine (`sweep_training.sweep_train`).
+    The controlled analogue of `dct4_random_basis`: same init policy on the
+    trainable gates, but built on `DCT4Basis(parametrization="controlled")` so
+    the mirror Q/R CNOTs are the structural "CX" flips (fixed routing) and the
+    twiddle is a single-angle O(2) `CRY` leaf rather than dense O(4).
+
+      - (2,2,2,2) gate (the CX mirror CNOT): kept AS-IS — fixed routing, applied
+        as an index flip, contributes no trainable parameter.
+      - controlled-phase "Delta" sign gate ((2,2), row 0 == [1, 1]):
+        `controlled_phase_diag(random {0, pi})`.
+      - any other (2,2) gate (the O(2) `CRY` twiddle or branch Hadamard):
+        Haar SO(2).
+
+    Reproducible via `np.random.default_rng(seed)`. Returns the basis only
+    (the CX mirror has zero gradient by construction, so no `frozen_indices`
+    is needed — it cannot move).
     """
     import jax.numpy as jnp
     import numpy as np
@@ -662,6 +712,16 @@ def dct4_random_controlled_basis(m: int, n: int, seed: int):
                           code=base.code, inv_code=base.inv_code)
 
 
+_FAMILY_CLASS = {
+    "qft": pdft.QFTBasis,
+    "rich": pdft.RichBasis,
+    "real_rich": pdft.RealRichBasis,
+    "tebd": pdft.TEBDBasis,
+    "entangled_qft": pdft.EntangledQFTBasis,
+    "mera": pdft.MERABasis,
+}
+
+
 def family_identity_basis(family: str, m: int, n: int):
     """Identity-operator init for a circuit family (bare, unblocked).
 
@@ -681,6 +741,8 @@ def family_random_basis(family: str, m: int, n: int, seed: int):
     Haar U/SO on every gate; TEBD/EntangledQFT/MERA -> the constructor's own
     seeded random init. Seeded; reproduces the family×init sweep's random cells.
     """
+    if family == "dct4":
+        return dct4_random_basis(m, n, seed)
     cls = _FAMILY_CLASS[family]
     if family in ("tebd", "entangled_qft", "mera"):
         return cls(m=m, n=n, seed=seed)
@@ -709,5 +771,5 @@ def dct4_controlled_basis(m: int, n: int):
 __all__ = ["BASIS_FACTORIES", "BasisFactory", "qft_identity_basis",
            "identity_basis_for", "qft_warm_from_smaller_qft",
            "qft_inner_outer_indices",
-           "family_identity_basis", "family_random_basis",
+           "family_identity_basis", "family_random_basis", "dct4_random_basis",
            "dct4_controlled_basis", "dct4_random_controlled_basis"]

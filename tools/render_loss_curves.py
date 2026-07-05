@@ -249,14 +249,28 @@ def plot_panel(ax, by_basis_root: Path, names: list[str], title: str,
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--dataset", choices=list(DATASET_CONFIG), required=True)
+    ap.add_argument("--dataset", choices=list(DATASET_CONFIG), default=None)
+    ap.add_argument("--by-basis", default=None,
+                    help="override by_basis root (use with --bases / --out).")
+    ap.add_argument("--bases", default=None,
+                    help="comma list of basis names to plot (default: all).")
     ap.add_argument("--out", default=None,
                     help="Output PDF path. None → auto-derived from --dataset.")
     args = ap.parse_args()
 
-    cfg = DATASET_CONFIG[args.dataset]
-    by_basis_root = Path(cfg["by_basis"])
-    out_pdf = Path(args.out if args.out else cfg["out"])
+    if args.by_basis:
+        by_basis_root = Path(args.by_basis)
+        names = (args.bases.split(",") if args.bases
+                 else UNBLOCKED_PREF + BLOCK_PREF)
+        out_pdf = Path(args.out) if args.out else \
+            by_basis_root.parent / "figures" / "loss_curves.pdf"
+    else:
+        if not args.dataset:
+            ap.error("provide --dataset, or --by-basis (+ --bases/--out)")
+        cfg = DATASET_CONFIG[args.dataset]
+        by_basis_root = Path(cfg["by_basis"])
+        names = UNBLOCKED_PREF + BLOCK_PREF
+        out_pdf = Path(args.out if args.out else cfg["out"])
 
     import matplotlib
     matplotlib.use("Agg")
@@ -269,7 +283,7 @@ def main():
     # normalization caused that ordering to disagree with PSNR (because
     # per-basis L_0 differs by ~2x); the absolute view fixes that.
     fig, ax = plt.subplots(1, 1, figsize=(8.0, 4.6))
-    plot_panel(ax, by_basis_root, UNBLOCKED_PREF + BLOCK_PREF,
+    plot_panel(ax, by_basis_root, names,
                title="",
                mode="absolute", show_legend=True, show_title=False)
     fig.subplots_adjust(left=0.08, right=0.99, top=0.97, bottom=0.10)

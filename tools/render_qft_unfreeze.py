@@ -88,7 +88,7 @@ def _top_gate_marks(trace: dict, k: int = 4):
     return marks[:k]
 
 
-def _render_combined(base: Path, only=None) -> int:
+def _render_combined(base: Path, only=None, paper_style=False) -> int:
     """Training-dynamics grid: rows = init (identity, random), cols = dataset,
     one absolute-MSE curve per unfreeze ordering. The qft_unfreeze analogue of the
     other experiments' <exp>/figures/training_dynamics figure. Per-(dataset,init)
@@ -104,10 +104,18 @@ def _render_combined(base: Path, only=None) -> int:
         print(f"[render] no <dataset>/<init> subdirs under {base}", file=sys.stderr)
         return 2
 
+    if paper_style:
+        import sys as _sys
+        from pathlib import Path as _P
+        _sys.path.insert(0, str(_P(__file__).resolve().parent))
+        from paper_style import apply_paper_style, PAPER_TEXTWIDTH
+        apply_paper_style()
     # Wider panels when few dataset columns (the step axis is long).
     colw = 7.2 if len(cols) <= 1 else (4.2 if len(cols) == 2 else 3.5)
+    _figw = PAPER_TEXTWIDTH if paper_style else colw * len(cols)
+    _figh = (2.3 if paper_style else 2.6) * len(rows)
     fig, axes = plt.subplots(len(rows), len(cols),
-                             figsize=(colw * len(cols), 2.6 * len(rows)),
+                             figsize=(_figw, _figh),
                              squeeze=False, sharex="col")
     any_curve = False
     for r, (init, init_lab) in enumerate(rows):
@@ -147,7 +155,7 @@ def _render_combined(base: Path, only=None) -> int:
                         ha="right", va="top", fontsize=6.5, color=color)
             ax.grid(True, alpha=0.25, lw=0.5)
             ax.tick_params(labelsize=7)
-            if r == 0:
+            if r == 0 and not paper_style:
                 ax.set_title(ds_lab, fontsize=9)
             if r == len(rows) - 1:
                 ax.set_xlabel("cumulative training step", fontsize=8)
@@ -163,10 +171,16 @@ def _render_combined(base: Path, only=None) -> int:
     fig.tight_layout()
     figdir = base / "figures"
     figdir.mkdir(parents=True, exist_ok=True)
-    for ext in ("pdf", "svg"):
-        out = figdir / f"training_dynamics.{ext}"
+    if paper_style:
+        pdir = figdir / "paper"; pdir.mkdir(parents=True, exist_ok=True)
+        out = pdir / "training_dynamics.pdf"
         fig.savefig(out, bbox_inches="tight")
         print(f"[render] wrote {out}")
+    else:
+        for ext in ("pdf", "svg"):
+            out = figdir / f"training_dynamics.{ext}"
+            fig.savefig(out, bbox_inches="tight")
+            print(f"[render] wrote {out}")
     plt.close(fig)
     return 0
 
@@ -319,6 +333,8 @@ def main() -> int:
     p.add_argument("--datasets", default=None,
                    help="Comma-list of dataset tags to include in --combined "
                         "(default: all present).")
+    p.add_argument("--paper-style", action="store_true", default=False,
+                   help="Publication style + paper-width figsize; PDF to figures/paper/.")
     args = p.parse_args()
 
     if args.seeds:
@@ -327,7 +343,7 @@ def main() -> int:
         return _render_seed_dynamics(Path(args.base))
     if args.combined:
         only = set(args.datasets.split(",")) if args.datasets else None
-        return _render_combined(Path(args.base), only=only)
+        return _render_combined(Path(args.base), only=only, paper_style=args.paper_style)
 
     indir = Path(args.indir) if args.indir else Path(f"results/training/2_direct_training/unfreeze/{args.dataset}")
     if not indir.exists():
