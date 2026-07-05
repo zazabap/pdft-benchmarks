@@ -319,27 +319,24 @@ ranking is shared.
 
 #figure(
   image("figures/loss_curve_1000.svg", width: 100%),
-  caption: [Per-epoch validation MSE for each trained basis on
-            DIV2K-8q at the headline 1008-step training budget. All
-            seven bases share a single linear y-axis: absolute MSE,
-            which is the operational quantity (max PSNR $equiv$ min
-            MSE), so the right-edge curve ordering reproduces the
-            headline PSNR ranking by inspection. The block-wrapped
-            bases (`real_rich_8`, `rich_8`, `blocked_8`) start at
-            lower $L_0$ than the unblocked ones (block transforms
-            are already sensible image bases at random init,
-            whereas a random Hadamard$times$CP product on
-            $256 times 256$ images is far from any natural-image
-            statistic); the unblocked group catches up in
-            convergence shape but not in absolute floor. Each basis
-            is a (colour, marker) pair from a colourblind-safe
-            palette; coincident curve pairs (`qft` $equiv$
-            `entangled_qft`, `tebd` $equiv$ `mera`) overlap
-            exactly because their parametric families compile to
-            the same operator at this circuit depth. Loss is
-            essentially flat past step $approx 300$ for every
-            basis (the appendix plateau check at 2000 steps moves
-            headline values by $<= 0.01$ dB).]
+  caption: [Per-epoch validation MSE for the five learned full-image
+            bases (RichBasis, `qft`, `entangled_qft`, `mera`, `tebd`)
+            on DIV2K-8q at the headline 1008-step training budget
+            (canonical init, seed 42, $rho = 0.10$ training objective).
+            All share a single linear y-axis: absolute MSE, the
+            operational quantity (max PSNR $equiv$ min MSE), so the
+            right-edge curve ordering reproduces the headline PSNR
+            ranking by inspection — `rich` (RichBasis) reaches the
+            lowest floor ($approx 103$), the `qft` / `entangled_qft`
+            pair sits at $approx 148$, and the `tebd` / `mera` pair at
+            $approx 157$. Each basis is a (colour, marker) pair from a
+            colourblind-safe palette; the coincident pairs (`qft`
+            $equiv$ `entangled_qft`, `tebd` $equiv$ `mera`) overlap
+            exactly because their parametric families compile to the
+            same operator at this circuit depth. Loss is essentially
+            flat past step $approx 300$ for every basis (the appendix
+            plateau check at 2000 steps moves headline values by
+            $<= 0.01$ dB).]
 )
 
 #pagebreak(weak: true)

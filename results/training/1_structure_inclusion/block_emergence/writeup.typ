@@ -107,6 +107,49 @@ flat-valley / discrete-basin picture in the seed-robustness study.
   #s.b_star pixels. This is the operator-space twin of the frequency-space
   spectrogram above: the off-block energy draining away *is* the comb sharpening.])
 
+= How close is it to an *exact* block transform?
+
+#let bpr = json("block_projection_residual.json")
+#let pct(x, d) = str(calc.round(x * 100, digits: d)) + "%"
+
+The cleanest way to put a number on "how block" the operator is, is its distance
+to the nearest exact block transform. For a candidate block size $b$ we project
+the trained 1-D factor $W$ ($N times N$, $N = #bpr.N$) onto block-diagonal form
+and keep only what is left over:
+
++ partition the $N$ indices into $K = N\/b$ contiguous blocks;
++ the QFT permutes blocks (bit-reversal $+$ frozen-X), so match each input block
+  to its output block by the Hungarian assignment on the block-energy matrix
+  $C_(i j) = sum_(a in "out-block" i,\ c in "in-block" j) abs(W_(a c))^2$;
++ *project* — zero every entry outside a matched (in $->$ out) block — to get
+  $Pi_b [W]$;
++ *residual* $r(b) = norm(W - Pi_b [W])_F \/ norm(W)_F$: the fraction of the
+  operator's amplitude lying off the block structure. (It equals
+  $sqrt("leakage")$ — the amplitude-domain twin of the off-block *energy* used
+  in the sweep above.)
+
+The full image transform is separable, $T = W_"row" times.o W_"col"$, so its
+residual is $r_(2"D") = sqrt(1 - (1 - r_"row"^2)(1 - r_"col"^2))$. Sweeping $b$,
+$r$ sits near $1$ while $b$ is below the true block and then *collapses* — the
+knee locates the block scale, and the value there is the approximation error.
+
+#figure(
+  image("figures/block_projection_residual.svg", width: 74%),
+  caption: [Relative Frobenius distance from the trained operator to its
+  block-diagonal projection, vs candidate block size. A razor-sharp knee at
+  $b = #bpr.knee$ pixels: the $2$-D residual falls from #pct(bpr.r_below_knee_2d, 0)
+  at $b = #(bpr.knee / 2)$ to #pct(bpr.r_knee_2d, 2) at $b = #bpr.knee$. The
+  trained image transform is thus within #pct(bpr.r_knee_2d, 2) (relative
+  Frobenius) of an *exact* $#bpr.knee times #bpr.knee$ block transform, and is
+  not close to any finer one.])
+
+A caveat on the *form* of the block code: the operator is block-*localised*
+(each block maps to one block, #pct(bpr.r_knee_2d, 2) off-block) but the
+intra-block transforms are *not identical* across blocks — they agree only up to
+per-block diagonal twiddle phases, so the distance to a literally repeated
+$I_K times.o W_b$ stays large. This is why the power-spectrum comb still tiles
+(phase-blind, same per-block power) even though the complex blocks differ.
+
 = Which Hadamards freeze
 
 #let gf = json("gate_freezing.json")             // this run (seed 0, block 32)
