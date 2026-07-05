@@ -623,6 +623,45 @@ _FAMILY_CLASS = {
 }
 
 
+def dct4_random_controlled_basis(m: int, n: int, seed: int):
+    """Haar real-orthogonal init of the *controlled* (O(2)-twiddle) DCT-IV.
+
+    Same init policy as ``dct4_random_basis`` (Delta-sign phase gate ->
+    random {0, pi}; other (2,2) -> Haar SO(2)), adapted to the controlled
+    parametrization of `DCT4Basis`: the mirror Q/R CNOTs are fixed-routing
+    (2,2,2,2) index flips (zero gradient, kept exact) rather than dense O(4)
+    gates. Reproducible via `np.random.default_rng(seed)`. Ported from
+    `feat/dct4-exact-disturbance` — needed as a random-init test fixture for
+    the sweep-training engine (`sweep_training.sweep_train`).
+    """
+    import jax.numpy as jnp
+    import numpy as np
+    from pdft.circuit.builder import controlled_phase_diag
+
+    base = pdft.DCT4Basis(m=m, n=n, parametrization="controlled")
+    rng = np.random.default_rng(seed)
+    new_tensors = []
+    for t in base.tensors:
+        t = jnp.asarray(t)
+        if t.shape == (2, 2, 2, 2):
+            new_tensors.append(t)  # CX mirror CNOT: fixed routing, keep exact
+        elif t.shape == (2, 2):
+            if bool(jnp.allclose(t[0], jnp.ones(2, dtype=t.dtype), atol=1e-9)):
+                phi = float(rng.choice([0.0, np.pi]))
+                new_tensors.append(jnp.asarray(controlled_phase_diag(phi), dtype=jnp.complex128))
+            else:
+                u = _haar_special_orthogonal(2, rng)
+                new_tensors.append(jnp.asarray(u, dtype=jnp.complex128))
+        else:
+            raise AssertionError(
+                f"DCT4Basis(controlled): unexpected gate tensor shape {t.shape}; "
+                "dct4_random_controlled_basis only handles (2,2) and (2,2,2,2)"
+            )
+    return pdft.DCT4Basis(m=m, n=n, tensors=new_tensors,
+                          parametrization="controlled",
+                          code=base.code, inv_code=base.inv_code)
+
+
 def family_identity_basis(family: str, m: int, n: int):
     """Identity-operator init for a circuit family (bare, unblocked).
 
@@ -671,4 +710,4 @@ __all__ = ["BASIS_FACTORIES", "BasisFactory", "qft_identity_basis",
            "identity_basis_for", "qft_warm_from_smaller_qft",
            "qft_inner_outer_indices",
            "family_identity_basis", "family_random_basis",
-           "dct4_controlled_basis"]
+           "dct4_controlled_basis", "dct4_random_controlled_basis"]
