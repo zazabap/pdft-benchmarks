@@ -17,6 +17,10 @@ tools/_tmp_*.py
 # results/ — track curated text artifacts (metrics, csvs, figures, tables,
 # writeup); ignore heavy regeneratable blobs.
 results/**/trained_*.json
+# 6_dataset_compression checkpoints are load-bearing (the codec's decoder
+# needs the basis file, and its size is part of the published byte
+# accounting) — track them despite the blanket rule above.
+!results/training/6_dataset_compression/**/trained_*.json
 results/**/loss_history/
 results/**/run.log
 results/**/failures/

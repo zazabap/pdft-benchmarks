@@ -64,6 +64,8 @@ BASIS_FACTORIES: dict[str, BasisFactory] = {
     "entangled_qft": lambda m, n, seed=0: pdft.EntangledQFTBasis(m=m, n=n, seed=seed),
     "tebd":          lambda m, n, seed=0: pdft.TEBDBasis(m=m, n=n, seed=seed),
     "mera":          lambda m, n, seed=0: pdft.MERABasis(m=m, n=n, seed=seed),
+    # Learnable cosine basis: exact DCT-IV at init, then relaxed (ancilla-free).
+    "dct4":          lambda m, n, seed=0: pdft.DCT4Basis(m=m, n=n),
     # Block topologies (3): default split — inner basis at (m+1)//2.
     # At QuickDraw m=5: inner_m=3 → 8×8 blocks. At DIV2K m=8: inner_m=4 → 16×16 blocks.
     "blocked":       lambda m, n, seed=0: _blocked(m, n, seed, pdft.QFTBasis),
@@ -76,6 +78,14 @@ BASIS_FACTORIES: dict[str, BasisFactory] = {
     "blocked_8":     lambda m, n, seed=0: _blocked(m, n, seed, pdft.QFTBasis,       inner_m=3, inner_n=3),
     "rich_8":        lambda m, n, seed=0: _blocked(m, n, seed, pdft.RichBasis,      inner_m=3, inner_n=3),
     "real_rich_8":   lambda m, n, seed=0: _blocked(m, n, seed, pdft.RealRichBasis,  inner_m=3, inner_n=3),
+    # Learnable ancilla-free DCT-IV inner on b×b blocks — apples-to-apples with
+    # block_dct_b / rich_b / real_rich_b over the HEVC transform-unit sweep
+    # {4,8,16,32}. (dct4_32 is degenerate with full-image dct4 at m=5, so it is
+    # excluded from the QuickDraw grid.)
+    "dct4_4":        lambda m, n, seed=0: _blocked(m, n, seed, pdft.DCT4Basis,      inner_m=2, inner_n=2),
+    "dct4_8":        lambda m, n, seed=0: _blocked(m, n, seed, pdft.DCT4Basis,      inner_m=3, inner_n=3),
+    "dct4_16":       lambda m, n, seed=0: _blocked(m, n, seed, pdft.DCT4Basis,      inner_m=4, inner_n=4),
+    "dct4_32":       lambda m, n, seed=0: _blocked(m, n, seed, pdft.DCT4Basis,      inner_m=5, inner_n=5),
     # Block topologies, fixed 4×4 block size (inner_m=inner_n=2). Sweep
     # extension; spec §6.1.
     "blocked_4":     lambda m, n, seed=0: _blocked(m, n, seed, pdft.QFTBasis,       inner_m=2, inner_n=2),
@@ -741,8 +751,25 @@ def family_random_basis(family: str, m: int, n: int, seed: int):
     return _circuit_random_basis(cls, m, n, seed)
 
 
+def dct4_controlled_basis(m: int, n: int):
+    """Structured (O(2)) DCT-IV basis + the mirror-CNOT indices to freeze.
+
+    Returns ``(basis, frozen_indices)`` where ``basis`` is
+    ``pdft.DCT4Basis(m, n, parametrization="controlled")`` (twiddle gates train
+    on O(2), no dense O(4)) and ``frozen_indices`` are the mirror ``Q``/``R``
+    CNOT gates — the only remaining ``(2,2,2,2)`` gates — to pass as
+    ``train_basis_batched(frozen_indices=...)`` so they stay fixed routing.
+    """
+    import pdft
+
+    basis = pdft.DCT4Basis(m=m, n=n, parametrization="controlled")
+    frozen_indices = [i for i, t in enumerate(basis.tensors)
+                      if tuple(t.shape) == (2, 2, 2, 2)]
+    return basis, frozen_indices
+
+
 __all__ = ["BASIS_FACTORIES", "BasisFactory", "qft_identity_basis",
            "identity_basis_for", "qft_warm_from_smaller_qft",
            "qft_inner_outer_indices",
            "family_identity_basis", "family_random_basis", "dct4_random_basis",
-           "dct4_random_controlled_basis"]
+           "dct4_controlled_basis", "dct4_random_controlled_basis"]

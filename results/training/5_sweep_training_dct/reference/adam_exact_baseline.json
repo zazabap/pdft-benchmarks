@@ -1,0 +1,13 @@
+{
+  "label": "Adam 1008 steps, exact init",
+  "source": "results/training/4_exact_disturbance/disturbance_sweep.json:baseline",
+  "topk_ratio": 0.1,
+  "epochs": 1008,
+  "psnr": {
+    "0.01": 22.299873822817617,
+    "0.05": 26.547015757219132,
+    "0.1": 29.271687836035788,
+    "0.2": 33.2458136677192
+  },
+  "final_loss": 123.17881621434599
+}
