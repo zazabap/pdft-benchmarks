@@ -70,6 +70,63 @@ consistent with the committed top-$k$ metrics.
   verticals: lossless deflate / PNG references.],
 )
 
+= What the advantage measures
+
+#let dpsnr_qd = qd.by_basis.real_rich.test.mean_psnr - qd.by_basis.block_dct_8.test.mean_psnr
+#let dpsnr_dv = dv.by_basis.real_rich_8.test.mean_psnr - dv.by_basis.block_dct_8.test.mean_psnr
+#let mse_ratio_qd = calc.pow(10.0, dpsnr_qd / 10.0)
+#let rms_ratio_qd = calc.pow(10.0, dpsnr_qd / 20.0)
+#let mse_ratio_dv = calc.pow(10.0, dpsnr_dv / 10.0)
+#let sd_qd = (1.0 - qd.by_basis.block_dct_8.test.mean_ssim) / (1.0 - qd.by_basis.real_rich.test.mean_ssim)
+#let sd_dv = (1.0 - dv.by_basis.block_dct_8.test.mean_ssim) / (1.0 - dv.by_basis.real_rich_8.test.mean_ssim)
+
+Per image, with pixels in $[0, 1]$ (peak level $L = 1$) and the decoded
+image clamped to that range,
+
+$ "MSE"(x, hat(x)) = 1/(H W) sum_(i, j) (x_(i j) - hat(x)_(i j))^2,
+  quad
+  "PSNR" = 10 log_(10) (L^2 / "MSE") = -10 log_(10) "MSE" #h(0.5em) "[dB]". $
+
+Reported values are the means of the per-image metrics over the 50
+held-out test images.
+
+*PSNR advantage.* The logarithm turns error ratios into differences, so
+the advantage at the common byte budget $B$ (here 50% of raw) is a
+multiplicative error statement:
+
+$ Delta_"PSNR" = "PSNR"_"rich" (B) - "PSNR"_"DCT" (B)
+  = 10 log_(10) ("MSE"_"DCT" / "MSE"_"rich"). $
+
+QuickDraw's $Delta_"PSNR" = #f2(dpsnr_qd)$ dB therefore says that at equal
+storage the block-DCT reconstruction carries $#f1(mse_ratio_qd) times$ the
+squared error ($#f2(rms_ratio_qd) times$ the RMS pixel error,
+$10^(Delta\/20)$) of the trained basis. One aggregation subtlety: since
+the table reports the mean of per-image decibel values, the ratio is
+between *geometric* means of per-image MSE across the test split, not
+arithmetic means. DIV2K's $Delta_"PSNR" = #f2(dpsnr_dv)$ dB is a factor
+$#f2(mse_ratio_dv)$ — parity.
+
+*SSIM* (Wang et al. 2004; scikit-image with data range 1: $7 times 7$
+windows, $C_1 = (0.01 L)^2$, $C_2 = (0.03 L)^2$) scores window-local
+agreement in luminance, contrast and structure, reaching 1 only for
+identical images:
+
+$ "SSIM"(x, hat(x)) = 1/M sum_(w = 1)^M
+  ((2 mu_x mu_(hat(x)) + C_1)(2 sigma_(x hat(x)) + C_2)) /
+  ((mu_x^2 + mu_(hat(x))^2 + C_1)(sigma_x^2 + sigma_(hat(x))^2 + C_2)), $
+
+with means $mu$, variances $sigma^2$ and covariance $sigma_(x hat(x))$
+taken over each sliding window $w$. Because scores sit close to 1, the
+informative quantity is the *residual structural distortion*
+$D = 1 - "SSIM"$, and the advantage is its ratio at matched bytes:
+
+$ D_"DCT" / D_"rich" = (1 - "SSIM"_"DCT") / (1 - "SSIM"_"rich"). $
+
+On QuickDraw $D_"DCT" \/ D_"rich" approx #f1(sd_qd)$ — block DCT retains
+about #f1(sd_qd)$times$ the structural distortion of the trained basis at
+the same stored size. On DIV2K the ratio is $#f2(sd_dv)$ — parity,
+matching the PSNR picture.
+
 = Honest accounting
 
 *Complex coefficients cost double.* The complex rich basis stores re + im
