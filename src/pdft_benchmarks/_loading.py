@@ -47,7 +47,6 @@ def load_trained_basis(json_path: Path):
     from pdft_benchmarks.bases import BASIS_FACTORIES
 
     payload = json.loads(Path(json_path).read_text())
-    btype = payload["type"]
     m, n = int(payload["m"]), int(payload["n"])
     raw = payload["tensors"]
 
@@ -56,29 +55,55 @@ def load_trained_basis(json_path: Path):
         "EntangledQFTBasis": "entangled_qft",
         "TEBDBasis":         "tebd",
         "MERABasis":         "mera",
+        "DCT4Basis":         "dct4_ctl",
     }
-    if btype == "BlockedBasis":
-        # blocked / rich / real_rich all serialise as "BlockedBasis";
-        # disambiguate by filename stem (e.g. "trained_real_rich_8" → "real_rich_8").
-        factory_key = Path(json_path).stem.removeprefix("trained_")
-    else:
-        factory_key = _type_to_factory_key[btype]
+    # Full-image Rich variants have no BASIS_FACTORIES entry (the "rich" /
+    # "real_rich" factories are block-wrapped); the loader builds the pdft class
+    # directly. Legacy cells identify these by their run "key".
+    _full_image_classes = {"rich_full": "RichBasis", "real_rich_full": "RealRichBasis"}
 
-    skel = BASIS_FACTORIES[factory_key](m, n, seed=0)
+    btype = payload.get("type")
+    is_blocked = btype == "BlockedBasis"
+    skel = None
+    if btype is not None:
+        if is_blocked:
+            # blocked / rich / real_rich all serialise as "BlockedBasis";
+            # disambiguate by filename stem (e.g. "trained_real_rich_8").
+            factory_key = Path(json_path).stem.removeprefix("trained_")
+        else:
+            factory_key = _type_to_factory_key[btype]
+    elif "key" in payload:
+        key = payload["key"]
+        if key in _full_image_classes:
+            import pdft
+            skel = getattr(pdft, _full_image_classes[key])(m=m, n=n)
+        factory_key = key
+    else:
+        raise ValueError(
+            f"{json_path}: cannot determine basis type ('type'/'key' missing)"
+        )
+
+    if skel is None:
+        skel = BASIS_FACTORIES[factory_key](m, n, seed=0)
+
+    def _decode_one(raw_t, shape):
+        # Two on-disk serialisations of a complex tensor are supported:
+        #   new:  a flat list of [re, im] pairs (reshaped Fortran-order)
+        #   old:  a {"real": [...], "imag": [...]} dict already in tensor shape
+        if isinstance(raw_t, dict):
+            arr = (np.asarray(raw_t["real"], dtype=np.float64)
+                   + 1j * np.asarray(raw_t["imag"], dtype=np.float64))
+            return arr if arr.shape == tuple(shape) else arr.reshape(shape)
+        flat = np.asarray([complex(r, i) for r, i in raw_t], dtype=np.complex128)
+        return flat.reshape(shape, order="F")
 
     def _decode(skel_tensors):
-        out = []
-        for skel_t, raw_t in zip(skel_tensors, raw):
-            flat = np.asarray(
-                [complex(r, i) for r, i in raw_t], dtype=np.complex128
-            )
-            out.append(flat.reshape(skel_t.shape, order="F"))
-        return out
+        return [_decode_one(raw_t, skel_t.shape)
+                for skel_t, raw_t in zip(skel_tensors, raw)]
 
-    if btype == "BlockedBasis":
+    if is_blocked:
         inner = skel.inner
-        new_inner_tensors = _decode(inner.tensors)
-        object.__setattr__(inner, "tensors", new_inner_tensors)
+        object.__setattr__(inner, "tensors", _decode(inner.tensors))
         return skel
 
     new_tensors = _decode(skel.tensors)

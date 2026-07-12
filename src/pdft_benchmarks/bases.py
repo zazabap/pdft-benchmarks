@@ -66,6 +66,10 @@ BASIS_FACTORIES: dict[str, BasisFactory] = {
     "mera":          lambda m, n, seed=0: pdft.MERABasis(m=m, n=n, seed=seed),
     # Learnable cosine basis: exact DCT-IV at init, then relaxed (ancilla-free).
     "dct4":          lambda m, n, seed=0: pdft.DCT4Basis(m=m, n=n),
+    # Exact-init DCT-IV in the O(2)-twiddle "controlled" parametrization — the
+    # "DCT-IV (relaxed)" of the main table. Trained through run_experiment it
+    # logs a val-MSE trajectory comparable to the other full-image bases.
+    "dct4_ctl":      lambda m, n, seed=0: pdft.DCT4Basis(m=m, n=n, parametrization="controlled"),
     # Block topologies (3): default split — inner basis at (m+1)//2.
     # At QuickDraw m=5: inner_m=3 → 8×8 blocks. At DIV2K m=8: inner_m=4 → 16×16 blocks.
     "blocked":       lambda m, n, seed=0: _blocked(m, n, seed, pdft.QFTBasis),
