@@ -7,7 +7,7 @@ becomes block-diagonal with a rich intra-block transform (paper sec5.3).
 
 This module provides pure-numpy measures of "how block" a trained operator is:
 gate-collapse classification, dense-operator block-leakage, and a block-size
-sweep. No I/O, no plotting — the CLI (tools/render_qft_block_structure.py)
+sweep. No I/O, no plotting — the CLI (tools/analysis/render_qft_block_structure.py)
 loads operators and drives these.
 """
 from __future__ import annotations

@@ -35,9 +35,9 @@ tests/               Unit + integration tests.
 # === QuickDraw ===
 python experiments/quickdraw_pca_vs_block_dct.py --gpu 0 \
     --out results/quickdraw_pca_vs_block_dct
-python tools/render_freq_recon_grid.py
-python tools/render_pca_basis_visualization.py
-python tools/render_ar1_examples.py
+python tools/paper/render_freq_recon_grid.py
+python tools/paper/render_pca_basis_visualization.py
+python tools/paper/render_ar1_examples.py
 typst compile results/quickdraw_pca_vs_block_dct/writeup.typ
 python tools/independent_quickdraw_baselines.py --seed 42
 
@@ -63,11 +63,11 @@ python tools/cellify_run.py \
 
 # Verify, render, table, writeup
 python tools/independent_div2k_8q_baselines.py --gpu 0 --seed 42 --n-train 500
-python tools/render_freq_recon_grid.py --dataset div2k_8q --gpu 0 --image-indices 11,43
-python tools/render_pca_basis_visualization.py --dataset div2k_8q --gpu 0
+python tools/paper/render_freq_recon_grid.py --dataset div2k_8q --gpu 0 --image-indices 11,43
+python tools/paper/render_pca_basis_visualization.py --dataset div2k_8q --gpu 0
 cp results/quickdraw_pca_vs_block_dct/figures/ar1_examples.png \
    results/div2k_8q_pca_vs_block_dct/figures/
-python tools/render_div2k_paper_table.py
+python tools/paper/render_div2k_paper_table.py
 typst compile results/div2k_8q_pca_vs_block_dct/writeup.typ
 ```
 

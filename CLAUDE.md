@@ -177,11 +177,11 @@ loss_curve_2000.{pdf,svg}    ← 2007-step appendix (plateau check)
 
 | Tool | Output | Notes |
 |---|---|---|
-| `tools/render_loss_curves.py --dataset {quickdraw,div2k_8q}` | `figures/loss_curves.{pdf,svg}` | per-dataset y-limit |
-| `tools/render_freq_recon_grid.py --dataset {…}` | `figures/freq_recon_grid_img{N}{,_freq}.{pdf,svg}` | needs GPU; falls back to CPU |
-| `tools/render_pca_basis_visualization.py --dataset {…}` | `figures/pca_basis.{pdf,svg}` | |
-| `tools/render_ar1_examples.py` | `figures/ar1_examples.{pdf,svg}` | hard-coded paths; copy to DIV2K dir afterward |
-| `tools/render_div2k_paper_table.py` | `tables/published_8q_div2k.tex` | reads `_baselines.json` + cells |
+| `tools/paper/render_loss_curves.py --dataset {quickdraw,div2k_8q}` | `figures/loss_curves.{pdf,svg}` | per-dataset y-limit |
+| `tools/paper/render_freq_recon_grid.py --dataset {…}` | `figures/freq_recon_grid_img{N}{,_freq}.{pdf,svg}` | needs GPU; falls back to CPU |
+| `tools/paper/render_pca_basis_visualization.py --dataset {…}` | `figures/pca_basis.{pdf,svg}` | |
+| `tools/paper/render_ar1_examples.py` | `figures/ar1_examples.{pdf,svg}` | hard-coded paths; copy to DIV2K dir afterward |
+| `tools/paper/render_div2k_paper_table.py` | `tables/published_8q_div2k.tex` | reads `_baselines.json` + cells |
 
 For DIV2K's `render_freq_recon_grid.py`: use
 `--image-indices 11 --div2k-source-indices 390` to get the headline
