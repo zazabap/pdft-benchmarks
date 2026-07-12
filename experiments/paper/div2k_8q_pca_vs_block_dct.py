@@ -23,12 +23,12 @@ guard, two parallel invocations OOM.
 Outputs land in `--out` directly. To use both GPUs:
 
     # Terminal A — GPU 0 — 4 unblocked bases
-    python experiments/div2k_8q_pca_vs_block_dct.py \\
+    python experiments/paper/div2k_8q_pca_vs_block_dct.py \\
         --gpu 0 --bases qft,entangled_qft,tebd,mera \\
         --out results/div2k_8q_pca_vs_block_dct/_runs/unblocked
 
     # Terminal B — GPU 1 — 3 block-wrapped bases (8×8 blocks)
-    python experiments/div2k_8q_pca_vs_block_dct.py \\
+    python experiments/paper/div2k_8q_pca_vs_block_dct.py \\
         --gpu 1 --bases blocked_8,rich_8,real_rich_8 \\
         --out results/div2k_8q_pca_vs_block_dct/_runs/blocked
 

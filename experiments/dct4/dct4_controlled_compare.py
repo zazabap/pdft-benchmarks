@@ -5,14 +5,14 @@ DIV2K-8q: per-step time, trainable params, and reconstruction PSNR.
 Run:
   CUDA_VISIBLE_DEVICES=<gpu> CUDA_DEVICE_ORDER=PCI_BUS_ID XLA_PYTHON_CLIENT_PREALLOCATE=false \
   PYTHONPATH=/workspaces/pdft-benchmarks-dct4exp/src:/workspaces/parametric-dft-paper/pdft-dct4main/src \
-    /workspaces/pdft-benchmarks/.venv/bin/python experiments/dct4_controlled_compare.py --gpu <gpu> --steps 200
+    /workspaces/pdft-benchmarks/.venv/bin/python experiments/dct4/dct4_controlled_compare.py --gpu <gpu> --steps 200
 """
 from __future__ import annotations
 
 import argparse, json, os, sys, time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))  # repo root
 
 
 def main() -> int:

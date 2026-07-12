@@ -4,7 +4,7 @@
 Start from the *exact* analytic DCT-IV init, jitter a random fraction f of its
 2200 real gate entries on-manifold (Gaussian, sigma), train, and record final
 PSNR at rho in {0.01,0.05,0.10,0.20}. Each (f, seed) is an atomic, resumable
-cell (matching experiments/dct4_seed_sweep.py):
+cell (matching experiments/dct4/dct4_seed_sweep.py):
 
     <out>/_runs/f<frac>_seed<NNN>.json
 
@@ -17,9 +17,9 @@ Needs pdft.DCT4Basis pinned at commit 5365a5a (sliced CRY apply). Put that pdft
 src first on PYTHONPATH; pdft_benchmarks is imported from THIS repo's src.
 
 Usage:
-    python experiments/dct4_disturbance_sweep.py --gpu 2 --fractions 0.01 --seeds 1
-    python experiments/dct4_disturbance_sweep.py --gpu 2 --seeds 1-3        # full grid
-    python experiments/dct4_disturbance_sweep.py --aggregate-only
+    python experiments/dct4/dct4_disturbance_sweep.py --gpu 2 --fractions 0.01 --seeds 1
+    python experiments/dct4/dct4_disturbance_sweep.py --gpu 2 --seeds 1-3        # full grid
+    python experiments/dct4/dct4_disturbance_sweep.py --aggregate-only
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))  # repo root
 
 FRACTIONS = (0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.50, 1.00)
 KEEP_RATIOS = (0.01, 0.05, 0.10, 0.20)

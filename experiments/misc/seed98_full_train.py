@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Full-parameter training of a chosen seed-init for a set of circuit families.
 
-A counterpart to experiments/qft_seed_sweep.py (which trains the *progressive
+A counterpart to experiments/qft/qft_seed_sweep.py (which trains the *progressive
 gate-unfreeze* QFT), this driver trains the STANDARD full-parameter objective
 (all gate parameters at once, top-10% MSE — the paper's headline protocol) for
 several families from a SINGLE random-initialisation seed, and writes one
@@ -24,12 +24,12 @@ list that omits it there.
 
 Usage:
     # DIV2K-8q, all six, ~1008 steps, no early stop, one GPU:
-    python experiments/seed98_full_train.py --gpu 0 --dataset div2k_8q --seed 98 \
+    python experiments/misc/seed98_full_train.py --gpu 0 --dataset div2k_8q --seed 98 \
         --bases qft,entangled_qft,tebd,mera,rich_full,rich_8 \
         --epochs 112 --no-early-stop
 
     # QuickDraw-5q, five (no MERA), early stopping on:
-    python experiments/seed98_full_train.py --gpu 1 --dataset quickdraw_5q --seed 98 \
+    python experiments/misc/seed98_full_train.py --gpu 1 --dataset quickdraw_5q --seed 98 \
         --bases qft,entangled_qft,tebd,rich_full,rich_8 --epochs 112
 """
 from __future__ import annotations
@@ -41,7 +41,7 @@ import sys
 import time
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]  # experiments/misc/<this> -> repo root
 
 # random_seed/<dataset> -> results/structure/<experiment> mapping.
 DATASET_CFG = {

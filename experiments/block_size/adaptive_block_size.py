@@ -15,10 +15,10 @@ block size that maximises mean PSNR across the full test set.
 Usage
 -----
     # QuickDraw (CPU-safe, 32×32)
-    python experiments/adaptive_block_size.py --dataset quickdraw
+    python experiments/block_size/adaptive_block_size.py --dataset quickdraw
 
     # DIV2K-8q (GPU recommended, 256×256)
-    python experiments/adaptive_block_size.py --dataset div2k_8q --gpu 0
+    python experiments/block_size/adaptive_block_size.py --dataset div2k_8q --gpu 0
 
 Outputs land in --out (default results/adaptive_block_size/<dataset>/per_image/)
 as metrics.json.

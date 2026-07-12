@@ -19,7 +19,9 @@ classical baselines.
 ## Layout
 
 ```
-experiments/         Runnable entry points (one per paper experiment).
+experiments/         Runnable entry points, grouped by family:
+                       paper/ (two headline drivers), qft/, dct4/,
+                       block_size/, misc/.
 src/pdft_benchmarks/ Library: bases, baselines, pipeline, evaluation.
 tools/               CLI utilities: renderers, validators, independent reruns.
 results/<exp>/       Self-contained per-experiment outputs:
@@ -33,7 +35,7 @@ tests/               Unit + integration tests.
 
 ```bash
 # === QuickDraw ===
-python experiments/quickdraw_pca_vs_block_dct.py --gpu 0 \
+python experiments/paper/quickdraw_pca_vs_block_dct.py --gpu 0 \
     --out results/quickdraw_pca_vs_block_dct
 python tools/paper/render_freq_recon_grid.py
 python tools/paper/render_pca_basis_visualization.py
@@ -43,11 +45,11 @@ python tools/independent_quickdraw_baselines.py --seed 42
 
 # === DIV2K-8q (split across two GPUs) ===
 # Terminal A — 4 unblocked bases on GPU 0
-python experiments/div2k_8q_pca_vs_block_dct.py \
+python experiments/paper/div2k_8q_pca_vs_block_dct.py \
     --gpu 0 --bases qft,entangled_qft,tebd,mera \
     --out results/div2k_8q_pca_vs_block_dct/_runs/unblocked
 # Terminal B — 3 block-wrapped (8×8) bases on GPU 1
-python experiments/div2k_8q_pca_vs_block_dct.py \
+python experiments/paper/div2k_8q_pca_vs_block_dct.py \
     --gpu 1 --bases blocked_8,rich_8,real_rich_8 \
     --out results/div2k_8q_pca_vs_block_dct/_runs/blocked
 

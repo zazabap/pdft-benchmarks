@@ -2,7 +2,7 @@
 """QuickDraw block-size sweep (m=n=5, 32×32). Trains the 9 trained-basis
 cells of the sweep grid: {blocked, rich, real_rich} × {4, 8, 16}.
 
-Mirrors `experiments/quickdraw_pca_vs_block_dct.py` (single-process,
+Mirrors `experiments/paper/quickdraw_pca_vs_block_dct.py` (single-process,
 all bases on one GPU). Runs at the headline 1008-step preset by default
 (`--epochs 112 --no-early-stop`) so each cell is comparable against the
 existing b=8 headline.

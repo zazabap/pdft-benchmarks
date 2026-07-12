@@ -2,7 +2,7 @@
 """Render the QFT training top-k sweep figure.
 
 Reads results/training/3_training_topk/<dataset>/manifest.json (written by
-experiments/qft_topk_sweep.py) and emits topk_<dataset>.{pdf,svg} at
+experiments/qft/qft_topk_sweep.py) and emits topk_<dataset>.{pdf,svg} at
 results/training/3_training_topk/figures/.
 
 Two panels (CLAUDE.md style: Wong palette, linear y, no figure title):

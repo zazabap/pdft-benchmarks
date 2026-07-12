@@ -12,10 +12,10 @@ Needs pdft.DCT4Basis pinned at commit 5365a5a (pdft-pr24 worktree first on
 PYTHONPATH); pdft_benchmarks is imported from THIS repo's src.
 
 Usage:
-    python experiments/dct4_sweep_training.py --gpu 3 --init exact --order fwd
-    python experiments/dct4_sweep_training.py --gpu 3 --init random --order rev --resume
-    python experiments/dct4_sweep_training.py --aggregate-only
-    python experiments/dct4_sweep_training.py --list-runs
+    python experiments/dct4/dct4_sweep_training.py --gpu 3 --init exact --order fwd
+    python experiments/dct4/dct4_sweep_training.py --gpu 3 --init random --order rev --resume
+    python experiments/dct4/dct4_sweep_training.py --aggregate-only
+    python experiments/dct4/dct4_sweep_training.py --list-runs
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]  # experiments/dct4/<this> -> repo root
 sys.path.insert(0, str(REPO / "src"))
 
 KEEP_RATIOS = (0.01, 0.05, 0.10, 0.20)

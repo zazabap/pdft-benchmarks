@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render the random-seed unfreeze variance figure (PDF + SVG, no title).
 
-Reads <base>/seed_sweep.json (from experiments/qft_seed_sweep.py /
+Reads <base>/seed_sweep.json (from experiments/qft/qft_seed_sweep.py /
 tools/run_seed_sweep.py) and draws three panels:
 
   band    — test PSNR vs keep ratio rho: per-ordering mean line, shaded +/-sigma
