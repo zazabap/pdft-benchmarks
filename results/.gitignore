@@ -1,0 +1,6 @@
+# Raw per-run and per-seed outputs are kept locally but NOT tracked --
+# reproduce them via the entry points under experiments/. Only curated
+# artifacts are versioned here: by_basis/ cells, figures/, writeups, and
+# summary/manifest JSONs.
+**/_runs/
+/training/_archive/
