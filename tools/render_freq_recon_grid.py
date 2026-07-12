@@ -45,6 +45,15 @@ def _load_div2k_source_image(idx: int, *, size: int = 256) -> np.ndarray:
     return np.asarray(img, dtype=np.float64) / 255.0
 
 
+def _load_custom_image(path: str, *, size: int) -> np.ndarray:
+    """Load an arbitrary image file as a grayscale float64 [0,1] array resized
+    to size×size. Used to render on a specific picture (e.g. the exact Quick
+    Draw cat embedded in the Figure 1 banner) rather than a test-split index."""
+    from PIL import Image
+    img = Image.open(path).convert("L").resize((size, size), Image.Resampling.LANCZOS)
+    return np.asarray(img, dtype=np.float64) / 255.0
+
+
 from pdft_benchmarks._loading import load_trained_basis  # noqa: F401  (re-export for callers)
 
 
@@ -72,9 +81,15 @@ def main():
     ap.add_argument("--methods", type=str, default="",
                     help="Comma-separated method names to include "
                          "(e.g. 'fft,dct,qft,block_dct_8,real_rich_8'). "
-                         "Empty → include all available. The block-wrapped-"
-                         "before-global ordering is preserved within the "
-                         "selected subset.")
+                         "Empty → include all available. When given, the "
+                         "columns follow this exact order.")
+    ap.add_argument("--custom-images", type=str, default="",
+                    help="Comma-separated 'path:label' (or just path) image "
+                         "files to render on, resized to the dataset img_size; "
+                         "label becomes the output _img<label> suffix.")
+    ap.add_argument("--by-basis-root", type=str, default="",
+                    help="Override the by_basis directory the trained cells are "
+                         "discovered from (default: the dataset's canonical tree).")
     args = ap.parse_args()
 
     DATASET_CONFIG = {
@@ -130,15 +145,20 @@ def main():
     for src_id in div2k_source_indices:
         images.append(_load_div2k_source_image(src_id, size=cfg["img_size"]))
         image_labels.append(src_id)
+    for spec in [s for s in args.custom_images.split(",") if s.strip()]:
+        path, label = spec.rsplit(":", 1) if ":" in spec else (spec, Path(spec).stem)
+        images.append(_load_custom_image(path, size=cfg["img_size"]))
+        image_labels.append(label)
     if not images:
-        raise ValueError("no images selected; pass --image-indices and/or --div2k-source-indices")
+        raise ValueError("no images selected; pass --image-indices, "
+                         "--div2k-source-indices, and/or --custom-images")
     print(f"[viz] {len(images)} images, labels={image_labels}, ρ={keep_ratios}")
 
     # ---- Load trained bases ----
     # Discover from disk: any <by_basis>/<name>/trained_<name>.json present.
     # This handles both datasets and any future basis names without
     # hardcoding (e.g. blocked vs blocked_8, with/without mera).
-    by_basis_root = Path(cfg["by_basis"])
+    by_basis_root = Path(args.by_basis_root) if args.by_basis_root else Path(cfg["by_basis"])
     trained: dict = {}
     if by_basis_root.is_dir():
         for cell in sorted(by_basis_root.iterdir()):
@@ -203,33 +223,29 @@ def main():
             rec[(i_idx, kr)] = per_method
 
     # ---- Plot — one separate PNG per test image ----
-    # Method ordering: block-wrapped on the left, global on the right.
-    # Use a preferred-order list that includes both legacy (blocked/rich/...) and
-    # new (*_8) trained names; whichever exists in `rec` gets included.
-    block_methods_pref = [
-        # trained block-wrapped (legacy default-split + new fixed-8 variants)
-        "rich", "real_rich", "blocked",
-        "rich_8", "real_rich_8", "blocked_8",
-        # classical 8x8-block baselines
-        "block_dct_8", "block_bd_pca_8", "block_fft_8",
-    ]
-    global_methods_pref = ["qft", "entangled_qft", "tebd", "mera", "bd_pca", "dct", "fft"]
+    # Method ordering. With --methods the columns follow that exact order;
+    # otherwise fall back to block-wrapped-on-the-left, global-on-the-right.
     sample_key = (image_labels[0], keep_ratios[0])
-    block_methods  = [m for m in block_methods_pref  if m in rec[sample_key]]
-    global_methods = [m for m in global_methods_pref if m in rec[sample_key]]
+    available = list(rec[sample_key].keys())
     if args.methods:
-        requested = [m.strip() for m in args.methods.split(",") if m.strip()]
-        available = set(block_methods) | set(global_methods)
-        missing = [m for m in requested if m not in available]
+        methods = [m.strip() for m in args.methods.split(",") if m.strip()]
+        missing = [m for m in methods if m not in available]
         if missing:
             raise ValueError(
                 f"requested methods not available: {missing}; "
                 f"available: {sorted(available)}"
             )
-        requested_set = set(requested)
-        block_methods  = [m for m in block_methods  if m in requested_set]
-        global_methods = [m for m in global_methods if m in requested_set]
-    methods = block_methods + global_methods
+    else:
+        block_methods_pref = [
+            "rich", "real_rich", "blocked", "rich_8", "real_rich_8", "blocked_8",
+            "block_dct_8", "block_bd_pca_8", "block_fft_8",
+        ]
+        global_methods_pref = ["qft", "entangled_qft", "tebd", "mera",
+                               "dct4_ctl", "bd_pca", "dct", "fft"]
+        methods = ([m for m in block_methods_pref if m in available]
+                   + [m for m in global_methods_pref if m in available])
+    # Learned (trained) bases get one header colour, classical baselines another.
+    trained_names = set(trained)
     n_methods = len(methods)
     n_cols = 1 + n_methods
     n_rows = len(keep_ratios)
@@ -238,7 +254,14 @@ def main():
     fig_w = n_cols * cell + 0.55
     fig_h = n_rows * cell + 0.55
 
-    headers = ["original"] + methods
+    # Pretty column labels matching the paper's results table (\cref{tab:div2k_repr}).
+    header_labels = {
+        "rich": "RichBasis", "real_rich": "RichBasis",
+        "dct4_ctl": "DCT-IV", "qft": "QFT", "entangled_qft": "Entangled QFT",
+        "tebd": "TEBD", "mera": "MERA",
+        "block_dct_8": "block DCT 8$\\times$8", "block_fft_8": "block DFT 8$\\times$8",
+    }
+    headers = ["original"] + [header_labels.get(m, m) for m in methods]
 
     out_base = Path(args.out)
     img_lookup = dict(zip(image_labels, images))
@@ -253,12 +276,12 @@ def main():
         # Figure-level title intentionally omitted — captions live in the paper.
 
         for c, h in enumerate(headers):
-            if 1 <= c <= len(block_methods):
-                color = "#0a3d8c"
-            elif c > len(block_methods):
-                color = "#666666"
-            else:
+            if c == 0:
                 color = "black"
+            elif methods[c - 1] in trained_names:
+                color = "#0a3d8c"
+            else:
+                color = "#666666"
             axes[0, c].set_title(h, fontsize=6.5, color=color, pad=2)
 
         for r_idx, kr in enumerate(keep_ratios):
@@ -314,12 +337,12 @@ def main():
         )
         # Figure-level title intentionally omitted — captions live in the paper.
         for c, h in enumerate(headers):
-            if 1 <= c <= len(block_methods):
-                color = "#0a3d8c"
-            elif c > len(block_methods):
-                color = "#666666"
-            else:
+            if c == 0:
                 color = "black"
+            elif methods[c - 1] in trained_names:
+                color = "#0a3d8c"
+            else:
+                color = "#666666"
             axes_f[c].set_title(h, fontsize=6.5, color=color, pad=2)
 
         # Col 0 = original image (gray), cols 1.. = freq spectra (viridis)
