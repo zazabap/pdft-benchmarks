@@ -27,6 +27,9 @@ from pdft_benchmarks.pipeline import run_experiment
 
 DEFAULT_BASES = ("qft", "entangled_qft", "tebd", "mera",
                  "blocked", "rich", "real_rich")
+# Ablation variants — selectable via --bases but not in the default grid.
+EXTRA_BASES = ("dct4_ctl",)
+ALL_BASES = DEFAULT_BASES + EXTRA_BASES
 
 
 def main():
@@ -45,10 +48,10 @@ def main():
     args = parser.parse_args()
 
     bases = [b.strip() for b in args.bases.split(",") if b.strip()]
-    unknown = [b for b in bases if b not in DEFAULT_BASES]
+    unknown = [b for b in bases if b not in ALL_BASES]
     if unknown:
         raise SystemExit(f"unknown basis name(s): {unknown}; "
-                         f"choices: {sorted(DEFAULT_BASES)}")
+                         f"choices: {sorted(ALL_BASES)}")
 
     preset = apply_preset_overrides(
         args.preset, dataset="quickdraw", tag="quickdraw",
