@@ -15,6 +15,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+from pdft_benchmarks.plots.style import save_figure
+
 
 def ar1_2d(side: int, rho: float, seed: int) -> np.ndarray:
     """Sample a 2D separable AR(1)-Gaussian field of shape (side, side)."""
@@ -137,10 +139,8 @@ def main() -> None:
     fig.subplots_adjust(left=0.005, right=0.995, top=0.93, bottom=0.005)
     out = Path("results/quickdraw_pca_vs_block_dct/figures/ar1_examples.pdf")
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, bbox_inches="tight")
-    out_svg = out.with_suffix(".svg")
-    fig.savefig(out_svg, bbox_inches="tight")
-    print(f"[viz] wrote {out} + {out_svg}")
+    save_figure(fig, out)
+    print(f"[viz] wrote {out} (+ .svg)")
 
 
 if __name__ == "__main__":
