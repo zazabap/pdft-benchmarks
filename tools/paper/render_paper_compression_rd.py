@@ -27,15 +27,17 @@ from pathlib import Path
 import matplotlib
 
 matplotlib.use("Agg")
-matplotlib.rcParams["pdf.fonttype"] = 42  # avoid Type-3 (arXiv flags it)
-matplotlib.rcParams["ps.fonttype"] = 42
 import numpy as np
 import matplotlib.pyplot as plt
+
+from pdft_benchmarks.plots.style import WONG, save_figure, set_paper_rcparams
+
+set_paper_rcparams()
 
 BASE_DIR = Path("results/training/6_dataset_compression")
 DDIR = BASE_DIR / "quickdraw_5q"
 
-BLUE, GREEN = "#0072B2", "#009E73"  # Wong palette
+BLUE, GREEN = WONG["blue"], WONG["green"]  # Wong palette
 PSNR_CUT = 35.0                     # fixed-PSNR horizontal reading (dB)
 V_PCT = 40.0                        # fixed-size vertical reading (% of raw)
 
@@ -167,8 +169,7 @@ def main():
     figdir = DDIR / "figures"
     figdir.mkdir(parents=True, exist_ok=True)
     pdf = figdir / "rd_quickdraw_paper.pdf"
-    fig.savefig(pdf, bbox_inches="tight")
-    fig.savefig(figdir / "rd_quickdraw_paper.svg", bbox_inches="tight")
+    save_figure(fig, pdf)
     print(f"wrote {pdf} (+ .svg)")
     if args.out:
         out = Path(args.out)
