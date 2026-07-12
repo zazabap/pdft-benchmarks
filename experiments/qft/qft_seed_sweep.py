@@ -28,11 +28,11 @@ per ordering per keep ratio).
 
 Usage:
     # one cell (what the dispatcher calls)
-    python experiments/qft_seed_sweep.py --gpu 0 --orderings bg --seeds 7
+    python experiments/qft/qft_seed_sweep.py --gpu 0 --orderings bg --seeds 7
     # a slice, sequentially, on one GPU
-    python experiments/qft_seed_sweep.py --gpu 0 --orderings bg,lr,rl --seeds 1-5
+    python experiments/qft/qft_seed_sweep.py --gpu 0 --orderings bg,lr,rl --seeds 1-5
     # roll up whatever cells exist (no GPU needed)
-    python experiments/qft_seed_sweep.py --aggregate-only --seeds 1-100
+    python experiments/qft/qft_seed_sweep.py --aggregate-only --seeds 1-100
 """
 from __future__ import annotations
 

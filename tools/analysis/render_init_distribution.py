@@ -2,7 +2,7 @@
 """Show that the per-seed random (Haar) initialisations are genuinely DIFFERENT.
 
 For each seed s, builds the Haar-random QFT(m, n) init (family_random_basis,
-exactly what experiments/qft_seed_sweep.py trains from) and measures two things
+exactly what experiments/qft/qft_seed_sweep.py trains from) and measures two things
 on a COMMON fixed batch (canonical seed-42 first-N images, held identical across
 seeds so the spread reflects the init alone):
 

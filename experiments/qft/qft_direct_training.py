@@ -23,9 +23,9 @@ BEFORE importing pdft_benchmarks (which transitively imports JAX). On this
 mixed-GPU host the PCI-order pin makes --gpu N select nvidia-smi's GPU N.
 
 Usage:
-    python experiments/qft_direct_training.py l1-reg    --gpu 0 --lambdas 0,1,10
-    python experiments/qft_direct_training.py l1-anchor --gpu 0 --bases qft,tebd
-    python experiments/qft_direct_training.py unfreeze  --gpu 0 --dataset div2k_8q
+    python experiments/qft/qft_direct_training.py l1-reg    --gpu 0 --lambdas 0,1,10
+    python experiments/qft/qft_direct_training.py l1-anchor --gpu 0 --bases qft,tebd
+    python experiments/qft/qft_direct_training.py unfreeze  --gpu 0 --dataset div2k_8q
 """
 from __future__ import annotations
 

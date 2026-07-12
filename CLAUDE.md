@@ -8,11 +8,17 @@ covers *how to work in it*.
 
 Two paper experiments, one per dataset:
 
-- `experiments/quickdraw_pca_vs_block_dct.py` — m=n=5, 32×32, six trained bases
-  (mera silently skipped because m+n=10 isn't a power of 2).
-- `experiments/div2k_8q_pca_vs_block_dct.py` — m=n=8, 256×256, seven trained
-  bases including mera. Splits across two GPUs naturally
+- `experiments/paper/quickdraw_pca_vs_block_dct.py` — m=n=5, 32×32, six trained
+  bases (mera silently skipped because m+n=10 isn't a power of 2).
+- `experiments/paper/div2k_8q_pca_vs_block_dct.py` — m=n=8, 256×256, seven
+  trained bases including mera. Splits across two GPUs naturally
   (4 unblocked + 3 blocked).
+
+The rest of `experiments/` is grouped by family: `paper/` (the two headline
+drivers above), `qft/` (QFT structure/training studies), `dct4/` (controlled
+DCT-IV studies), `block_size/` (block-size sweeps), `misc/` (dataset
+compression, single-basis / single-seed training drivers). No script imports
+another, so the grouping is purely for navigation.
 
 Each has a self-contained results tree at `results/<experiment>/`:
 
@@ -70,13 +76,13 @@ Include a `## Summary`, a `## Test plan` checklist, and the
 
 ```bash
 # QuickDraw (single-process, all bases, m=n=5)
-python experiments/quickdraw_pca_vs_block_dct.py --gpu 0
+python experiments/paper/quickdraw_pca_vs_block_dct.py --gpu 0
 
 # DIV2K-8q (two-GPU split, m=n=8)
-python experiments/div2k_8q_pca_vs_block_dct.py --gpu 0 \
+python experiments/paper/div2k_8q_pca_vs_block_dct.py --gpu 0 \
     --bases qft,entangled_qft,tebd,mera \
     --out /tmp/full_train_runs/div2k_unblocked
-python experiments/div2k_8q_pca_vs_block_dct.py --gpu 1 \
+python experiments/paper/div2k_8q_pca_vs_block_dct.py --gpu 1 \
     --bases blocked_8,rich_8,real_rich_8 \
     --out /tmp/full_train_runs/div2k_blocked
 ```

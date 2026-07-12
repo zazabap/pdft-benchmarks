@@ -33,10 +33,10 @@ standard cell schema. An aggregate manifest is written at
 results/<family>_progressive/<dataset>/manifest.json.
 
 Usage:
-    python experiments/qft_progressive.py --gpu 0 [--family qft] [--epochs-per-stage 56]
-    python experiments/qft_progressive.py --gpu 0 --family rich --epochs-per-stage 112
-    python experiments/qft_progressive.py --gpu 1 --family real_rich --epochs-per-stage 112
-    python experiments/qft_progressive.py --gpu 1 --family tebd --init random --epochs-per-stage 112
+    python experiments/qft/qft_progressive.py --gpu 0 [--family qft] [--epochs-per-stage 56]
+    python experiments/qft/qft_progressive.py --gpu 0 --family rich --epochs-per-stage 112
+    python experiments/qft/qft_progressive.py --gpu 1 --family real_rich --epochs-per-stage 112
+    python experiments/qft/qft_progressive.py --gpu 1 --family tebd --init random --epochs-per-stage 112
 """
 from __future__ import annotations
 

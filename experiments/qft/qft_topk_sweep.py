@@ -24,9 +24,9 @@ GPU isolation: ``--gpu`` sets ``CUDA_VISIBLE_DEVICES`` BEFORE importing
 pdft_benchmarks (which transitively imports JAX, which preallocates GPU memory).
 
 Usage:
-    python experiments/qft_topk_sweep.py --gpu 0 --dataset div2k_8q
-    python experiments/qft_topk_sweep.py --gpu 1 --dataset quickdraw_5q
-    python experiments/qft_topk_sweep.py --gpu 0 --dataset div2k_8q \\
+    python experiments/qft/qft_topk_sweep.py --gpu 0 --dataset div2k_8q
+    python experiments/qft/qft_topk_sweep.py --gpu 1 --dataset quickdraw_5q
+    python experiments/qft/qft_topk_sweep.py --gpu 0 --dataset div2k_8q \\
         --train-keep-ratios 0.05,0.10,0.15,0.20
 """
 from __future__ import annotations

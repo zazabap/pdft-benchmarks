@@ -13,7 +13,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PYTHON = "/opt/conda/envs/pdft/bin/python"
-DRIVER = REPO_ROOT / "experiments" / "qft_progressive.py"
+DRIVER = REPO_ROOT / "experiments" / "qft" / "qft_progressive.py"
 
 
 @pytest.mark.slow

@@ -2,7 +2,7 @@
 """Random-seed variance sweep for the learnable DCT-IV basis (DIV2K-8q), trained
 with NORMAL batched training (not the gate-unfreeze "sweep").
 
-The DCT-IV analog of `experiments/qft_seed_sweep.py`. Each seed `s` reseeds
+The DCT-IV analog of `experiments/qft/qft_seed_sweep.py`. Each seed `s` reseeds
 EVERYTHING trainable, exactly as the QFT seed study does — only the training
 procedure differs (`pdft.train_basis_batched`, one cosine-LR top-k run, instead
 of `train_progressive_unfreeze`):
@@ -34,9 +34,9 @@ imported from THIS repo's `src` (added to sys.path below) regardless of any
 editable-install location.
 
 Usage:
-    python experiments/dct4_seed_sweep.py --gpu 1 --seeds 7            # one cell
-    python experiments/dct4_seed_sweep.py --gpu 1 --seeds 1-5          # a slice
-    python experiments/dct4_seed_sweep.py --aggregate-only --seeds 1-100
+    python experiments/dct4/dct4_seed_sweep.py --gpu 1 --seeds 7            # one cell
+    python experiments/dct4/dct4_seed_sweep.py --gpu 1 --seeds 1-5          # a slice
+    python experiments/dct4/dct4_seed_sweep.py --aggregate-only --seeds 1-100
 """
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ from pathlib import Path
 
 # Resolve `pdft_benchmarks` from THIS repo's src (the editable install may point
 # at a different worktree that lacks the dct4 helper).
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))  # repo root
 
 
 def _parse_seeds(spec: str) -> list[int]:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Parallel dispatcher for the random-seed unfreeze sweep (experiments/qft_seed_sweep.py).
+"""Parallel dispatcher for the random-seed unfreeze sweep (experiments/qft/qft_seed_sweep.py).
 
 Fans (ordering, seed) jobs across many GPUs with a dynamic free-list: each GPU
 slot pulls the next pending job, so no GPU idles while work remains. Jobs whose

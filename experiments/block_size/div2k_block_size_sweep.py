@@ -7,12 +7,12 @@ Two-GPU split — set CUDA_VISIBLE_DEVICES BEFORE importing pdft_benchmarks
 (JAX preallocates ~75% on first call):
 
     # Terminal A — 6 cells on GPU 0
-    python experiments/div2k_block_size_sweep.py --gpu 0 \\
+    python experiments/block_size/div2k_block_size_sweep.py --gpu 0 \\
         --bases blocked_4,rich_4,real_rich_4,blocked_8,rich_8,real_rich_8 \\
         --out results/block_size_sweep/div2k_8q/_runs/g0
 
     # Terminal B — 6 cells on GPU 1
-    python experiments/div2k_block_size_sweep.py --gpu 1 \\
+    python experiments/block_size/div2k_block_size_sweep.py --gpu 1 \\
         --bases blocked_16,rich_16,real_rich_16,blocked_32,rich_32,real_rich_32 \\
         --out results/block_size_sweep/div2k_8q/_runs/g1
 

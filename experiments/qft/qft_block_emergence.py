@@ -10,7 +10,7 @@ step 0 (the random init) and every --every steps through the final step, in the
 trained_*.json {m, n, seed, tensors:[{real, imag}]} schema.
 
 Usage:
-    python experiments/qft_block_emergence.py --gpu 7 --seed 0 --epochs 112 \
+    python experiments/qft/qft_block_emergence.py --gpu 7 --seed 0 --epochs 112 \
         --out results/training/1_structure_inclusion/block_emergence
 """
 from __future__ import annotations

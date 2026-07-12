@@ -63,7 +63,7 @@ def main() -> int:
         os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
         os.environ.setdefault("CUDA_DEVICE_ORDER", "PCI_BUS_ID")
     os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))  # repo root
 
     import numpy as np
     from PIL import Image

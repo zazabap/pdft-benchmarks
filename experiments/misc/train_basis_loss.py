@@ -5,7 +5,7 @@ re-rendered. Matches the headline objective: rho=0.10 (K=6554), 1008 steps
 (epochs=112), seed 42, generalized preset.
 
 Usage:
-    python experiments/train_basis_loss.py --gpu 7 --basis qft \
+    python experiments/misc/train_basis_loss.py --gpu 7 --basis qft \
         --out results/structure/div2k_8q_pca_vs_block_dct/by_basis/qft/loss_history
 """
 from __future__ import annotations

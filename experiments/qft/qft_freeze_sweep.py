@@ -20,7 +20,7 @@ Cells land at results/training/_archive/qft_freeze_sweep/div2k_8q/_runs/{freeze_
 Manifest at results/training/_archive/qft_freeze_sweep/div2k_8q/manifest.json.
 
 Usage:
-    python experiments/qft_freeze_sweep.py --gpu 0 [--epochs 112]
+    python experiments/qft/qft_freeze_sweep.py --gpu 0 [--epochs 112]
 """
 from __future__ import annotations
 

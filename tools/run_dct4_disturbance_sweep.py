@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Parallel dispatcher for the DCT-IV exact-init disturbance sweep
-(experiments/dct4_disturbance_sweep.py). Fans (fraction, seed) cells across idle
+(experiments/dct4/dct4_disturbance_sweep.py). Fans (fraction, seed) cells across idle
 GPUs; resumable (skips existing cells). See tools/run_dct4_seed_sweep.py for the
 scheduler design this is copied from.
 
