@@ -31,10 +31,12 @@ from pathlib import Path
 import matplotlib
 
 matplotlib.use("Agg")
-matplotlib.rcParams["pdf.fonttype"] = 42  # avoid Type-3 (arXiv flags it)
-matplotlib.rcParams["ps.fonttype"] = 42
 import numpy as np
 import matplotlib.pyplot as plt
+
+from pdft_benchmarks.plots.style import WONG, save_figure, set_paper_rcparams
+
+set_paper_rcparams()
 
 DDIR = Path("results/structure/div2k_8q_pca_vs_block_dct")
 
@@ -44,12 +46,12 @@ DDIR = Path("results/structure/div2k_8q_pca_vs_block_dct")
 # RichBasis, so it sits second and gets a high-contrast black dash-dot to stand
 # apart from the unitary family's coloured curves.
 SERIES = [
-    ("rich",          "RichBasis",        "#0072B2", "-",               "o"),
-    ("dct4_ctl",      "DCT-IV (relaxed)", "#000000", (0, (3, 1, 1, 1)), "P"),
-    ("qft",           "QFT",              "#E69F00", (0, (5, 2)),       "s"),
-    ("entangled_qft", "Entangled QFT",    "#D55E00", (0, (1, 1)),       "^"),
-    ("tebd",          "TEBD",             "#009E73", (0, (5, 2)),       "D"),
-    ("mera",          "MERA",             "#56B4E9", (0, (1, 1)),       "v"),
+    ("rich",          "RichBasis",        WONG["blue"],      "-",               "o"),
+    ("dct4_ctl",      "DCT-IV (relaxed)", WONG["black"],     (0, (3, 1, 1, 1)), "P"),
+    ("qft",           "QFT",              WONG["orange"],    (0, (5, 2)),       "s"),
+    ("entangled_qft", "Entangled QFT",    WONG["vermilion"], (0, (1, 1)),       "^"),
+    ("tebd",          "TEBD",             WONG["green"],     (0, (5, 2)),       "D"),
+    ("mera",          "MERA",             WONG["sky"],       (0, (1, 1)),       "v"),
 ]
 
 
@@ -97,8 +99,7 @@ def main():
     figdir = DDIR / "figures"
     figdir.mkdir(parents=True, exist_ok=True)
     pdf = figdir / "topology_loss_curve.pdf"
-    fig.savefig(pdf, bbox_inches="tight")
-    fig.savefig(figdir / "topology_loss_curve.svg", bbox_inches="tight")
+    save_figure(fig, pdf)
     print(f"wrote {pdf} (+ .svg)")
     if args.out:
         out = Path(args.out)

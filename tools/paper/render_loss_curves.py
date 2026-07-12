@@ -16,6 +16,8 @@ from pathlib import Path
 
 import numpy as np
 
+from pdft_benchmarks.plots.style import save_figure
+
 
 DATASET_CONFIG = {
     "quickdraw": {
@@ -288,11 +290,8 @@ def main():
                mode="absolute", show_legend=True, show_title=False)
     fig.subplots_adjust(left=0.08, right=0.99, top=0.97, bottom=0.10)
 
-    out_pdf.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_pdf, bbox_inches="tight")
-    out_svg = out_pdf.with_suffix(".svg")
-    fig.savefig(out_svg, bbox_inches="tight")
-    print(f"[viz] wrote {out_pdf} + {out_svg}")
+    save_figure(fig, out_pdf)
+    print(f"[viz] wrote {out_pdf} (+ .svg)")
 
 
 if __name__ == "__main__":
