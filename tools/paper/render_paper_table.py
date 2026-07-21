@@ -15,7 +15,7 @@ repo-reorg; rework before next regen):
     <published-root>/<dataset>__<basis>/rate_distortion_ssim.csv
 
 Writes:
-    --out (default: results/quickdraw_pca_vs_block_dct/tables/published_8q_quickdraw.tex)
+    --out (default: results/structure/quickdraw_pca_vs_block_dct/tables/published_8q_quickdraw.tex)
 
 Usage:
     python tools/render_paper_table.py
@@ -224,10 +224,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     # TODO(repo-reorg): walks <root>/<dataset>__<basis>/; new layout is
     # <root>/<basis>/. Rework before next paper-table regen.
-    parser.add_argument("--published-root", default="results/quickdraw_pca_vs_block_dct/by_basis", type=Path)
+    parser.add_argument("--published-root", default="results/structure/quickdraw_pca_vs_block_dct/by_basis", type=Path)
     parser.add_argument("--datasets", default="div2k_8q,quickdraw",
                         help="comma-separated dataset ids in the order they should appear")
-    parser.add_argument("--out", default="results/quickdraw_pca_vs_block_dct/tables/published_8q_quickdraw.tex", type=Path)
+    parser.add_argument("--out", default="results/structure/quickdraw_pca_vs_block_dct/tables/published_8q_quickdraw.tex", type=Path)
     args = parser.parse_args(argv)
 
     datasets = [d.strip() for d in args.datasets.split(",") if d.strip()]

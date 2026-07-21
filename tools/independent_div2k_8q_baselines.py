@@ -5,7 +5,7 @@ Runs every registered baseline — including PCA, block_PCA_8, and the
 classical FFT/DCT family — against a fresh load of the DIV2K-8q test
 set, with no trained bases. Produces a single metrics.json + a
 Markdown report so the numbers in
-results/div2k_8q_pca_vs_block_dct/writeup.typ can be verified.
+results/structure/div2k_8q_pca_vs_block_dct/writeup.typ can be verified.
 
 Sets CUDA_VISIBLE_DEVICES before importing pdft_benchmarks (matches
 the entry-point pattern); independent rerun is single-process so this
@@ -23,7 +23,7 @@ from pathlib import Path
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out",
-                    default="results/div2k_8q_pca_vs_block_dct/independent_reruns/seed_default",
+                    default="results/structure/div2k_8q_pca_vs_block_dct/independent_reruns/seed_default",
                     help="Output directory")
     ap.add_argument("--gpu", type=int, default=0)
     ap.add_argument("--seed", type=int, default=42)

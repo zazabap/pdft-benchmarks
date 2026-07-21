@@ -18,7 +18,7 @@ from pathlib import Path
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--out", default="results/quickdraw_pca_vs_block_dct/independent_reruns/seed_default",
+    ap.add_argument("--out", default="results/structure/quickdraw_pca_vs_block_dct/independent_reruns/seed_default",
                     help="Output directory")
     ap.add_argument("--gpu", type=int, default=0)
     ap.add_argument("--seed", type=int, default=42)

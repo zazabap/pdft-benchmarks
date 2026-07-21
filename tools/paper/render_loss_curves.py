@@ -21,16 +21,16 @@ from pdft_benchmarks.plots.style import save_figure
 
 DATASET_CONFIG = {
     "quickdraw": {
-        "by_basis": "results/quickdraw_pca_vs_block_dct/by_basis",
-        "out": "results/quickdraw_pca_vs_block_dct/figures/loss_curves.pdf",
+        "by_basis": "results/structure/quickdraw_pca_vs_block_dct/by_basis",
+        "out": "results/structure/quickdraw_pca_vs_block_dct/figures/loss_curves.pdf",
         # QuickDraw curves bottom out around L/L0 ≈ 0.27 (rich), much
         # lower than DIV2K which floors near 0.40. Use a wider y-range
         # so no curve gets clipped.
         "ylim": (0.20, 1.05),
     },
     "div2k_8q": {
-        "by_basis": "results/div2k_8q_pca_vs_block_dct/by_basis",
-        "out": "results/div2k_8q_pca_vs_block_dct/figures/loss_curves.pdf",
+        "by_basis": "results/structure/div2k_8q_pca_vs_block_dct/by_basis",
+        "out": "results/structure/div2k_8q_pca_vs_block_dct/figures/loss_curves.pdf",
         "ylim": (0.35, 1.05),
     },
 }
