@@ -14,6 +14,9 @@ __pycache__/
 # Scratch / one-off analysis scripts (named _tmp_* by convention; deleted after use)
 tools/_tmp_*.py
 
+# Working artifacts (specs, plans, theory drafts) stay local — see CLAUDE.md.
+docs/
+
 # results/ — track curated text artifacts (metrics, csvs, figures, tables,
 # writeup); ignore heavy regeneratable blobs.
 results/**/trained_*.json
@@ -27,6 +30,9 @@ results/**/failures/
 # per-step block-emergence training snapshots (bulky raw blobs; the curated
 # block_emergence_spectrogram.json + figures are tracked instead)
 results/**/checkpoints/
+# raw XLA profiler traces (bulky protobuf; the curated profile.json + report.md
+# + figures alongside them carry the findings)
+results/**/trace/
 results/**/block_emergence*/loss_history.json
 
 # Local virtualenv (created for runs; not part of the repo)
