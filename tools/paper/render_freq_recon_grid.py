@@ -94,14 +94,14 @@ def main():
 
     DATASET_CONFIG = {
         "quickdraw": {
-            "by_basis": "results/quickdraw_pca_vs_block_dct/by_basis",
-            "out_default": "results/quickdraw_pca_vs_block_dct/figures/freq_recon_grid.pdf",
+            "by_basis": "results/structure/quickdraw_pca_vs_block_dct/by_basis",
+            "out_default": "results/structure/quickdraw_pca_vs_block_dct/figures/freq_recon_grid.pdf",
             "img_size": 32,
             "title_label": "QuickDraw",
         },
         "div2k_8q": {
-            "by_basis": "results/div2k_8q_pca_vs_block_dct/by_basis",
-            "out_default": "results/div2k_8q_pca_vs_block_dct/figures/freq_recon_grid.pdf",
+            "by_basis": "results/structure/div2k_8q_pca_vs_block_dct/by_basis",
+            "out_default": "results/structure/div2k_8q_pca_vs_block_dct/figures/freq_recon_grid.pdf",
             "img_size": 256,
             "title_label": "DIV2K-8q",
         },

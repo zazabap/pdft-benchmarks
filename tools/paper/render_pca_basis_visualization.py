@@ -7,7 +7,7 @@ rows as a grid of small images so you can see what the basis actually
 looks like — analogous to the classic "eigenfaces" plot.
 
 Outputs:
-  results/quickdraw_pca_vs_block_dct/figures/pca_basis.pdf — 3-panel figure showing
+  results/structure/quickdraw_pca_vs_block_dct/figures/pca_basis.pdf — 3-panel figure showing
     (top)    block_PCA top-16 eigen-patches  (8×8 each)
     (middle) DCT       top-16 basis patches  (8×8 each)  for reference
     (bottom) global PCA top-16 eigen-images  (32×32 each)
@@ -37,11 +37,11 @@ def main():
 
     DATASET_CONFIG = {
         "quickdraw": {
-            "out_default": "results/quickdraw_pca_vs_block_dct/figures/pca_basis.pdf",
+            "out_default": "results/structure/quickdraw_pca_vs_block_dct/figures/pca_basis.pdf",
             "img_size": 32,
         },
         "div2k_8q": {
-            "out_default": "results/div2k_8q_pca_vs_block_dct/figures/pca_basis.pdf",
+            "out_default": "results/structure/div2k_8q_pca_vs_block_dct/figures/pca_basis.pdf",
             "img_size": 256,
         },
     }

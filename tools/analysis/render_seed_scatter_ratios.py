@@ -12,7 +12,7 @@ Wong palette, one colour per ordering; linear y; PDF + SVG, no figure title
 (each panel is labelled by its keep ratio — content, not a title).
 
 Usage:
-    python tools/render_seed_scatter_ratios.py \
+    python tools/analysis/render_seed_scatter_ratios.py \
         --base results/training/2_direct_training/random_seed/div2k_8q
 """
 from __future__ import annotations

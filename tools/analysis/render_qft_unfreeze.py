@@ -3,8 +3,8 @@
 one curve per ordering). PDF + SVG, no figure title, Wong palette.
 
 Usage:
-    python tools/render_qft_unfreeze.py --dataset quickdraw_5q
-    python tools/render_qft_unfreeze.py --in results/training/2_direct_training/unfreeze/quickdraw_5q
+    python tools/analysis/render_qft_unfreeze.py --dataset quickdraw_5q
+    python tools/analysis/render_qft_unfreeze.py --in results/training/2_direct_training/unfreeze/quickdraw_5q
 """
 from __future__ import annotations
 
