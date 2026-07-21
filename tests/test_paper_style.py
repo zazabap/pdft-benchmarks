@@ -6,7 +6,7 @@ matplotlib.use("Agg")
 import matplotlib as mpl
 
 _spec = importlib.util.spec_from_file_location(
-    "paper_style", Path(__file__).resolve().parents[1] / "tools" / "paper_style.py")
+    "paper_style", Path(__file__).resolve().parents[1] / "tools" / "analysis" / "paper_style.py")
 paper_style = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(paper_style)
 
