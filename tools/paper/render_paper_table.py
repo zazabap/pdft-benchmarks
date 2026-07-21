@@ -18,9 +18,9 @@ Writes:
     --out (default: results/structure/quickdraw_pca_vs_block_dct/tables/published_8q_quickdraw.tex)
 
 Usage:
-    python tools/render_paper_table.py
-    python tools/render_paper_table.py --datasets div2k_8q,quickdraw
-    python tools/render_paper_table.py --out /home/claude-user/parametric-dft-paper/tables/published_8q_quickdraw.tex
+    python tools/paper/render_paper_table.py
+    python tools/paper/render_paper_table.py --datasets div2k_8q,quickdraw
+    python tools/paper/render_paper_table.py --out /home/claude-user/parametric-dft-paper/tables/published_8q_quickdraw.tex
 """
 
 from __future__ import annotations

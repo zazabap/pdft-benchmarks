@@ -11,7 +11,7 @@ reference/classical_dct4.json. Emits:
   tables/disturbance_psnr.tex               -- rows = f, cols = rho (trained mean+/-sigma).
 
 Usage:
-    python tools/render_disturbance_curve.py \
+    python tools/analysis/render_disturbance_curve.py \
         --base results/training/4_exact_disturbance
 """
 from __future__ import annotations

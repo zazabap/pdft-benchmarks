@@ -15,12 +15,18 @@ Two paper experiments, one per dataset:
   (4 unblocked + 3 blocked).
 
 The rest of `experiments/` is grouped by family: `paper/` (the two headline
-drivers above), `qft/` (QFT structure/training studies), `dct4/` (controlled
-DCT-IV studies), `block_size/` (block-size sweeps), `misc/` (dataset
-compression, single-basis / single-seed training drivers). No script imports
+drivers above), `qft/` (structure inclusion, seed sweep, freeze sweep), `dct4/`
+(exact-init disturbance sweep), `misc/` (dataset compression). No script imports
 another, so the grouping is purely for navigation.
 
-Each has a self-contained results tree at `results/<experiment>/`:
+**This branch is curated.** `main` carries only what reproduces the paper; the
+full research tree — block-size sweeps, QFT progressive/top-k, DCT-IV sweep
+training and controlled parametrization, profiling — lives on `dev`. Recover
+anything with `git checkout dev -- <path>`, and land new exploratory work on
+`dev` rather than here. `REPRODUCE.md` maps every paper figure and table to the
+command that regenerates it.
+
+The headline per-dataset trees live at `results/structure/<experiment>/`:
 
 ```
 by_basis/<basis>/        one cell per trained basis (metrics, env, trained_*.json, loss_history)
@@ -31,9 +37,13 @@ writeup.{typ,pdf}        typst writeup section
 independent_reruns/      classical-only verification reruns (no training)
 ```
 
+Appendix studies live under `results/training/`: `1_structure_inclusion/`,
+`2_direct_training/` (`random_seed/`, `unfreeze/`), `4_exact_disturbance/`,
+`6_dataset_compression/`.
+
 Library lives in `src/pdft_benchmarks/`. Renderers and CLI utilities in
-`tools/`. Tests in `tests/`. **`docs/` was removed from main** — keep
-working artifacts (specs, plans, theory drafts) local only.
+`tools/`. Tests in `tests/`. **`docs/` is gitignored** — keep working artifacts
+(specs, plans, theory drafts) local only.
 
 ## Workflow conventions
 
@@ -183,11 +193,28 @@ loss_curve_2000.{pdf,svg}    ← 2007-step appendix (plateau check)
 
 | Tool | Output | Notes |
 |---|---|---|
-| `tools/paper/render_loss_curves.py --dataset {quickdraw,div2k_8q}` | `figures/loss_curves.{pdf,svg}` | per-dataset y-limit |
-| `tools/paper/render_freq_recon_grid.py --dataset {…}` | `figures/freq_recon_grid_img{N}{,_freq}.{pdf,svg}` | needs GPU; falls back to CPU |
-| `tools/paper/render_pca_basis_visualization.py --dataset {…}` | `figures/pca_basis.{pdf,svg}` | |
-| `tools/paper/render_ar1_examples.py` | `figures/ar1_examples.{pdf,svg}` | hard-coded paths; copy to DIV2K dir afterward |
+All renderer defaults now write into `results/structure/<experiment>/`; the old
+"copy to the DIV2K dir afterward" step is gone.
+
+| Tool | Output | Notes |
+|---|---|---|
+| `tools/paper/render_topology_loss.py` | `figures/topology_loss_curve.{pdf,svg}` | paper `fig:topology_loss` |
+| `tools/paper/render_freq_recon_grid.py --dataset {…}` | `figures/freq_recon_grid_img{N}{,_freq}.{pdf,svg}` | needs GPU; falls back to CPU. Requires `--image-indices` |
+| `tools/paper/render_paper_compression_rd.py` | `6_dataset_compression/quickdraw_5q/figures/rd_quickdraw_paper.{pdf,svg}` | paper `fig:rd_quickdraw` |
 | `tools/paper/render_div2k_paper_table.py` | `tables/published_8q_div2k.tex` | reads `_baselines.json` + cells |
+| `tools/paper/render_paper_table.py` | `tables/published_8q_quickdraw.tex` | reads `_baselines.json` + cells |
+| `tools/analysis/render_qft_unfreeze.py --combined --paper-style` | `unfreeze/figures/paper/training_dynamics.pdf` | paper `fig:app_unfreeze_dynamics`. Bare `--dataset` hits a legacy flat-layout mode |
+| `tools/analysis/render_init_distribution.py --base … --from-json --paper-style` | `figures/paper/init_distribution.pdf` | paper `fig:app_seed_robustness_a` |
+| `tools/analysis/render_seed_scatter_ratios.py --base … --paper-style` | `figures/paper/seed_scatter_ratios.pdf` | paper `fig:app_seed_robustness_b` |
+| `tools/analysis/render_seed_variance_table.py --base …` | `tables/seed_variance.tex` | paper `tab:app_seed_variance` |
+| `tools/analysis/render_disturbance_curve.py` | `4_exact_disturbance/figures/disturbance_*.{pdf,svg}` | three paper figures + `tab:disturbance` |
+| `tools/paper/render_loss_curves.py --dataset {…}` | `figures/loss_curves.{pdf,svg}` | per-dataset y-limit. **Not currently cited by `main.tex`** |
+| `tools/paper/render_pca_basis_visualization.py --dataset {…}` | `figures/pca_basis.{pdf,svg}` | **Not currently cited by `main.tex`** |
+| `tools/paper/render_ar1_examples.py` | `figures/ar1_examples.{pdf,svg}` | distinct from the paper's own `ar1_histogram.pdf`. **Not currently cited** |
+| `tools/analysis/render_seed_dynamics.py --base …` | `figures/paper/seed_training_dynamics.pdf` | **Not currently cited by `main.tex`** |
+
+The `--base` for the seed renderers is
+`results/training/2_direct_training/random_seed/div2k_8q`.
 
 For DIV2K's `render_freq_recon_grid.py`: use
 `--image-indices 11 --div2k-source-indices 390` to get the headline
@@ -223,7 +250,16 @@ the cellified `_baselines.json` matches an independent computation.
 
 ## Environment
 
-- Python at `/opt/conda/envs/pdft/bin/python` (conda env `pdft`).
+- Python at `.venv/bin/python` (created with `--system-site-packages`, then
+  `pip install -e .`). **Do not use `/opt/conda/envs/pdft/bin/python`** — that
+  env's editable install points at a *different, older* checkout, so
+  `pdft_benchmarks` imports resolve to the wrong tree and every test errors at
+  collection.
+- On this mixed-GPU host, always set `CUDA_DEVICE_ORDER=PCI_BUS_ID` alongside
+  `CUDA_VISIBLE_DEVICES`: CUDA's default order is fastest-first, not PCI order,
+  so `--gpu N` can otherwise land on a different card than `nvidia-smi`'s GPU N.
+  Also export `XLA_PYTHON_CLIENT_PREALLOCATE=false` so JAX's 75% preallocation
+  doesn't OOM co-located tenants.
 - DIV2K-HR data at `/home/claude-user/ParametricDFT-Benchmarks.jl/data/DIV2K_train_HR/`
   (800 PNGs named `0001.png` through `0800.png`).
 - Two NVIDIA RTX 3090 GPUs, 24 GB each. The DIV2K experiment fills

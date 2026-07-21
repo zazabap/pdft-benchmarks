@@ -27,11 +27,11 @@ re-render the figures. The compute path also writes that JSON.
 
 Usage:
     # compute + render (needs GPU)
-    python tools/render_init_distribution.py --gpu 2 \
+    python tools/analysis/render_init_distribution.py --gpu 2 \
         --dataset div2k_8q --seeds 1-100 \
         --base results/training/2_direct_training/random_seed/div2k_8q
     # re-render separately from the saved JSON (no GPU)
-    python tools/render_init_distribution.py --from-json --separate \
+    python tools/analysis/render_init_distribution.py --from-json --separate \
         --base results/training/2_direct_training/random_seed/div2k_8q
 """
 from __future__ import annotations

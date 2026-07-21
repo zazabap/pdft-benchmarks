@@ -4,7 +4,7 @@
 Start from the *exact* analytic DCT-IV init, jitter a random fraction f of its
 2200 real gate entries on-manifold (Gaussian, sigma), train, and record final
 PSNR at rho in {0.01,0.05,0.10,0.20}. Each (f, seed) is an atomic, resumable
-cell (matching experiments/dct4/dct4_seed_sweep.py):
+cell (the same layout the seed-sweep drivers on `dev` use):
 
     <out>/_runs/f<frac>_seed<NNN>.json
 

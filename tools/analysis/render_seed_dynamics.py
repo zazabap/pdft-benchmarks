@@ -19,10 +19,10 @@ three files stay directly comparable. Linear y (no log axis, per CLAUDE.md).
 PDF + SVG.
 
 Usage:
-    python tools/render_seed_dynamics.py \
+    python tools/analysis/render_seed_dynamics.py \
         --base results/training/2_direct_training/random_seed/div2k_8q
-    python tools/render_seed_dynamics.py --base <...> --separate
-    python tools/render_seed_dynamics.py --base <...> --from-trace
+    python tools/analysis/render_seed_dynamics.py --base <...> --separate
+    python tools/analysis/render_seed_dynamics.py --base <...> --from-trace
 """
 from __future__ import annotations
 

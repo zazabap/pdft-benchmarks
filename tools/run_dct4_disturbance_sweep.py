@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Parallel dispatcher for the DCT-IV exact-init disturbance sweep
 (experiments/dct4/dct4_disturbance_sweep.py). Fans (fraction, seed) cells across idle
-GPUs; resumable (skips existing cells). See tools/run_dct4_seed_sweep.py for the
-scheduler design this is copied from.
+GPUs; resumable (skips existing cells). The scheduler design is shared with the
+seed-sweep dispatchers kept on the `dev` branch.
 
 Usage:
     python tools/run_dct4_disturbance_sweep.py --seeds 1-3 --gpus 2,3,5,6 \
-        --python /opt/conda/envs/pdft/bin/python \
-        --pdft-src /workspaces/parametric-dft-paper/pdft-pr24/src
+        --python .venv/bin/python \
+        --pdft-src <path to a pdft checkout providing DCT4Basis>
 """
 from __future__ import annotations
 
