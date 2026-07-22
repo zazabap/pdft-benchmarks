@@ -82,6 +82,14 @@ BASIS_FACTORIES: dict[str, BasisFactory] = {
     "blocked":       lambda m, n, seed=0: _blocked(m, n, seed, pdft.QFTBasis),
     "rich":          lambda m, n, seed=0: _blocked(m, n, seed, pdft.RichBasis),
     "real_rich":     lambda m, n, seed=0: _blocked(m, n, seed, pdft.RealRichBasis),
+    # Full-image (unblocked) Rich variants. These are the rows the paper's
+    # headline table reports as "RichBasis" / "Real RichBasis", alongside the
+    # other full-image bases (qft, entangled_qft, tebd_u4, mera_u4, dct4_ctl).
+    # `_loading.py` already resolves the "rich_full" / "real_rich_full" keys for
+    # legacy cells; these entries let them be trained through the normal driver
+    # path instead of only being loadable.
+    "rich_full":      lambda m, n, seed=0: pdft.RichBasis(m=m, n=n),
+    "real_rich_full": lambda m, n, seed=0: pdft.RealRichBasis(m=m, n=n),
     # Block topologies, fixed 8×8 block size (inner_m=inner_n=3) at any m≥3.
     # Apples-to-apples with classical block_dct_8 / block_fft_8 (which also
     # operate on 8×8 patches regardless of image size). At DIV2K m=8: inner

@@ -44,7 +44,8 @@ DEFAULT_BASES = ("qft", "entangled_qft", "tebd", "mera",
                  "blocked_8", "rich_8", "real_rich_8")
 # Ablation variants — selectable via --bases but not in the default
 # headline grid.
-EXTRA_BASES = ("qft_identity", "dct4_ctl", "tebd_u4", "mera_u4")
+EXTRA_BASES = ("qft_identity", "dct4_ctl", "tebd_u4", "mera_u4",
+               "rich_full", "real_rich_full")
 ALL_BASES = DEFAULT_BASES + EXTRA_BASES
 BASELINES = ("fft", "dct", "block_fft_8", "block_dct_8", "pca", "block_pca_8",
              "dct_rank", "block_dct_8_rank", "pca_rank", "block_pca_8_rank",
@@ -76,6 +77,11 @@ def main() -> int:
                              "n_train=500 (val_split=0.15 → 425 train), each "
                              "epoch is 9 optimizer steps; epochs=223 ≈ 2000 "
                              "steps total.")
+    parser.add_argument("--keep-ratios", default=None,
+                        help="Comma-separated keep ratios to evaluate at, "
+                             "overriding preset.keep_ratios (default "
+                             "0.05,0.10,0.15,0.20). The paper's headline table "
+                             "also reports 0.01.")
     args = parser.parse_args()
 
     # CRITICAL: set CUDA_VISIBLE_DEVICES BEFORE importing pdft_benchmarks.
@@ -99,6 +105,10 @@ def main() -> int:
     preset = apply_preset_overrides(
         args.preset, dataset="div2k_8q", tag="div2k-8q",
         no_early_stop=args.no_early_stop, epochs=args.epochs,
+        keep_ratios=(
+            tuple(float(x) for x in args.keep_ratios.split(","))
+            if args.keep_ratios else None
+        ),
     )
 
     res = run_experiment(

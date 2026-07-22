@@ -20,7 +20,7 @@ import json
 import sys
 from pathlib import Path
 
-KEEP_RATIOS = (0.05, 0.10, 0.15, 0.20)
+KEEP_RATIOS = (0.01, 0.05, 0.10, 0.15, 0.20)
 
 # Row order in the paper table. Must match the QuickDraw table's grouping.
 ROWS = [
@@ -34,6 +34,8 @@ ROWS = [
     ("BD-PCA",             "bd_pca",           "fitted"),
     ("Block BD-PCA 8",     "block_bd_pca_8",   "fitted"),
     ("Block-PCA 8 (rank)", "block_pca_8_rank", "fitted"),
+    ("RichBasis",          "rich_full",        "learned"),
+    ("DCT-IV (relaxed)",   "dct4_ctl",         "learned"),
     ("QFT",                "qft",              "learned"),
     ("Entangled QFT",      "entangled_qft",    "learned"),
     # Canonical U(4) two-qubit gates (pdft #25). The legacy diagonal-U(1)^4
