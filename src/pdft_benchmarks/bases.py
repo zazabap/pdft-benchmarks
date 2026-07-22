@@ -64,6 +64,13 @@ BASIS_FACTORIES: dict[str, BasisFactory] = {
     "entangled_qft": lambda m, n, seed=0: pdft.EntangledQFTBasis(m=m, n=n, seed=seed),
     "tebd":          lambda m, n, seed=0: pdft.TEBDBasis(m=m, n=n, seed=seed),
     "mera":          lambda m, n, seed=0: pdft.MERABasis(m=m, n=n, seed=seed),
+    # Canonical TEBD/MERA: the two-qubit gates are general U(4) unitaries, as a
+    # Trotter step exp(-i h tau) and a MERA disentangler/isometry both are. The
+    # "tebd"/"mera" keys above keep the diagonal U(1)^4 gates (historical). Both
+    # start from the identical operator at a given seed, so the only difference
+    # is the manifold trained over.
+    "tebd_u4":       lambda m, n, seed=0: pdft.TEBDBasis(m=m, n=n, seed=seed, parametrization="u4"),
+    "mera_u4":       lambda m, n, seed=0: pdft.MERABasis(m=m, n=n, seed=seed, parametrization="u4"),
     # Learnable cosine basis: exact DCT-IV at init, then relaxed (ancilla-free).
     "dct4":          lambda m, n, seed=0: pdft.DCT4Basis(m=m, n=n),
     # Exact-init DCT-IV in the O(2)-twiddle "controlled" parametrization — the

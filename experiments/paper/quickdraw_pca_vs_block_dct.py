@@ -28,7 +28,7 @@ from pdft_benchmarks.pipeline import run_experiment
 DEFAULT_BASES = ("qft", "entangled_qft", "tebd", "mera",
                  "blocked", "rich", "real_rich")
 # Ablation variants — selectable via --bases but not in the default grid.
-EXTRA_BASES = ("dct4_ctl",)
+EXTRA_BASES = ("dct4_ctl", "tebd_u4")
 ALL_BASES = DEFAULT_BASES + EXTRA_BASES
 
 

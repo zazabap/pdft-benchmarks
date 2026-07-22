@@ -36,8 +36,10 @@ ROWS = [
     ("Block-PCA 8 (rank)", "block_pca_8_rank", "fitted"),
     ("QFT",                "qft",              "learned"),
     ("Entangled QFT",      "entangled_qft",    "learned"),
-    ("TEBD",               "tebd",             "learned"),
-    ("MERA",               "mera",             "learned"),
+    # Canonical U(4) two-qubit gates (pdft #25). The legacy diagonal-U(1)^4
+    # cells are still on disk as "tebd" / "mera" for reference.
+    ("TEBD",               "tebd_u4",          "learned"),
+    ("MERA",               "mera_u4",          "learned"),
     ("Blocked-8",          "blocked_8",        "learned-blocked"),
     ("Rich-8",             "rich_8",           "learned-blocked"),
     ("Real Rich-8",        "real_rich_8",      "learned-blocked"),
