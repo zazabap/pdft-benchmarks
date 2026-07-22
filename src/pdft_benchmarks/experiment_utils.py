@@ -33,6 +33,7 @@ def apply_preset_overrides(
     tag: str,
     no_early_stop: bool = False,
     epochs: int | None = None,
+    keep_ratios: tuple[float, ...] | None = None,
 ) -> str | Preset:
     """Apply the ``--no-early-stop`` / ``--epochs`` CLI overrides to a preset.
 
@@ -52,7 +53,7 @@ def apply_preset_overrides(
     not always the dataset-loader key passed to ``run_experiment`` (e.g.
     ``"div2k"``); callers pass the registry key here.
     """
-    if not no_early_stop and epochs is None:
+    if not no_early_stop and epochs is None and keep_ratios is None:
         return preset
     base = get_preset(dataset, preset) if isinstance(preset, str) else preset
     overrides: dict = {}
@@ -60,9 +61,12 @@ def apply_preset_overrides(
         overrides["early_stopping_patience"] = 10**9
     if epochs is not None:
         overrides["epochs"] = epochs
+    if keep_ratios is not None:
+        overrides["keep_ratios"] = tuple(keep_ratios)
     preset = replace(base, **overrides)
     print(f"[{tag}] preset overrides: epochs={preset.epochs}, "
-          f"patience={preset.early_stopping_patience}")
+          f"patience={preset.early_stopping_patience}, "
+          f"keep_ratios={preset.keep_ratios}")
     return preset
 
 
