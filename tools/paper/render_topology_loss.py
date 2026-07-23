@@ -99,8 +99,9 @@ def main():
     axin.set_ylim(*INSET_YLIM)
     axin.tick_params(labelsize=6, length=2, pad=1)
     axin.grid(alpha=0.25, linewidth=0.4)
-    for s in ("top", "right"):
-        axin.spines[s].set_visible(False)
+    for sp in axin.spines.values():
+        sp.set_visible(True)
+        sp.set_linewidth(0.6)
     ax.indicate_inset_zoom(axin, edgecolor="0.45", linewidth=0.6, alpha=0.8)
 
     ax.set_xlabel("training step", fontsize=9)
@@ -108,8 +109,10 @@ def main():
     ax.set_xlim(0, 1010)
     ax.tick_params(labelsize=8)
     ax.grid(alpha=0.25, linewidth=0.5)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
+    # Full frame on both axes: the box closes the plot on all four sides.
+    for sp in ax.spines.values():
+        sp.set_visible(True)
+        sp.set_linewidth(0.8)
     ax.legend(fontsize=7.5, frameon=False, loc="upper right",
               handlelength=2.2, labelspacing=0.22, borderaxespad=0.2)
     fig.tight_layout(pad=0.4)
