@@ -56,7 +56,26 @@ def load_trained_basis(json_path: Path):
         "TEBDBasis":         "tebd",
         "MERABasis":         "mera",
         "DCT4Basis":         "dct4_ctl",
+        # Full-image Rich variants serialise with a plain type (no run "key"),
+        # so they need entries here as well as in _full_image_classes below.
+        "RichBasis":         "rich_full",
+        "RealRichBasis":     "real_rich_full",
     }
+
+    def _is_u4_payload(raw_tensors) -> bool:
+        """True when a TEBD/MERA payload carries dense two-qubit tensors.
+
+        The "cp" parametrization stores each ring/hierarchy gate as a compact
+        2x2 diagonal (4 entries); "u4" stores a full (2,2,2,2) tensor (16).
+        The skeleton has to match, or decoding tries to reshape 16 entries
+        into (2,2). The payload records no parametrization, so infer it from
+        the entry counts.
+        """
+        for t in raw_tensors:
+            k = len(t["real"]) * len(t["real"][0]) if isinstance(t, dict) else len(t)
+            if k == 16:
+                return True
+        return False
     # Full-image Rich variants have no BASIS_FACTORIES entry (the "rich" /
     # "real_rich" factories are block-wrapped); the loader builds the pdft class
     # directly. Legacy cells identify these by their run "key".
@@ -72,6 +91,8 @@ def load_trained_basis(json_path: Path):
             factory_key = Path(json_path).stem.removeprefix("trained_")
         else:
             factory_key = _type_to_factory_key[btype]
+            if btype in ("TEBDBasis", "MERABasis") and _is_u4_payload(raw):
+                factory_key = factory_key + "_u4"
     elif "key" in payload:
         key = payload["key"]
         if key in _full_image_classes:
