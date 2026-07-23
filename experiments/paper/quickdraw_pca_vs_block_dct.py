@@ -28,7 +28,7 @@ from pdft_benchmarks.pipeline import run_experiment
 DEFAULT_BASES = ("qft", "entangled_qft", "tebd", "mera",
                  "blocked", "rich", "real_rich")
 # Ablation variants — selectable via --bases but not in the default grid.
-EXTRA_BASES = ("dct4_ctl", "tebd_u4")
+EXTRA_BASES = ("dct4_ctl", "tebd_u4", "rich_full", "real_rich_full")
 ALL_BASES = DEFAULT_BASES + EXTRA_BASES
 
 
@@ -43,6 +43,10 @@ def main():
                              f"Default: all.")
     parser.add_argument("--no-early-stop", action="store_true",
                         help="Disable early-stopping-on-validation-plateau.")
+    parser.add_argument("--keep-ratios", default=None,
+                        help="Comma-separated keep ratios to evaluate at, "
+                             "overriding preset.keep_ratios. The paper's "
+                             "headline table also reports 0.01.")
     parser.add_argument("--epochs", type=int, default=None,
                         help="Override preset.epochs.")
     args = parser.parse_args()
@@ -56,6 +60,10 @@ def main():
     preset = apply_preset_overrides(
         args.preset, dataset="quickdraw", tag="quickdraw",
         no_early_stop=args.no_early_stop, epochs=args.epochs,
+        keep_ratios=(
+            tuple(float(x) for x in args.keep_ratios.split(","))
+            if args.keep_ratios else None
+        ),
     )
 
     res = run_experiment(

@@ -57,6 +57,15 @@ def _load_custom_image(path: str, *, size: int) -> np.ndarray:
 from pdft_benchmarks._loading import load_trained_basis  # noqa: F401  (re-export for callers)
 
 
+# Learned bases and classical references of the headline results table, in the
+# order the table lists them. Bases absent for a dataset (MERA needs a
+# power-of-two qubit count, so it is undefined on Quick Draw's 5) drop out.
+TABLE_METHODS = (
+    "rich_full", "dct4_ctl", "qft", "entangled_qft", "tebd_u4", "mera_u4",
+    "block_dct_8", "block_fft_8",
+)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--keep-ratios", type=str, default="0.05,0.10,0.15,0.20",
@@ -165,6 +174,8 @@ def main():
             if not cell.is_dir():
                 continue
             name = cell.name
+            if name not in TABLE_METHODS:
+                continue
             path = cell / f"trained_{name}.json"
             if not path.exists():
                 print(f"[viz] skip {name} (no {path.name})")
@@ -236,14 +247,12 @@ def main():
                 f"available: {sorted(available)}"
             )
     else:
-        block_methods_pref = [
-            "rich", "real_rich", "blocked", "rich_8", "real_rich_8", "blocked_8",
-            "block_dct_8", "block_bd_pca_8", "block_fft_8",
-        ]
-        global_methods_pref = ["qft", "entangled_qft", "tebd", "mera",
-                               "dct4_ctl", "bd_pca", "dct", "fft"]
-        methods = ([m for m in block_methods_pref if m in available]
-                   + [m for m in global_methods_pref if m in available])
+        # Default to exactly the rows of the paper's headline table, in its
+        # order, so the figure and the table always describe the same bases.
+        # Plain discovery would also sweep in anything else that happens to
+        # have a trained_*.json on disk (real_rich_full, block variants, ...),
+        # which is how the two drifted apart before.
+        methods = [m for m in TABLE_METHODS if m in available]
     # Learned (trained) bases get one header colour, classical baselines another.
     trained_names = set(trained)
     n_methods = len(methods)
@@ -257,8 +266,10 @@ def main():
     # Pretty column labels matching the paper's results table (\cref{tab:div2k_repr}).
     header_labels = {
         "rich": "RichBasis", "real_rich": "RichBasis",
+        "rich_full": "RichBasis", "real_rich_full": "Real RichBasis",
         "dct4_ctl": "DCT-IV", "qft": "QFT", "entangled_qft": "Entangled QFT",
         "tebd": "TEBD", "mera": "MERA",
+        "tebd_u4": "TEBD", "mera_u4": "MERA",
         "block_dct_8": "block DCT 8$\\times$8", "block_fft_8": "block DFT 8$\\times$8",
     }
     headers = ["original"] + [header_labels.get(m, m) for m in methods]
