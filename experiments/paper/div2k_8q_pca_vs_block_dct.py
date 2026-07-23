@@ -122,6 +122,19 @@ def main() -> int:
         # device is index 0 inside this process. Pass "auto" so JAX picks it.
         device="auto",
     )
+    failed = {
+        name: entry["failed"]
+        for name, entry in res.metrics.items()
+        if isinstance(entry, dict) and "failed" in entry
+    }
+    if failed:
+        for name, info in failed.items():
+            print(f"FAILED {name}: {info.get('phase')}: {info.get('error')}",
+                  file=sys.stderr)
+        print(f"\n{len(failed)}/{len(bases)} requested bases failed; "
+              f"partial results in {res.output_dir}", file=sys.stderr)
+        return 1
+
     print(f"\nDone. Results: {res.output_dir}")
     return 0
 

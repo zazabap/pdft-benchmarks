@@ -84,7 +84,13 @@ def load_trained_basis(json_path: Path):
     btype = payload.get("type")
     is_blocked = btype == "BlockedBasis"
     skel = None
-    if btype is not None:
+    key = payload.get("key")
+    if key is not None and key in BASIS_FACTORIES:
+        # Preferred path: the run recorded the registry key, which names the
+        # variant exactly (tebd vs tebd_u4, dct4 vs dct4_ctl). Everything below
+        # is fallback for payloads written before the key was stored.
+        factory_key = key
+    elif btype is not None:
         if is_blocked:
             # blocked / rich / real_rich all serialise as "BlockedBasis";
             # disambiguate by filename stem (e.g. "trained_real_rich_8").

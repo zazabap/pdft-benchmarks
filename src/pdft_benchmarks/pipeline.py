@@ -267,6 +267,14 @@ def run_experiment(
             (output_dir / f"trained_{basis_name}.json").write_text(
                 json.dumps({
                     "type": type(res.basis).__name__,
+                    # The registry key names the exact variant. Several bases
+                    # share a class but not a gate parametrization (tebd vs
+                    # tebd_u4, mera vs mera_u4, dct4 vs dct4_ctl) and so
+                    # serialise identically apart from tensor shapes; the type
+                    # alone cannot tell them apart, which forced the loader to
+                    # infer the parametrization from entry counts. Record the
+                    # key and it can just rebuild the right skeleton.
+                    "key": basis_name,
                     "m": int(getattr(res.basis, "m", 0)),
                     "n": int(getattr(res.basis, "n", 0)),
                     "tensors": [
