@@ -3,9 +3,10 @@
 
 A single-column, paper-styled variant of ``render_compression_rd.py``. The
 x-axis is compressed size as a percentage of the raw image, so the two reference
-rules -- a horizontal cut at 35 dB and a vertical rule at 40% of raw -- both land
+rules, a horizontal cut at the dataset's quality reading and a vertical rule at
+40% of raw, both land
 on grid lines and read as clean crosshairs. The crossings are marked with values:
-the compressed size (%) each basis needs to reach 35 dB (horizontal), and each
+the compressed size (%) each basis needs to reach that quality (horizontal), and each
 basis's test PSNR at 40% of raw (vertical). 40% is used for the vertical reading
 because both curves are well-sampled there, so the points sit on the grid line
 and on the curves; the 50%-of-raw budget floats the block-DCT point off the line.
@@ -35,11 +36,18 @@ from pdft_benchmarks.plots.style import WONG, save_figure, set_paper_rcparams
 set_paper_rcparams()
 
 BASE_DIR = Path("results/training/6_dataset_compression")
-DDIR = BASE_DIR / "quickdraw_5q"
 
 BLUE, GREEN = WONG["blue"], WONG["green"]  # Wong palette
-PSNR_CUT = 35.0                     # fixed-PSNR horizontal reading (dB)
-V_PCT = 40.0                        # fixed-size vertical reading (% of raw)
+
+# Per-dataset: the results dir, the trained contender's key, the fixed-PSNR
+# reading and the fixed-size reading. DIV2K's readings sit higher because the
+# whole curve does; its contender is the block-wrapped real Rich variant.
+DATASETS = {
+    "quickdraw_5q": dict(rich_key="real_rich", psnr_cut=35.0, v_pct=40.0,
+                         label="QuickDraw", out_name="rd_quickdraw_paper"),
+    "div2k_8q":     dict(rich_key="real_rich_8", psnr_cut=38.0, v_pct=40.0,
+                         label="DIV2K", out_name="rd_div2k_paper"),
+}
 
 
 def pareto(points):
@@ -69,16 +77,22 @@ def psnr_at_bytes(front, target_bytes):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--dataset", choices=sorted(DATASETS), default="quickdraw_5q",
+                    help="Which compression run to plot.")
     ap.add_argument("--out", default=None,
                     help="optional extra path to also write the PDF to "
                          "(e.g. the paper's figures/benchmarks/compression/rd_quickdraw.pdf)")
     args = ap.parse_args()
 
+    cfg = DATASETS[args.dataset]
+    DDIR = BASE_DIR / args.dataset
+    PSNR_CUT, V_PCT = cfg["psnr_cut"], cfg["v_pct"]
+
     rd = json.loads((DDIR / "rd_curves.json").read_text())
     curves, meta = rd["curves"], rd["meta"]
     raw_bpi = meta["raw_bytes_per_image"]
 
-    rich = pareto(curves["real_rich"])
+    rich = pareto(curves[cfg["rich_key"]])
     dct = pareto(curves["block_dct_8"])
 
     # Fixed-PSNR reading: bytes/image at PSNR_CUT.
@@ -95,9 +109,9 @@ def main():
     y_dct = psnr_at_bytes(dct, v_bytes)
     d_psnr = y_rich - y_dct
 
-    print(f"QuickDraw @ {PSNR_CUT:.0f} dB:  rich={x_rich:.0f} B/img  "
+    print(f"{cfg['label']} @ {PSNR_CUT:.0f} dB:  rich={x_rich:.0f} B/img  "
           f"dct={x_dct:.0f} B/img  -> {saved_pct:.1f}% fewer bytes")
-    print(f"QuickDraw @ {V_PCT:.0f}%-of-raw:  rich={y_rich:.2f} dB  "
+    print(f"{cfg['label']} @ {V_PCT:.0f}%-of-raw:  rich={y_rich:.2f} dB  "
           f"dct={y_dct:.2f} dB  -> +{d_psnr:.2f} dB")
 
     fig, ax = plt.subplots(figsize=(3.5, 3.0))
@@ -122,7 +136,7 @@ def main():
                zorder=1)
     ax.axvline(V_PCT, color="0.55", linestyle=(0, (5, 3)), linewidth=1.1,
                zorder=1)
-    ax.text(pct(100), PSNR_CUT + 0.5, "35 dB", fontsize=8, color="0.3",
+    ax.text(pct(100), PSNR_CUT + 0.5, f"{PSNR_CUT:.0f} dB", fontsize=8, color="0.3",
             ha="left", va="bottom")
     ax.annotate(f"{V_PCT:.0f}% of raw", xy=(V_PCT, 20.5), xytext=(-4, 0),
                 textcoords="offset points", fontsize=8, rotation=90,
@@ -168,7 +182,7 @@ def main():
 
     figdir = DDIR / "figures"
     figdir.mkdir(parents=True, exist_ok=True)
-    pdf = figdir / "rd_quickdraw_paper.pdf"
+    pdf = figdir / f"{cfg['out_name']}.pdf"
     save_figure(fig, pdf)
     print(f"wrote {pdf} (+ .svg)")
     if args.out:
