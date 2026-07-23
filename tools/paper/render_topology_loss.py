@@ -85,7 +85,7 @@ def main():
     args = ap.parse_args()
 
     fig, (hi, lo) = plt.subplots(
-        2, 1, sharex=True, figsize=(3.5, 3.2),
+        2, 1, sharex=True, figsize=(3.9, 3.0),
         gridspec_kw=dict(height_ratios=[1, 1.15], hspace=0.08))
 
     finals = {}
@@ -108,10 +108,10 @@ def main():
     # Drop the spines facing the break, then mark it with the usual diagonals.
     hi.spines["bottom"].set_visible(False)
     lo.spines["top"].set_visible(False)
-    hi.tick_params(bottom=False, labelsize=8)
-    lo.tick_params(labelsize=8)
-    brk = dict(marker=[(-1, -0.5), (1, 0.5)], markersize=6, linestyle="none",
-               color="k", mec="k", mew=1, clip_on=False)
+    hi.tick_params(bottom=False, labelsize=8.5)
+    lo.tick_params(labelsize=8.5)
+    brk = dict(marker=[(-1, -0.5), (1, 0.5)], markersize=3.6, linestyle="none",
+               color="k", mec="k", mew=0.8, clip_on=False)
     hi.plot([0, 1], [0, 0], transform=hi.transAxes, **brk)
     lo.plot([0, 1], [1, 1], transform=lo.transAxes, **brk)
 
@@ -120,14 +120,14 @@ def main():
         for sp in a.spines.values():
             sp.set_linewidth(0.8)
 
-    lo.set_xlabel("training step", fontsize=9)
+    lo.set_xlabel("training step", fontsize=9.5)
     lo.set_xlim(0, 1010)
-    hi.legend(fontsize=7.5, frameon=False, loc="upper right",
+    hi.legend(fontsize=8, frameon=False, loc="upper right",
               handlelength=2.2, labelspacing=0.22, borderaxespad=0.2)
     fig.tight_layout(pad=0.4)
-    fig.subplots_adjust(left=0.20)
-    fig.text(0.015, 0.55, "validation MSE", rotation=90, va="center",
-             ha="left", fontsize=9)
+    fig.subplots_adjust(left=0.135, right=0.985, top=0.985)
+    fig.text(0.008, 0.55, "validation MSE", rotation=90, va="center",
+             ha="left", fontsize=9.5)
 
     figdir = DDIR / "figures"
     figdir.mkdir(parents=True, exist_ok=True)
