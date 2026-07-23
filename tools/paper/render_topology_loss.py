@@ -2,15 +2,16 @@
 """Render the paper's topology-comparison loss curve (Figure 4).
 
 Absolute validation MSE vs training step for the six learned bases (RichBasis,
-DCT-IV relaxed, QFT, Entangled QFT, TEBD, MERA), read from the shared seed-42
-topology run. A plain machine-learning loss curve:
-the y-axis is the loss itself (absolute MSE), not a per-basis L/L0
-normalisation, so the floors here are the same numbers reported in the
-Val-MSE column of the main results table.
+DCT-IV relaxed, TEBD, MERA, QFT, Entangled QFT), read from the same seed-42
+run series that produces the headline DIV2K table, so the curves and the table
+describe one set of trainings. A plain machine-learning loss curve: the y-axis
+is the loss itself (absolute MSE), not a per-basis L/L0 normalisation.
 
-The four basic variants collapse into two near-coincident pairs
-(QFT/Entangled QFT, TEBD/MERA); distinct colour + line style per basis keeps
-the overlapping members legible.
+The split is by gate, not by wiring. The four bases carrying a general
+two-qubit tensor (RichBasis, DCT-IV, TEBD, MERA) floor within ~6 MSE of one
+another, while the diagonal-phase QFT pair sits ~45 higher; QFT and Entangled
+QFT coincide to the plotted precision, the matched-axis coupling contributing
+nothing. An inset resolves the tight band, which the full axis cannot show.
 
 Reads results/structure/div2k_8q_pca_vs_block_dct/by_basis/<basis>/loss_history/*.json.
 Writes .../figures/topology_loss_curve.{pdf,svg}. Use --out to also drop the
@@ -46,13 +47,19 @@ DDIR = Path("results/structure/div2k_8q_pca_vs_block_dct")
 # RichBasis, so it sits second and gets a high-contrast black dash-dot to stand
 # apart from the unitary family's coloured curves.
 SERIES = [
-    ("rich",          "RichBasis",        WONG["blue"],      "-",               "o"),
+    ("rich_full",     "RichBasis",        WONG["blue"],      "-",               "o"),
     ("dct4_ctl",      "DCT-IV (relaxed)", WONG["black"],     (0, (3, 1, 1, 1)), "P"),
+    ("tebd_u4",       "TEBD",             WONG["green"],     (0, (5, 2)),       "D"),
+    ("mera_u4",       "MERA",             WONG["sky"],       (0, (1, 1)),       "v"),
     ("qft",           "QFT",              WONG["orange"],    (0, (5, 2)),       "s"),
     ("entangled_qft", "Entangled QFT",    WONG["vermilion"], (0, (1, 1)),       "^"),
-    ("tebd",          "TEBD",             WONG["green"],     (0, (5, 2)),       "D"),
-    ("mera",          "MERA",             WONG["sky"],       (0, (1, 1)),       "v"),
 ]
+
+# The four U(4)/O(2) bases land within ~6 MSE of one another, which is
+# invisible on an axis that also has to hold the QFT pair at ~148. The inset
+# repeats that band at readable scale.
+INSET_YLIM = (99.0, 110.0)
+INSET_XLIM = (400, 1010)
 
 
 def load_val(basis):
@@ -72,18 +79,29 @@ def main():
                          "paper's figures/benchmarks/structure/topology_loss_curve.pdf)")
     args = ap.parse_args()
 
-    fig, ax = plt.subplots(figsize=(3.5, 2.7))
+    fig, ax = plt.subplots(figsize=(3.5, 3.2))
+    axin = ax.inset_axes([0.40, 0.25, 0.57, 0.31])
 
     finals = {}
     for basis, label, color, ls, mk in SERIES:
         x, val = load_val(basis)
         finals[label] = val[-1]
-        ax.plot(x, val, color=color, linestyle=ls, linewidth=1.8,
-                marker=mk, markersize=4, markevery=14, markeredgecolor="white",
-                markeredgewidth=0.4, label=label, zorder=3)
+        for a, me in ((ax, 14), (axin, 10)):
+            a.plot(x, val, color=color, linestyle=ls, linewidth=1.8,
+                   marker=mk, markersize=4, markevery=me, markeredgecolor="white",
+                   markeredgewidth=0.4, label=label if a is ax else None, zorder=3)
 
     for label, v in finals.items():
         print(f"{label:14s} final val MSE = {v:.1f}")
+
+    # Inset over the tight band; the QFT pair simply falls outside it.
+    axin.set_xlim(*INSET_XLIM)
+    axin.set_ylim(*INSET_YLIM)
+    axin.tick_params(labelsize=6, length=2, pad=1)
+    axin.grid(alpha=0.25, linewidth=0.4)
+    for s in ("top", "right"):
+        axin.spines[s].set_visible(False)
+    ax.indicate_inset_zoom(axin, edgecolor="0.45", linewidth=0.6, alpha=0.8)
 
     ax.set_xlabel("training step", fontsize=9)
     ax.set_ylabel("validation MSE", fontsize=9)
@@ -92,8 +110,8 @@ def main():
     ax.grid(alpha=0.25, linewidth=0.5)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    ax.legend(fontsize=8, frameon=False, loc="upper right",
-              handlelength=2.4, labelspacing=0.3)
+    ax.legend(fontsize=7.5, frameon=False, loc="upper right",
+              handlelength=2.2, labelspacing=0.22, borderaxespad=0.2)
     fig.tight_layout(pad=0.4)
 
     figdir = DDIR / "figures"
