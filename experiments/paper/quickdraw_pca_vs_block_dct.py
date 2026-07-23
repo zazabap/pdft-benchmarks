@@ -20,9 +20,8 @@ image.
 """
 
 import argparse
-
-from pdft_benchmarks.experiment_utils import apply_preset_overrides
-from pdft_benchmarks.pipeline import run_experiment
+import os
+import sys
 
 
 DEFAULT_BASES = ("qft", "entangled_qft", "tebd", "mera",
@@ -51,6 +50,18 @@ def main():
                         help="Override preset.epochs.")
     args = parser.parse_args()
 
+    # CRITICAL: set CUDA_VISIBLE_DEVICES BEFORE importing pdft_benchmarks
+    # (which transitively imports JAX). Selecting the device afterwards via
+    # jax.devices()[i] is not enough on a mixed-GPU host: JAX compiles for the
+    # default device and then refuses to run the executable on a card of a
+    # different type ("executable is built for device CUDA:0 of type ...").
+    # The DIV2K driver has always done this; this one had not.
+    if args.gpu is not None:
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
+
+    from pdft_benchmarks.experiment_utils import apply_preset_overrides
+    from pdft_benchmarks.pipeline import run_experiment
+
     bases = [b.strip() for b in args.bases.split(",") if b.strip()]
     unknown = [b for b in bases if b not in ALL_BASES]
     if unknown:
@@ -73,10 +84,26 @@ def main():
         baselines=["fft", "dct", "block_fft_8", "block_dct_8"],
         preset=preset,
         output_dir=args.out,
-        device=f"gpu:{args.gpu}" if args.gpu is not None else "auto",
+        # CUDA_VISIBLE_DEVICES already isolated the card, so the JAX-visible
+        # device is index 0 in this process; "auto" picks it.
+        device="auto",
     )
+    failed = {
+        name: entry["failed"]
+        for name, entry in res.metrics.items()
+        if isinstance(entry, dict) and "failed" in entry
+    }
+    if failed:
+        for name, info in failed.items():
+            print(f"FAILED {name}: {info.get('phase')}: {info.get('error')}",
+                  file=sys.stderr)
+        print(f"\n{len(failed)}/{len(bases)} requested bases failed; "
+              f"partial results in {res.output_dir}", file=sys.stderr)
+        return 1
+
     print(f"\nDone. Results: {res.output_dir}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
