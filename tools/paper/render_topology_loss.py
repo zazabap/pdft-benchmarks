@@ -11,7 +11,8 @@ The split is by gate, not by wiring. The four bases carrying a general
 two-qubit tensor (RichBasis, DCT-IV, TEBD, MERA) floor within ~6 MSE of one
 another, while the diagonal-phase QFT pair sits ~45 higher; QFT and Entangled
 QFT coincide to the plotted precision, the matched-axis coupling contributing
-nothing. An inset resolves the tight band, which the full axis cannot show.
+nothing. The y-axis is broken so that band and the QFT plateau each get their own
+scale; a single linear axis renders the band as a smear.
 
 Reads results/structure/div2k_8q_pca_vs_block_dct/by_basis/<basis>/loss_history/*.json.
 Writes .../figures/topology_loss_curve.{pdf,svg}. Use --out to also drop the
@@ -55,11 +56,15 @@ SERIES = [
     ("entangled_qft", "Entangled QFT",    WONG["vermilion"], (0, (1, 1)),       "^"),
 ]
 
-# The four U(4)/O(2) bases land within ~6 MSE of one another, which is
-# invisible on an axis that also has to hold the QFT pair at ~148. The inset
-# repeats that band at readable scale.
-INSET_YLIM = (99.0, 110.0)
-INSET_XLIM = (400, 1010)
+# The four U(4)/O(2) bases land within ~6 MSE of one another while the QFT pair
+# sits ~45 above, so a single linear axis renders the interesting band as a
+# smear. The y-axis is broken instead: the upper panel holds the descent and
+# the QFT plateau, the lower one the band, each at its own scale. This beats an
+# inset here because the band gets the full plot width and hides no data.
+UPPER_YLIM = (138.0, 280.0)
+LOWER_YLIM = (99.0, 117.0)
+UPPER_TICKS = (150, 200, 250)
+LOWER_TICKS = (100, 105, 110, 115)
 
 
 def load_val(basis):
@@ -79,43 +84,50 @@ def main():
                          "paper's figures/benchmarks/structure/topology_loss_curve.pdf)")
     args = ap.parse_args()
 
-    fig, ax = plt.subplots(figsize=(3.5, 3.2))
-    axin = ax.inset_axes([0.40, 0.25, 0.57, 0.31])
+    fig, (hi, lo) = plt.subplots(
+        2, 1, sharex=True, figsize=(3.5, 3.2),
+        gridspec_kw=dict(height_ratios=[1, 1.15], hspace=0.08))
 
     finals = {}
     for basis, label, color, ls, mk in SERIES:
         x, val = load_val(basis)
         finals[label] = val[-1]
-        for a, me in ((ax, 14), (axin, 10)):
+        for a in (hi, lo):
             a.plot(x, val, color=color, linestyle=ls, linewidth=1.8,
-                   marker=mk, markersize=4, markevery=me, markeredgecolor="white",
-                   markeredgewidth=0.4, label=label if a is ax else None, zorder=3)
+                   marker=mk, markersize=4, markevery=14, markeredgecolor="white",
+                   markeredgewidth=0.4, label=label if a is hi else None, zorder=3)
 
     for label, v in finals.items():
         print(f"{label:14s} final val MSE = {v:.1f}")
 
-    # Inset over the tight band; the QFT pair simply falls outside it.
-    axin.set_xlim(*INSET_XLIM)
-    axin.set_ylim(*INSET_YLIM)
-    axin.tick_params(labelsize=6, length=2, pad=1)
-    axin.grid(alpha=0.25, linewidth=0.4)
-    for sp in axin.spines.values():
-        sp.set_visible(True)
-        sp.set_linewidth(0.6)
-    ax.indicate_inset_zoom(axin, edgecolor="0.45", linewidth=0.6, alpha=0.8)
+    hi.set_ylim(*UPPER_YLIM)
+    lo.set_ylim(*LOWER_YLIM)
+    hi.set_yticks(UPPER_TICKS)
+    lo.set_yticks(LOWER_TICKS)
 
-    ax.set_xlabel("training step", fontsize=9)
-    ax.set_ylabel("validation MSE", fontsize=9)
-    ax.set_xlim(0, 1010)
-    ax.tick_params(labelsize=8)
-    ax.grid(alpha=0.25, linewidth=0.5)
-    # Full frame on both axes: the box closes the plot on all four sides.
-    for sp in ax.spines.values():
-        sp.set_visible(True)
-        sp.set_linewidth(0.8)
-    ax.legend(fontsize=7.5, frameon=False, loc="upper right",
+    # Drop the spines facing the break, then mark it with the usual diagonals.
+    hi.spines["bottom"].set_visible(False)
+    lo.spines["top"].set_visible(False)
+    hi.tick_params(bottom=False, labelsize=8)
+    lo.tick_params(labelsize=8)
+    brk = dict(marker=[(-1, -0.5), (1, 0.5)], markersize=6, linestyle="none",
+               color="k", mec="k", mew=1, clip_on=False)
+    hi.plot([0, 1], [0, 0], transform=hi.transAxes, **brk)
+    lo.plot([0, 1], [1, 1], transform=lo.transAxes, **brk)
+
+    for a in (hi, lo):
+        a.grid(alpha=0.25, linewidth=0.5)
+        for sp in a.spines.values():
+            sp.set_linewidth(0.8)
+
+    lo.set_xlabel("training step", fontsize=9)
+    lo.set_xlim(0, 1010)
+    hi.legend(fontsize=7.5, frameon=False, loc="upper right",
               handlelength=2.2, labelspacing=0.22, borderaxespad=0.2)
     fig.tight_layout(pad=0.4)
+    fig.subplots_adjust(left=0.20)
+    fig.text(0.015, 0.55, "validation MSE", rotation=90, va="center",
+             ha="left", fontsize=9)
 
     figdir = DDIR / "figures"
     figdir.mkdir(parents=True, exist_ok=True)
