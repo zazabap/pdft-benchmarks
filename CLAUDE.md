@@ -201,17 +201,12 @@ All renderer defaults now write into `results/structure/<experiment>/`; the old
 | `tools/paper/render_topology_loss.py` | `figures/topology_loss_curve.{pdf,svg}` | paper `fig:topology_loss` |
 | `tools/paper/render_freq_recon_grid.py --dataset {…}` | `figures/freq_recon_grid_img{N}{,_freq}.{pdf,svg}` | needs GPU; falls back to CPU. Requires `--image-indices` |
 | `tools/paper/render_paper_compression_rd.py` | `6_dataset_compression/quickdraw_5q/figures/rd_quickdraw_paper.{pdf,svg}` | paper `fig:rd_quickdraw` |
-| `tools/paper/render_div2k_paper_table.py` | `tables/published_8q_div2k.tex` | reads `_baselines.json` + cells |
-| `tools/paper/render_paper_table.py` | `tables/published_8q_quickdraw.tex` | reads `_baselines.json` + cells |
+| `tools/paper/render_div2k_paper_table.py` | `tables/published_8q_div2k.tex`; with `--by-basis <quickdraw>` → `tables/published_8q_quickdraw.tex` | reads `_baselines.json` + cells; generates both dataset tables |
 | `tools/analysis/render_qft_unfreeze.py --combined --paper-style` | `unfreeze/figures/paper/training_dynamics.pdf` | paper `fig:app_unfreeze_dynamics`. Bare `--dataset` hits a legacy flat-layout mode |
 | `tools/analysis/render_init_distribution.py --base … --from-json --paper-style` | `figures/paper/init_distribution.pdf` | paper `fig:app_seed_robustness_a` |
 | `tools/analysis/render_seed_scatter_ratios.py --base … --paper-style` | `figures/paper/seed_scatter_ratios.pdf` | paper `fig:app_seed_robustness_b` |
 | `tools/analysis/render_seed_variance_table.py --base …` | `tables/seed_variance.tex` | paper `tab:app_seed_variance` |
 | `tools/analysis/render_disturbance_curve.py` | `4_exact_disturbance/figures/disturbance_*.{pdf,svg}` | three paper figures + `tab:disturbance` |
-| `tools/paper/render_loss_curves.py --dataset {…}` | `figures/loss_curves.{pdf,svg}` | per-dataset y-limit. **Not currently cited by `main.tex`** |
-| `tools/paper/render_pca_basis_visualization.py --dataset {…}` | `figures/pca_basis.{pdf,svg}` | **Not currently cited by `main.tex`** |
-| `tools/paper/render_ar1_examples.py` | `figures/ar1_examples.{pdf,svg}` | distinct from the paper's own `ar1_histogram.pdf`. **Not currently cited** |
-| `tools/analysis/render_seed_dynamics.py --base …` | `figures/paper/seed_training_dynamics.pdf` | **Not currently cited by `main.tex`** |
 
 The `--base` for the seed renderers is
 `results/training/2_direct_training/random_seed/div2k_8q`.
