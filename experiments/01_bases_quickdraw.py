@@ -52,8 +52,8 @@ TABLES = QDIR / "tables"
 TABLE_OUT = TABLES / "published_8q_quickdraw.tex"
 
 # The vendored cat bitmap for Fig 5's Quick Draw panel (the same drawing used
-# in the Figure 1 banner). Moved here from experiments/paper/assets/, which
-# is slated for removal in a later refactor task.
+# in the Figure 1 banner). Moved here from experiments/paper/assets/ (removed
+# in the experiments/_train/ restructure).
 CAT_IMAGE = REPO_ROOT / "experiments/assets/quickdraw-cat.png"
 
 # The Quick Draw .npy category files are not committed to this repo (image
@@ -176,21 +176,19 @@ def _run_module_main(script_path: Path, argv: list[str]) -> int:
 def retrain(gpu: int | None = 0, repro_tmp: Path = REPRO_TMP_QUICKDRAW) -> int:
     """Retrain the full Quick Draw basis grid and cellify it into by_basis/.
 
-    Folds experiments/paper/quickdraw_pca_vs_block_dct.py (the training
+    Folds experiments/_train/quickdraw_pca_vs_block_dct.py (the training
     driver) + tools/cellify_run.py (flat run_experiment output -> the
     canonical by_basis/<basis>/ tree): full basis list (qft, entangled_qft,
     tebd, mera, blocked, rich, real_rich, dct4_ctl, tebd_u4, rich_full,
     real_rich_full), --epochs 112 --no-early-stop, keep ratios
     0.01/0.05/0.10/0.15/0.20. Needs a GPU + the Quick Draw dataset (see
-    QUICKDRAW_DATA_ROOT); not run except under --retrain. The driver paths
-    referenced here (experiments/paper/quickdraw_pca_vs_block_dct.py,
-    tools/cellify_run.py) will be relocated in a later refactor task.
+    QUICKDRAW_DATA_ROOT); not run except under --retrain.
     """
     repro_tmp = Path(repro_tmp)
     if repro_tmp.exists():
         shutil.rmtree(repro_tmp)
 
-    print(f"[retrain] === training driver: experiments/paper/"
+    print(f"[retrain] === training driver: experiments/_train/"
           f"quickdraw_pca_vs_block_dct.py (bases={QUICKDRAW_BASES}) ===")
     argv = (["--gpu", str(gpu)] if gpu is not None else []) + [
         "--bases", QUICKDRAW_BASES,
@@ -200,7 +198,7 @@ def retrain(gpu: int | None = 0, repro_tmp: Path = REPRO_TMP_QUICKDRAW) -> int:
         "--out", str(repro_tmp),
     ]
     rc = _run_module_main(
-        REPO_ROOT / "experiments/paper/quickdraw_pca_vs_block_dct.py", argv)
+        REPO_ROOT / "experiments/_train/quickdraw_pca_vs_block_dct.py", argv)
     if rc != 0:
         print(f"[retrain] training driver exited {rc}", file=sys.stderr)
         return rc

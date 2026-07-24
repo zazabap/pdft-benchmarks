@@ -481,16 +481,16 @@ def verify() -> bool:
 
 
 # ===========================================================================
-# retrain() — rerun the freeze/seed sweeps (GPU + dataset submodules required;
-# does not run in-sandbox). See the docstring below for exactly what this
-# does and does not regenerate.
+# retrain() — rerun the seed sweep (GPU + dataset submodules required; does
+# not run in-sandbox). See the docstring below for exactly what this does
+# and does not regenerate.
 # ===========================================================================
 def _run_module_main(script_path: Path, argv: list[str]) -> int:
     """Load `script_path` as a module (without executing its __main__ guard)
     and call its main() with a patched sys.argv, equivalent to
     `python script_path <argv...>` but in-process. Used to fold the
-    qft_freeze_sweep / qft_seed_sweep drivers without re-implementing their
-    training loops and without modifying the original files."""
+    qft_seed_sweep driver without re-implementing its training loop and
+    without modifying the original file."""
     spec = importlib.util.spec_from_file_location(script_path.stem, script_path)
     mod = importlib.util.module_from_spec(spec)
     old_argv = sys.argv
@@ -587,32 +587,24 @@ def _compute_init_distribution(dataset: str, seeds_spec: str, topk_ratio: float,
 
 
 def retrain(gpu: int | None = None) -> int:
-    """Rerun the freeze and seed sweeps, regenerating appendix-C inputs INTO
+    """Rerun the seed sweep, regenerating appendix-C inputs INTO
     data/direct_training/... Needs a GPU + the DIV2K/QuickDraw dataset
     submodules; does not execute in this sandbox.
 
     Coverage (please read before assuming this regenerates everything):
 
-    - experiments/qft/qft_seed_sweep.py IS the generator of
+    - experiments/_train/qft_seed_sweep.py IS the generator of
       data/direct_training/random_seed/div2k_8q/seed_sweep.json (+
       trained_seed_*.json) — Table 5's direct input. Folded in below,
       redirected via --out into DATA_SEED_DIV2K.
 
     - render_init_distribution.py's own --gpu compute path (NOT
-      qft_freeze_sweep/qft_seed_sweep) produces
+      qft_seed_sweep) produces
       data/direct_training/random_seed/div2k_8q/reference/init_distribution.json
       (Fig 11a's input). Its core is ported inline as
       _compute_init_distribution() above (writing only the JSON, not
       figures, so it doesn't pollute data/ with rendered PDFs) rather than
       calling that renderer's main() wholesale.
-
-    - experiments/qft/qft_freeze_sweep.py is folded in per the task spec, but
-      flagged here: it trains an UNRELATED freeze_outer/freeze_inner
-      cross-check cell (vs. the BlockedBasis(QFT(3,3),5,5) anchor) and does
-      NOT regenerate any of Fig 10 / Fig 11 / Table 5's inputs. It is run
-      with its own default output location (results/training/_archive/...),
-      not redirected into data/direct_training/, so as not to misrepresent
-      its output as appendix-C data.
 
     - Fig 10's unfreeze trace.json files
       (data/direct_training/unfreeze/<dataset>/<init>/<ordering>/trace.json)
@@ -648,7 +640,7 @@ def retrain(gpu: int | None = None) -> int:
           "(Table 5 + trained-operator input for Fig 11a/b) ===")
     argv_common = ["--gpu", str(gpu)] if gpu is not None else []
     rc = _run_module_main(
-        REPO_ROOT / "experiments/qft/qft_seed_sweep.py",
+        REPO_ROOT / "experiments/_train/qft_seed_sweep.py",
         argv_common + ["--dataset", "div2k_8q", "--orderings", "bg,lr,rl",
                        "--seeds", "1-100", "--out", str(DATA_SEED_DIV2K)])
     if rc != 0:
@@ -659,15 +651,6 @@ def retrain(gpu: int | None = None) -> int:
     _compute_init_distribution(
         dataset="div2k_8q", seeds_spec="1-100", topk_ratio=0.20, batch=50,
         gpu=gpu, out_base=DATA_SEED_DIV2K)
-
-    print("[retrain] === qft_freeze_sweep: freeze_outer/freeze_inner "
-          "cross-check (NOT an appendix-C input; see retrain() docstring) ===")
-    rc = _run_module_main(
-        REPO_ROOT / "experiments/qft/qft_freeze_sweep.py",
-        argv_common + ["--dataset", "div2k_8q"])
-    if rc != 0:
-        print(f"[retrain] qft_freeze_sweep exited {rc}", file=sys.stderr)
-        return rc
 
     print(
         "[retrain] done. Reminder: Fig 10 trace.json and Fig 11b "
@@ -682,7 +665,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--retrain", action="store_true", default=False,
-                    help="Rerun the freeze/seed sweeps to regenerate data/ "
+                    help="Rerun the seed sweep to regenerate data/ "
                          "inputs (needs GPU + dataset submodules; see "
                          "retrain()'s docstring for what is and isn't "
                          "covered). Default: render + verify only.")

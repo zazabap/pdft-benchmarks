@@ -300,19 +300,19 @@ def _run_module_main(script_path: Path, argv: list[str]) -> int:
 def retrain(gpu: int | None = 0, repro_tmp: Path = REPRO_TMP_DIV2K) -> int:
     """Retrain the full DIV2K-8q basis grid and cellify it into by_basis/.
 
-    Folds experiments/paper/div2k_8q_pca_vs_block_dct.py (the training
+    Folds experiments/_train/div2k_8q_pca_vs_block_dct.py (the training
     driver) + tools/cellify_run.py (flat run_experiment output -> the
-    canonical by_basis/<basis>/ tree), matching the Makefile's `train-div2k`
-    target: full basis list (qft, entangled_qft, tebd, mera, blocked_8,
-    rich_8, real_rich_8, dct4_ctl, tebd_u4, mera_u4, rich_full), --epochs 112
-    --no-early-stop, keep ratios 0.01/0.05/0.10/0.15/0.20. Needs a GPU + the
-    DIV2K dataset (see DIV2K_DATA_ROOT); not run except under --retrain.
+    canonical by_basis/<basis>/ tree): full basis list (qft, entangled_qft,
+    tebd, mera, blocked_8, rich_8, real_rich_8, dct4_ctl, tebd_u4, mera_u4,
+    rich_full), --epochs 112 --no-early-stop, keep ratios
+    0.01/0.05/0.10/0.15/0.20. Needs a GPU + the DIV2K dataset (see
+    DIV2K_DATA_ROOT); not run except under --retrain.
     """
     repro_tmp = Path(repro_tmp)
     if repro_tmp.exists():
         shutil.rmtree(repro_tmp)
 
-    print(f"[retrain] === training driver: experiments/paper/"
+    print(f"[retrain] === training driver: experiments/_train/"
           f"div2k_8q_pca_vs_block_dct.py (bases={DIV2K_BASES}) ===")
     argv = (["--gpu", str(gpu)] if gpu is not None else []) + [
         "--bases", DIV2K_BASES,
@@ -322,7 +322,7 @@ def retrain(gpu: int | None = 0, repro_tmp: Path = REPRO_TMP_DIV2K) -> int:
         "--out", str(repro_tmp),
     ]
     rc = _run_module_main(
-        REPO_ROOT / "experiments/paper/div2k_8q_pca_vs_block_dct.py", argv)
+        REPO_ROOT / "experiments/_train/div2k_8q_pca_vs_block_dct.py", argv)
     if rc != 0:
         print(f"[retrain] training driver exited {rc}", file=sys.stderr)
         return rc

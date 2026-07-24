@@ -28,7 +28,7 @@ internally consistent (byte accounting, budget respected) -- headline_50pct
 is the source of the paper's "50%-of-raw budget" sentence (+7.8 dB,
 44.7 vs 36.9 dB).
 
---retrain reruns experiments/misc/dataset_compression.py's real
+--retrain reruns experiments/_train/dataset_compression.py's real
 compress/store/decompress sweep directly (in-process, via its own main()),
 overwriting rd_curves.json + headline_50pct.json in place -- that script's
 own --out default already IS this results/ directory, so no redirection is
@@ -327,7 +327,7 @@ def retrain(gpu: int | None = None,
             bits: str = "6,8,10",
             contenders: str = "real,complex,block_dct_8",
             limit: int | None = None) -> int:
-    """Rerun experiments/misc/dataset_compression.py's sweep for
+    """Rerun experiments/_train/dataset_compression.py's sweep for
     quickdraw_5q, overwriting rd_curves.json + headline_50pct.json in place
     (blob scratch files go to that script's own --blob-dir default,
     /tmp/claude-0/blobs/quickdraw_5q). --out / --checkpoints are pinned
@@ -346,7 +346,7 @@ def retrain(gpu: int | None = None,
     if limit is not None:
         argv += ["--limit", str(limit)]
     rc = _run_module_main(
-        REPO_ROOT / "experiments/misc/dataset_compression.py", argv)
+        REPO_ROOT / "experiments/_train/dataset_compression.py", argv)
     if rc != 0:
         print(f"[retrain] dataset_compression exited {rc}", file=sys.stderr)
         return rc

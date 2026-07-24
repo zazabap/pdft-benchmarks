@@ -20,19 +20,19 @@ Each (ordering, seed) run is an independent, atomically-checkpointed cell:
     <out>/_runs/<ordering>/seed_<NNN>_trace.json  full per-step loss trace
                                                   (local; default on; --no-trace)
 
-A finished cell is skipped on re-invocation (unless --force), so the parallel
-dispatcher (tools/run_seed_sweep.py) can fan 300 jobs across GPUs, crash, and
-resume by filling only the gaps. `--aggregate-only` rolls the cells up into
-<out>/seed_sweep.json without any training (mean / std / min / max / Shapiro-p
-per ordering per keep ratio).
+A finished cell is skipped on re-invocation (unless --force), so a parallel
+dispatcher can fan hundreds of jobs across GPUs, crash, and resume by filling
+only the gaps. `--aggregate-only` rolls the cells up into <out>/seed_sweep.json
+without any training (mean / std / min / max / Shapiro-p per ordering per
+keep ratio).
 
 Usage:
-    # one cell (what the dispatcher calls)
-    python experiments/qft/qft_seed_sweep.py --gpu 0 --orderings bg --seeds 7
+    # one cell (what a dispatcher would call)
+    python experiments/_train/qft_seed_sweep.py --gpu 0 --orderings bg --seeds 7
     # a slice, sequentially, on one GPU
-    python experiments/qft/qft_seed_sweep.py --gpu 0 --orderings bg,lr,rl --seeds 1-5
+    python experiments/_train/qft_seed_sweep.py --gpu 0 --orderings bg,lr,rl --seeds 1-5
     # roll up whatever cells exist (no GPU needed)
-    python experiments/qft/qft_seed_sweep.py --aggregate-only --seeds 1-100
+    python experiments/_train/qft_seed_sweep.py --aggregate-only --seeds 1-100
 """
 from __future__ import annotations
 

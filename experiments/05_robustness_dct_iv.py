@@ -27,21 +27,16 @@ mirroring how 04_robustness_qft.py's verify() prints classical_div2k.json's
 block-FFT reference line -- it is NOT plotted or tabulated here either,
 matching the renderer's actual (not documented) behaviour.
 
---retrain reruns experiments/dct4/dct4_disturbance_sweep.py's sweep+
+--retrain reruns experiments/_train/dct4_disturbance_sweep.py's sweep+
 aggregate directly (in-process, via its own main()), redirected via --out
 to write into data/exact_disturbance/ instead of its results/ default.
 Both generators the task named are present on main and (given real
 hardware) would genuinely regenerate the full committed input -- unlike
 04_robustness_qft.py's retrain(), nothing here is permanently un-regenerable.
-This calls the driver's main() directly rather than shelling out through
-tools/run_dct4_disturbance_sweep.py, the parallel multi-GPU dispatcher:
-that dispatcher's DRIVER constant points at
-"experiments/dct4_disturbance_sweep.py", which does not exist on main (the
-driver actually lives at experiments/dct4/dct4_disturbance_sweep.py) -- a
-pre-existing path bug in a file this task's constraints don't permit
-touching. Calling the driver directly sidesteps that bug; the dispatcher
-otherwise only adds parallelism across idle GPUs over the same
-(fraction, seed) grid, run here sequentially instead. Needs a GPU +
+This calls the driver's main() directly rather than shelling out through a
+parallel multi-GPU dispatcher; the dispatcher only added parallelism across
+idle GPUs over the same (fraction, seed) grid, run here sequentially
+instead. Needs a GPU +
 pdft.DCT4Basis (parametrization="controlled") + the DIV2K dataset
 submodule; the driver itself aborts if --gpu is requested but JAX sees only
 CPU, so this does not meaningfully complete in this sandbox.
@@ -328,8 +323,7 @@ def verify() -> bool:
 # ===========================================================================
 # retrain() — rerun the exact-init disturbance sweep (GPU + pdft.DCT4Basis +
 # DIV2K submodule required; does not meaningfully complete in-sandbox). See
-# the module docstring above for exactly what this does (and why it does not
-# shell out through tools/run_dct4_disturbance_sweep.py).
+# the module docstring above for exactly what this does.
 # ===========================================================================
 def _run_module_main(script_path: Path, argv: list[str]) -> int:
     """Load `script_path` as a module (without executing its __main__ guard)
@@ -352,18 +346,18 @@ _ALL_FRACTIONS = (0.0, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.50, 
 
 def retrain(gpu: int | None = None, seeds: str = "1-3", epochs: int = 1008,
             topk_ratio: float = 0.10, sigma: float = 0.1) -> int:
-    """Rerun experiments/dct4/dct4_disturbance_sweep.py's sweep+aggregate,
+    """Rerun experiments/_train/dct4_disturbance_sweep.py's sweep+aggregate,
     regenerating data/exact_disturbance/disturbance_sweep.json (+ per-cell
     _runs/*.json under data/exact_disturbance/_runs/). Defaults (seeds 1-3,
     epochs 1008, topk_ratio 0.10, sigma 0.1) match the committed sweep's
     metadata exactly.
 
     fractions are passed explicitly with 0.0 included: the driver's own
-    --fractions default omits the f=0 baseline (it is normally added by the
-    tools/run_dct4_disturbance_sweep.py dispatcher's --with-baseline flag,
-    which this function does not go through -- see the module docstring for
-    why). Omitting it here would silently drop the baseline row/reference
-    line that Table 6 and both PSNR figures read from ss["baseline"].
+    --fractions default omits the f=0 baseline (it was normally added by the
+    now-removed multi-GPU dispatcher's --with-baseline flag, which this
+    function does not go through). Omitting it here would silently drop the
+    baseline row/reference line that Table 6 and both PSNR figures read
+    from ss["baseline"].
 
     Needs a GPU + pdft.DCT4Basis (parametrization="controlled") + the DIV2K
     dataset submodule; the driver aborts by itself if --gpu is requested but
@@ -378,7 +372,7 @@ def retrain(gpu: int | None = None, seeds: str = "1-3", epochs: int = 1008,
     if gpu is not None:
         argv = ["--gpu", str(gpu)] + argv
     rc = _run_module_main(
-        REPO_ROOT / "experiments/dct4/dct4_disturbance_sweep.py", argv)
+        REPO_ROOT / "experiments/_train/dct4_disturbance_sweep.py", argv)
     if rc != 0:
         print(f"[retrain] dct4_disturbance_sweep exited {rc}", file=sys.stderr)
         return rc
