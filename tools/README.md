@@ -1,14 +1,14 @@
 # tools/
 
 Command-line utilities and figure renderers. Run from the repo root
-(e.g. `python tools/paper/render_loss_curves.py …`).
+(e.g. `python tools/paper/render_topology_loss.py …`), or via the top-level
+`make` targets (see the repo README).
 
 ## Layout
 
 - **`paper/`** — renderers for the paper's canonical figures and tables:
-  loss curves, topology loss (Fig. 4), frequency/reconstruction gallery
-  (Fig. 5), rate-distortion (Fig. 6), PCA-basis visualisation, AR(1)
-  examples, and the DIV2K results table.
+  topology loss (Fig. 4), frequency/reconstruction gallery (Fig. 5),
+  rate-distortion (Fig. 6), and the per-dataset PSNR results tables.
 - **`analysis/`** — exploratory and results-writeup renderers / diagnostics
   (seed variance, QFT block-structure & unfreeze, block emergence, lambda
   sweeps, disturbance curves, …). The shared matplotlib style

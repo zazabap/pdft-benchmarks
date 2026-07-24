@@ -72,36 +72,8 @@ Notable findings:
 
 ## Reproducing
 
-```bash
-# Two-GPU training (4 unblocked + 3 blocked_8)
-python experiments/div2k_8q_pca_vs_block_dct.py \
-    --gpu 0 --bases qft,entangled_qft,tebd,mera \
-    --out results/div2k_8q_pca_vs_block_dct/_runs/unblocked
-python experiments/div2k_8q_pca_vs_block_dct.py \
-    --gpu 1 --bases blocked_8,rich_8,real_rich_8 \
-    --out results/div2k_8q_pca_vs_block_dct/_runs/blocked
-
-# Cellify (passing --bases to keep classical-baseline keys in
-# _baselines.json instead of as cells)
-python tools/cellify_run.py \
-    --in  results/div2k_8q_pca_vs_block_dct/_runs/unblocked \
-    --out results/div2k_8q_pca_vs_block_dct/by_basis \
-    --bases qft,entangled_qft,tebd,mera
-python tools/cellify_run.py \
-    --in  results/div2k_8q_pca_vs_block_dct/_runs/blocked \
-    --out results/div2k_8q_pca_vs_block_dct/by_basis \
-    --bases blocked_8,rich_8,real_rich_8
-rm -rf results/div2k_8q_pca_vs_block_dct/_runs/
-
-# Verify, render, table, writeup
-python tools/independent_div2k_8q_baselines.py --gpu 0 --seed 42 --n-train 500
-python tools/render_freq_recon_grid.py --dataset div2k_8q --gpu 0 \
-    --image-indices 11 --div2k-source-indices 390
-python tools/render_pca_basis_visualization.py --dataset div2k_8q --gpu 0
-cp results/quickdraw_pca_vs_block_dct/figures/ar1_examples.pdf figures/
-python tools/render_div2k_paper_table.py
-typst compile results/div2k_8q_pca_vs_block_dct/writeup.typ
-```
-
-Runtime: ~20 min wall-clock with two GPUs in parallel for the training
-phase; figure rendering and rerun are ~minutes each.
+Regenerate this experiment's table and figures from the committed tree with
+`make table3` and `make fig5`; see the repo [README](../../../README.md) and
+[REPRODUCE.md](../../../REPRODUCE.md) for the full artifact map and the
+`RETRAIN=1` retraining path. Training budget: `--epochs 112 --no-early-stop`
+(1008 steps), ~20 min wall-clock on two GPUs.
