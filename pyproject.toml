@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
-    "pdft>=0.2.0",
+    "pdft>=0.2.2",   # DCT4Basis (pdft #24) + U(4) tebd_u4/mera_u4 (pdft #25)
     "numpy>=1.26",
     "scipy>=1.11",
     "matplotlib>=3.7",
@@ -31,7 +31,7 @@ dependencies = [
 [project.optional-dependencies]
 bench = []
 gpu = [
-    "pdft[gpu]>=0.2.0",
+    "pdft[gpu]>=0.2.2",
 ]
 dev = [
     "pytest>=8.0",
