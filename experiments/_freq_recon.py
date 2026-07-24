@@ -1,0 +1,385 @@
+#!/usr/bin/env python3
+"""Shared Fig 5 renderer: rows = keep ratios, cols = (freq spectrum, recon).
+
+Ported from tools/paper/render_freq_recon_grid.py so
+experiments/02_bases_div2k.py (DIV2K panel) and experiments/01_bases_quickdraw.py
+(Quick Draw panel) share one code path for Fig 5. Only the argparse CLI layer
+was flattened into render_freq_recon_grid()'s keyword arguments — the loading,
+reconstruction, and plotting logic is unchanged from the original renderer.
+
+Loads trained bases from <by_basis>/{name}/trained_{name}.json, fits classical
+PCA baselines on the same train split, then applies the shared analysis
+helpers to compute frequency magnitudes and clipped recoveries for each
+method.
+
+Does not use _paper_style.py — the original renderer never called
+set_paper_rcparams()/apply_paper_style(), so this port leaves matplotlib at
+its default rcParams to preserve behavior exactly.
+"""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+import numpy as np
+
+
+def _load_div2k_source_image(idx: int, *, size: int = 256) -> np.ndarray:
+    """Load a specific DIV2K-HR source PNG by ID with the same preprocessing
+    as `pdft_benchmarks.datasets.load_div2k` (centre-crop to square, LANCZOS
+    resize to size×size, grayscale, float64 in [0,1]).
+
+    Lets the renderer include a specific source-file image (e.g. 0390.png)
+    independent of the test-split shuffle from load_div2k.
+    """
+    from PIL import Image
+
+    data_root = Path("/home/claude-user/ParametricDFT-Benchmarks.jl/data/DIV2K_train_HR")
+    p = data_root / f"{idx:04d}.png"
+    if not p.exists():
+        raise FileNotFoundError(f"DIV2K source image not found: {p}")
+    img = Image.open(p).convert("L")
+    w, h = img.size
+    side = min(w, h)
+    left = (w - side) // 2
+    top = (h - side) // 2
+    img = img.crop((left, top, left + side, top + side))
+    img = img.resize((size, size), Image.Resampling.LANCZOS)
+    return np.asarray(img, dtype=np.float64) / 255.0
+
+
+def _load_custom_image(path: str, *, size: int) -> np.ndarray:
+    """Load an arbitrary image file as a grayscale float64 [0,1] array resized
+    to size×size. Used to render on a specific picture (e.g. the exact Quick
+    Draw cat embedded in the Figure 1 banner) rather than a test-split index."""
+    from PIL import Image
+    img = Image.open(path).convert("L").resize((size, size), Image.Resampling.LANCZOS)
+    return np.asarray(img, dtype=np.float64) / 255.0
+
+
+from pdft_benchmarks._loading import load_trained_basis  # noqa: F401  (re-export for callers)
+
+
+# Learned bases and classical references of the headline results table, in the
+# order the table lists them. Bases absent for a dataset (MERA needs a
+# power-of-two qubit count, so it is undefined on Quick Draw's 5) drop out.
+TABLE_METHODS = (
+    "rich_full", "dct4_ctl", "qft", "entangled_qft", "tebd_u4", "mera_u4",
+    "block_dct_8", "block_fft_8",
+)
+
+DATASET_CONFIG = {
+    "quickdraw": {
+        "by_basis": "results/structure/quickdraw_pca_vs_block_dct/by_basis",
+        "out_default": "results/structure/quickdraw_pca_vs_block_dct/figures/freq_recon_grid.pdf",
+        "img_size": 32,
+        "title_label": "QuickDraw",
+    },
+    "div2k_8q": {
+        "by_basis": "results/structure/div2k_8q_pca_vs_block_dct/by_basis",
+        "out_default": "results/structure/div2k_8q_pca_vs_block_dct/figures/freq_recon_grid.pdf",
+        "img_size": 256,
+        "title_label": "DIV2K-8q",
+    },
+}
+
+
+def render_freq_recon_grid(
+    dataset: str,
+    *,
+    keep_ratios: str = "0.05,0.10,0.15,0.20",
+    image_indices: str = "",
+    div2k_source_indices: str = "",
+    n_train: int = 500,
+    n_test: int = 50,
+    seed: int = 42,
+    out: str | None = None,
+    gpu: int = 0,
+    methods: str = "",
+    custom_images: str = "",
+    by_basis_root: str = "",
+) -> list[Path]:
+    """Render the freq-spectrum + reconstruction grid(s) for `dataset`.
+
+    One PNG-equivalent PDF+SVG pair (plus a companion `_freq` PDF+SVG pair)
+    is written per selected image, named `<out-stem>_img<label>.<ext>` /
+    `<out-stem>_img<label>_freq.<ext>`. Mirrors the CLI args of the original
+    tools/paper/render_freq_recon_grid.py 1:1 (dataset, keep-ratios,
+    image-indices, div2k-source-indices, n-train, n-test, seed, out, gpu,
+    methods, custom-images, by-basis-root). Returns the list of paths written.
+    """
+    cfg = DATASET_CONFIG[dataset]
+    if out is None:
+        out = cfg["out_default"]
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+    os.environ.setdefault("JAX_ENABLE_X64", "1")
+
+    image_indices_list = [int(x) for x in image_indices.split(",") if x.strip()]
+    div2k_source_indices_list = [int(x) for x in div2k_source_indices.split(",") if x.strip()]
+    if div2k_source_indices_list and dataset != "div2k_8q":
+        raise ValueError("--div2k-source-indices is only valid for --dataset=div2k_8q")
+    keep_ratios_list = [float(x) for x in keep_ratios.split(",")]
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from pdft_benchmarks.baselines import BASELINE_FACTORIES
+    from pdft_benchmarks.analysis import (
+        _forward_magnitude, _baseline_freq_magnitude, _peak_normalized_log,
+    )
+
+    if dataset == "quickdraw":
+        from pdft_benchmarks.datasets import load_quickdraw
+        train, test = load_quickdraw(n_train, n_test, seed=seed, img_size=cfg["img_size"])
+    elif dataset == "div2k_8q":
+        from pdft_benchmarks.datasets import load_div2k
+        train, test = load_div2k(n_train, n_test, seed=seed, size=cfg["img_size"])
+    else:
+        raise ValueError(f"unknown dataset: {dataset}")
+
+    images: list = []
+    image_labels: list[int] = []
+    for i in image_indices_list:
+        images.append(np.asarray(test[i], dtype=np.float64))
+        image_labels.append(i)
+    for src_id in div2k_source_indices_list:
+        images.append(_load_div2k_source_image(src_id, size=cfg["img_size"]))
+        image_labels.append(src_id)
+    for spec in [s for s in custom_images.split(",") if s.strip()]:
+        path, label = spec.rsplit(":", 1) if ":" in spec else (spec, Path(spec).stem)
+        images.append(_load_custom_image(path, size=cfg["img_size"]))
+        image_labels.append(label)
+    if not images:
+        raise ValueError("no images selected; pass --image-indices, "
+                         "--div2k-source-indices, and/or --custom-images")
+    print(f"[viz] {len(images)} images, labels={image_labels}, ρ={keep_ratios_list}")
+
+    # ---- Load trained bases ----
+    # Discover from disk: any <by_basis>/<name>/trained_<name>.json present.
+    # This handles both datasets and any future basis names without
+    # hardcoding (e.g. blocked vs blocked_8, with/without mera).
+    by_basis_root_path = Path(by_basis_root) if by_basis_root else Path(cfg["by_basis"])
+    trained: dict = {}
+    if by_basis_root_path.is_dir():
+        for cell in sorted(by_basis_root_path.iterdir()):
+            if not cell.is_dir():
+                continue
+            name = cell.name
+            if name not in TABLE_METHODS:
+                continue
+            path = cell / f"trained_{name}.json"
+            if not path.exists():
+                print(f"[viz] skip {name} (no {path.name})")
+                continue
+            try:
+                trained[name] = load_trained_basis(path)
+                print(f"[viz] loaded {name}")
+            except Exception as e:
+                print(f"[viz] failed to load {name}: {e}")
+    else:
+        print(f"[viz] WARN: {by_basis_root_path} not a directory; no trained bases loaded")
+
+    # ---- Build classical baselines (fit on same train split) ----
+    classical_names = ["fft", "dct", "block_fft_8", "block_dct_8", "bd_pca", "block_bd_pca_8"]
+    classical: dict = {}
+    classical_state: dict = {}
+    for name in classical_names:
+        try:
+            fn = BASELINE_FACTORIES[name](list(train))
+            classical[name] = fn
+            # PCA baselines stash the fitted basis on the closure for the
+            # frequency-magnitude renderer; bd_pca uses _bd_pca_basis instead.
+            classical_state[name] = getattr(fn, "_pca_basis", None) or getattr(fn, "_bd_pca_basis", None)
+            print(f"[viz] built classical {name}")
+        except Exception as e:
+            print(f"[viz] failed to build classical {name}: {e}")
+
+    # ---- Compute reconstructions: rec[(img_idx, kr)][name] = (image, psnr) ----
+    from pdft_benchmarks.evaluation import compute_metrics
+
+    import pdft.io as pio
+
+    def _recover_basis(basis, image, kr):
+        compressed = pio.compress(basis, np.asarray(image, dtype=np.float64),
+                                   ratio=1.0 - kr)
+        return np.clip(np.real(pio.recover(basis, compressed)), 0.0, 1.0)
+
+    rec: dict = {}
+    for i_idx, img in zip(image_labels, images):
+        for kr in keep_ratios_list:
+            per_method: dict = {}
+            for name, basis in trained.items():
+                try:
+                    r = _recover_basis(basis, img, kr)
+                    per_method[name] = (r, compute_metrics(img, r)["psnr"])
+                except Exception as e:
+                    print(f"[viz] img={i_idx} kr={kr} {name} failed: {e}")
+                    per_method[name] = (None, float("nan"))
+            for name, fn in classical.items():
+                try:
+                    r = np.clip(np.real(fn(img, kr)), 0.0, 1.0)
+                    per_method[name] = (r, compute_metrics(img, r)["psnr"])
+                except Exception as e:
+                    print(f"[viz] img={i_idx} kr={kr} {name} failed: {e}")
+                    per_method[name] = (None, float("nan"))
+            rec[(i_idx, kr)] = per_method
+
+    # ---- Plot — one separate PNG per test image ----
+    # Method ordering. With `methods` the columns follow that exact order;
+    # otherwise fall back to block-wrapped-on-the-left, global-on-the-right.
+    sample_key = (image_labels[0], keep_ratios_list[0])
+    available = list(rec[sample_key].keys())
+    if methods:
+        methods_list = [m.strip() for m in methods.split(",") if m.strip()]
+        missing = [m for m in methods_list if m not in available]
+        if missing:
+            raise ValueError(
+                f"requested methods not available: {missing}; "
+                f"available: {sorted(available)}"
+            )
+    else:
+        # Default to exactly the rows of the paper's headline table, in its
+        # order, so the figure and the table always describe the same bases.
+        # Plain discovery would also sweep in anything else that happens to
+        # have a trained_*.json on disk (real_rich_full, block variants, ...),
+        # which is how the two drifted apart before.
+        methods_list = [m for m in TABLE_METHODS if m in available]
+    # Learned (trained) bases get one header colour, classical baselines another.
+    trained_names = set(trained)
+    n_methods = len(methods_list)
+    n_cols = 1 + n_methods
+    n_rows = len(keep_ratios_list)
+
+    cell = 0.78
+    fig_w = n_cols * cell + 0.55
+    fig_h = n_rows * cell + 0.55
+
+    # Pretty column labels matching the paper's results table (\cref{tab:div2k_repr}).
+    header_labels = {
+        "rich": "RichBasis", "real_rich": "RichBasis",
+        "rich_full": "RichBasis", "real_rich_full": "Real RichBasis",
+        "dct4_ctl": "DCT-IV", "qft": "QFT", "entangled_qft": "Entangled QFT",
+        "tebd": "TEBD", "mera": "MERA",
+        "tebd_u4": "TEBD", "mera_u4": "MERA",
+        "block_dct_8": "block DCT 8$\\times$8", "block_fft_8": "block DFT 8$\\times$8",
+    }
+    headers = ["original"] + [header_labels.get(m, m) for m in methods_list]
+
+    out_base = Path(out)
+    img_lookup = dict(zip(image_labels, images))
+    written: list[Path] = []
+
+    for i_idx in image_labels:
+        img = img_lookup[i_idx]
+
+        fig, axes = plt.subplots(
+            n_rows, n_cols, figsize=(fig_w, fig_h),
+            gridspec_kw={"wspace": 0.04, "hspace": 0.04},
+        )
+        # Figure-level title intentionally omitted — captions live in the paper.
+
+        for c, h in enumerate(headers):
+            if c == 0:
+                color = "black"
+            elif methods_list[c - 1] in trained_names:
+                color = "#0a3d8c"
+            else:
+                color = "#666666"
+            axes[0, c].set_title(h, fontsize=6.5, color=color, pad=2)
+
+        for r_idx, kr in enumerate(keep_ratios_list):
+            ax0 = axes[r_idx, 0]
+            ax0.imshow(img, cmap="gray", vmin=0, vmax=1,
+                       interpolation="nearest", aspect="equal")
+            ax0.set_xticks([]); ax0.set_yticks([])
+            ax0.set_ylabel(f"ρ={kr:.2f}", fontsize=8.5, rotation=90,
+                           labelpad=4, va="center")
+
+            for c_idx, name in enumerate(methods_list, start=1):
+                ax = axes[r_idx, c_idx]
+                r_img, p = rec[(i_idx, kr)][name]
+                if r_img is not None:
+                    ax.imshow(r_img, cmap="gray", vmin=0, vmax=1,
+                              interpolation="nearest", aspect="equal")
+                    ax.text(0.98, 0.04, f"{p:.1f}",
+                            transform=ax.transAxes, fontsize=6,
+                            color="white", ha="right", va="bottom",
+                            bbox=dict(facecolor="black", alpha=0.55,
+                                      edgecolor="none", pad=0.7))
+                else:
+                    ax.text(0.5, 0.5, "FAIL", ha="center", va="center",
+                            transform=ax.transAxes)
+                ax.set_xticks([]); ax.set_yticks([])
+
+        fig.subplots_adjust(left=0.04, right=0.998, top=0.94, bottom=0.005)
+        # Output: insert _img{N} suffix into stem
+        out_path = out_base.with_name(f"{out_base.stem}_img{i_idx}{out_base.suffix}")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out_path, bbox_inches="tight")
+        out_svg = out_path.with_suffix(".svg")
+        fig.savefig(out_svg, bbox_inches="tight")
+        print(f"[viz] wrote {out_path} + {out_svg}")
+        written += [out_path, out_svg]
+        plt.close(fig)
+
+        # ---- Companion freq-space figure for the same image ----
+        # 1 row × 13 cols, same column ordering as the recon grid.
+        method_freq: dict = {}
+        for name, basis in trained.items():
+            method_freq[name] = _forward_magnitude(basis, img)
+        for name in classical:
+            method_freq[name] = _baseline_freq_magnitude(
+                name, img, baseline_state=classical_state[name]
+            )
+        log_freq, zmin, zmax = _peak_normalized_log(method_freq)
+
+        # Grid: 13 image cells + 1 narrow colorbar slot on the right
+        fig_f, axes_f = plt.subplots(
+            1, n_cols + 1, figsize=(fig_w + 0.5, cell + 0.55),
+            gridspec_kw={"wspace": 0.04,
+                         "width_ratios": [1] * n_cols + [0.12]},
+        )
+        # Figure-level title intentionally omitted — captions live in the paper.
+        for c, h in enumerate(headers):
+            if c == 0:
+                color = "black"
+            elif methods_list[c - 1] in trained_names:
+                color = "#0a3d8c"
+            else:
+                color = "#666666"
+            axes_f[c].set_title(h, fontsize=6.5, color=color, pad=2)
+
+        # Col 0 = original image (gray), cols 1.. = freq spectra (viridis)
+        axes_f[0].imshow(img, cmap="gray", vmin=0, vmax=1,
+                         interpolation="nearest", aspect="equal")
+        axes_f[0].set_xticks([]); axes_f[0].set_yticks([])
+        last_im = None
+        for c_idx, name in enumerate(methods_list, start=1):
+            last_im = axes_f[c_idx].imshow(
+                log_freq[name], cmap="viridis", vmin=zmin, vmax=zmax,
+                interpolation="nearest", aspect="equal",
+            )
+            axes_f[c_idx].set_xticks([]); axes_f[c_idx].set_yticks([])
+
+        # Shared vertical colorbar in the rightmost slot
+        cbar_ax = axes_f[-1]
+        cb = fig_f.colorbar(last_im, cax=cbar_ax)
+        cb.ax.tick_params(labelsize=7)
+        cb.set_label("log₁₀(|F| / |F|_max)", fontsize=7.5,
+                     rotation=90, labelpad=4)
+
+        fig_f.subplots_adjust(left=0.04, right=0.985, top=0.78, bottom=0.02)
+        out_freq = out_base.with_name(
+            f"{out_base.stem}_img{i_idx}_freq{out_base.suffix}"
+        )
+        fig_f.savefig(out_freq, bbox_inches="tight")
+        out_freq_svg = out_freq.with_suffix(".svg")
+        fig_f.savefig(out_freq_svg, bbox_inches="tight")
+        print(f"[viz] wrote {out_freq} + {out_freq_svg}")
+        written += [out_freq, out_freq_svg]
+        plt.close(fig_f)
+
+    return written
