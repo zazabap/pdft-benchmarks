@@ -2,6 +2,11 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+# pdft is pinned to a git tag (see [project].dependencies); hatchling requires
+# opting in to direct (URL) references.
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [project]
 name = "pdft-benchmarks"
 version = "0.1.0"
@@ -19,7 +24,9 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
-    "pdft>=0.2.0",
+    # DCT4Basis(controlled) + U(4) tebd_u4/mera_u4 landed after the published
+    # PyPI 0.2.2 wheel (which predates DCT4Basis); pin the git v0.2.3 tag.
+    "pdft @ git+https://github.com/zazabap/pdft.git@v0.2.3",
     "numpy>=1.26",
     "scipy>=1.11",
     "matplotlib>=3.7",
@@ -31,7 +38,7 @@ dependencies = [
 [project.optional-dependencies]
 bench = []
 gpu = [
-    "pdft[gpu]>=0.2.0",
+    "pdft[gpu] @ git+https://github.com/zazabap/pdft.git@v0.2.3",
 ]
 dev = [
     "pytest>=8.0",

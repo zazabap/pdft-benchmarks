@@ -1,4 +1,11 @@
 import pdft
+import pytest
+
+if not hasattr(pdft, "DCT4Basis"):
+    pytest.skip(
+        "pdft lacks DCT4Basis (need the git v0.2.3 build; PyPI 0.2.2 predates it)",
+        allow_module_level=True,
+    )
 
 from pdft_benchmarks.bases import dct4_controlled_basis
 

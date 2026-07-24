@@ -24,7 +24,11 @@ results/**/trained_*.json
 # needs the basis file, and its size is part of the published byte
 # accounting) — track them despite the blanket rule above.
 !results/training/6_dataset_compression/**/trained_*.json
+# fig 5 (freq/recon grid) reloads each structure cell's trained basis; ~516 KB.
+!results/structure/**/trained_*.json
 results/**/loss_history/
+# fig 4 (topology loss curve) replays each structure cell's loss history; ~360 KB.
+!results/structure/**/loss_history/
 results/**/run.log
 results/**/failures/
 # per-step block-emergence training snapshots (bulky raw blobs; the curated
