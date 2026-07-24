@@ -7,7 +7,8 @@ DCT/DFT and bilateral PCA), on the Quick Draw and DIV2K image datasets.
 
 You do **not** need a GPU, the datasets, or any training to regenerate the
 paper's figures and tables — they rebuild from the numbers already committed in
-`results/`. One command per figure or table.
+`results/` (and, for the appendix studies, `data/`). One command per paper
+section.
 
 ## Quick start
 
@@ -15,89 +16,112 @@ paper's figures and tables — they rebuild from the numbers already committed i
 python -m venv .venv --system-site-packages
 .venv/bin/pip install -e ".[bench]"       # CPU-only; add ",gpu" for training
 
-make                 # list every target
-make all             # regenerate every figure and table from committed results
-make fig4            # or just one
+make                 # list every section (00..05)
+make all             # render + verify every section from committed data
+make 02              # or just one section
 ```
 
-`make` needs no arguments and does no training by default: each target reads the
-committed `results/` tree and writes the figure/table, printing its headline
-numbers so you can check them against the paper. (The one exception is
-`make fig5`, which needs the image datasets — see [Datasets](#datasets).)
+`make` needs no arguments and does no training by default: each section reads
+committed data and writes its figure(s)/table, printing headline numbers so
+you can check them against the paper. `make 00`, `01`, and `02` additionally
+need the raw image datasets to compute Fig 3 / Fig 5 from pixels (see
+[Datasets](#datasets)) — without them, `01`/`02` still render Table 3 and
+print a note that the image-derived panel was skipped. `03`, `04`, and `05`
+render entirely from committed JSON, no datasets needed.
+
+To rerun a section's experiment from scratch instead of rendering the
+committed data, add `RETRAIN=1` (needs a GPU + the datasets):
+
+```bash
+RETRAIN=1 make 02
+```
 
 `pip install` pulls `pdft` from its Git tag `v0.2.3` (the published PyPI `0.2.2`
 predates the `DCT4Basis` and U(4) gate APIs this repo uses).
 
 ## Figures and tables
 
-Each row is one artifact in the paper: the command that regenerates it, the
-script that command runs, and where the output file lands. Appendix items are
-marked. Outputs are always **PDF + SVG, never PNG**.
+The paper is reproduced **by section**: each `make 0X` target maps to one
+numbered script under `experiments/`, which renders (and verifies) every
+paper artifact that section's experiment feeds. Appendix sections are marked.
+Outputs are always **PDF + SVG, never PNG**.
 
-| Paper artifact | Regenerate with | Generator script | Output location |
+| Target | Script | Paper artifacts | Output location |
 |---|---|---|---|
-| **Fig 4** — topology loss curve | `make fig4` | `tools/paper/render_topology_loss.py` | `results/structure/div2k_8q_pca_vs_block_dct/figures/topology_loss_curve.{pdf,svg}` |
-| **Fig 5** — frequency/reconstruction grids (Quick Draw + DIV2K) | `make fig5` | `tools/paper/render_freq_recon_grid.py` (run twice) | `results/structure/{quickdraw,div2k_8q}_pca_vs_block_dct/figures/freq_recon_grid_img{cat,390}{,_freq}.{pdf,svg}` |
-| **Fig 6** — Quick Draw rate–distortion | `make fig6` | `tools/paper/render_paper_compression_rd.py` | `results/training/6_dataset_compression/quickdraw_5q/figures/rd_quickdraw_paper.{pdf,svg}` |
-| **Fig 10** — QFT unfreeze dynamics *(appendix)* | `make fig10` | `tools/analysis/render_qft_unfreeze.py` | `results/training/2_direct_training/unfreeze/figures/paper/training_dynamics.pdf` |
-| **Fig 11** — seed robustness, panels a+b *(appendix)* | `make fig11` | `tools/analysis/render_init_distribution.py` + `render_seed_scatter_ratios.py` | `results/training/2_direct_training/random_seed/div2k_8q/figures/paper/{init_distribution,seed_scatter_ratios}.pdf` |
-| **Figs 12–14** — DCT-IV exact-init disturbance *(appendix)* | `make fig12-14` | `tools/analysis/render_disturbance_curve.py` | `results/training/4_exact_disturbance/figures/disturbance_{psnr_vs_f,init_loss,recovery}.{pdf,svg}` |
-| **Table 3** — mean test PSNR, both datasets | `make table3` | `tools/paper/render_div2k_paper_table.py` (run twice) | `results/structure/{div2k_8q,quickdraw}_pca_vs_block_dct/tables/published_8q_*.tex` |
-| **Table 5** — per-ordering seed variance *(appendix)* | `make table5` | `tools/analysis/render_seed_variance_table.py` | `results/training/2_direct_training/random_seed/div2k_8q/tables/seed_variance.tex` |
-| **Table 6** — disturbance sweep *(appendix)* | `make table6` | `tools/analysis/render_disturbance_curve.py` | `results/training/4_exact_disturbance/tables/disturbance_psnr.tex` |
+| `make 00` | `experiments/00_dataset_dist.py` | Fig 3 — AR(1) histogram | `results/dataset_dist/figures/ar1_histogram.{pdf,svg}` |
+| `make 01` | `experiments/01_bases_quickdraw.py` | Table 3 Quick Draw column + Fig 5 Quick Draw panel | `results/structure/quickdraw_pca_vs_block_dct/{figures/freq_recon_grid_imgcat*,tables/published_8q_quickdraw.tex}` |
+| `make 02` | `experiments/02_bases_div2k.py` | Table 3 DIV2K column + Fig 4 topology loss + Fig 5 DIV2K panel | `results/structure/div2k_8q_pca_vs_block_dct/{figures/{topology_loss_curve,freq_recon_grid_img390}*,tables/published_8q_div2k.tex}` |
+| `make 03` | `experiments/03_dataset_compression.py` | Fig 6 — Quick Draw rate–distortion | `results/training/6_dataset_compression/quickdraw_5q/figures/rd_quickdraw_paper.{pdf,svg}` |
+| `make 04` | `experiments/04_robustness_qft.py` | Appendix C: Fig 10 unfreeze dynamics + Fig 11 a/b seed robustness + Table 5 | `results/training/2_direct_training/{unfreeze,random_seed}/…` |
+| `make 05` | `experiments/05_robustness_dct_iv.py` | Appendix D: Figs 12–14 + Table 6 disturbance sweep | `results/training/4_exact_disturbance/…` |
 
-Shortcuts: `make figures` (all figures), `make tables` (all tables), `make all`.
+`make all` runs every section in order. Each section script prints its
+headline numbers to stdout as part of `verify()`, so you can spot-check
+against the paper without opening the PDF.
 
-**Not generated here.** Figure 3 (the AR(1) histogram), the title banner, and the
-hand-drawn circuit diagrams are built in the *paper* repository, not this one.
-See [REPRODUCE.md](REPRODUCE.md) for the details.
+**Not generated here.** The title banner and the hand-drawn circuit diagrams
+are built in the *paper* repository, not this one — Fig 3 (the AR(1)
+histogram) used to be paper-authored too, but now lives here (`make 00`) and
+the paper repo just copies the PDF. See [REPRODUCE.md](REPRODUCE.md) for the
+details.
 
 ## The experiments (how the committed data was produced)
 
-The tables above render from data that these training runs produced. You only
-need them to rebuild a results cell from scratch — `RETRAIN=1 make <target>`
-runs the right one for you, then re-renders. The headline training budget is
-`--epochs 112 --no-early-stop` (1008 steps).
+Each section script has a `--retrain` mode (triggered by `RETRAIN=1 make 0X`)
+that reruns the underlying experiment before rendering, instead of reading the
+committed data. The real training/sweep drivers it calls live in
+`experiments/_train/`, one per section that has something to retrain — the
+headline training budget for the two basis-comparison drivers is
+`--epochs 112 --no-early-stop` (1008 steps):
 
-| Experiment | Training driver | Writes to |
+| Section | Training driver | Writes to |
 |---|---|---|
-| Quick Draw bases (m=n=5, 32×32) | `experiments/paper/quickdraw_pca_vs_block_dct.py` | `results/structure/quickdraw_pca_vs_block_dct/by_basis/` |
-| DIV2K-8q bases (m=n=8, 256×256) | `experiments/paper/div2k_8q_pca_vs_block_dct.py` | `results/structure/div2k_8q_pca_vs_block_dct/by_basis/` |
-| QFT unfreeze sweep | `experiments/qft/qft_freeze_sweep.py` | `results/training/2_direct_training/unfreeze/` |
-| QFT random-seed sweep | `experiments/qft/qft_seed_sweep.py` | `results/training/2_direct_training/random_seed/` |
-| DCT-IV disturbance sweep | `tools/run_dct4_disturbance_sweep.py` | `results/training/4_exact_disturbance/` |
-| Dataset compression / rate–distortion | `experiments/misc/dataset_compression.py` | `results/training/6_dataset_compression/` |
-| Structure inclusion (block emergence) | `experiments/qft/qft_structure_inclusion.py` | `results/training/1_structure_inclusion/` |
+| `make 00` (Fig 3) | *(none — the AR(1) histogram is a direct statistic of the training-slice pixels, recomputed on every render, not a trained artifact)* | `results/dataset_dist/` |
+| `make 01` (Quick Draw bases, m=n=5, 32×32) | `experiments/_train/quickdraw_pca_vs_block_dct.py` | `results/structure/quickdraw_pca_vs_block_dct/by_basis/` |
+| `make 02` (DIV2K-8q bases, m=n=8, 256×256) | `experiments/_train/div2k_8q_pca_vs_block_dct.py` | `results/structure/div2k_8q_pca_vs_block_dct/by_basis/` |
+| `make 03` (dataset compression / rate–distortion) | `experiments/_train/dataset_compression.py` | `results/training/6_dataset_compression/` |
+| `make 04` (QFT seed sweep → Table 5 + Fig 11a) | `experiments/_train/qft_seed_sweep.py` | `data/direct_training/random_seed/` |
+| `make 05` (DCT-IV disturbance sweep) | `experiments/_train/dct4_disturbance_sweep.py` | `data/exact_disturbance/` |
 
-The two headline drivers train once per **dataset** (a single shared basis per
-dataset × topology, on 500 training images), then evaluate on held-out test
-images. After a run, `tools/cellify_run.py` folds the flat output into the
-`by_basis/<basis>/` layout the renderers read.
+The two basis-comparison drivers (`01`, `02`) train once per **dataset** (a
+single shared basis per dataset × topology, on 500 training images), then
+evaluate on held-out test images. After a run, `tools/cellify_run.py` folds
+the flat output into the `by_basis/<basis>/` layout the section scripts read.
+
+`make 04`'s `--retrain` is only partial honesty, not a full regeneration: it
+reruns the seed sweep (Table 5, Fig 11a), but Fig 10's unfreeze traces and
+Fig 11b's seed-scatter data have no from-scratch generator on this branch —
+those two inputs stay as committed data under `data/direct_training/` and are
+only rendered, never rebuilt, by `RETRAIN=1 make 04`.
 
 ## Repository layout
 
 ```
-experiments/           Training entry points, grouped by family:
-                         paper/  the two headline drivers
-                         qft/    structure inclusion, seed + freeze sweeps
-                         dct4/   exact-init disturbance sweep
-                         misc/   dataset compression
-src/pdft_benchmarks/   The library: bases, baselines, pipeline, evaluation, codec.
-tools/paper/           Renderers for the main-text figures and tables.
-tools/analysis/        Renderers for the appendix studies + shared plot style.
-tools/                 CLI helpers: cellify, independent baseline reruns, validators.
-results/structure/     Headline per-dataset trees: by_basis/<basis>/ cells
-                         (metrics.json, env.json, loss_history/, trained_*.json),
-                         plus figures/ and tables/.
-results/training/      Appendix studies (numbered 1–6).
-tests/                 Unit + integration tests.
+experiments/
+  00_dataset_dist.py … 05_robustness_dct_iv.py   the six section scripts
+  _paper_style.py, _paper_table.py, _freq_recon.py  shared render helpers
+  _train/                                          training drivers used by --retrain
+  assets/quickdraw-cat.png                         vendored Fig 5 image
+data/               committed appendix inputs (seed/unfreeze/disturbance) the scripts read
+src/pdft_benchmarks/   the library: bases, baselines, pipeline, evaluation, codec
+results/            committed figures/tables (what the paper build reads)
+  structure/          headline per-dataset trees: by_basis/<basis>/ cells
+                       (metrics.json, env.json, loss_history/, trained_*.json),
+                       plus figures/ and tables/
+  training/           appendix studies (numbered 1–6)
+  dataset_dist/       Fig 3
+tools/              CLI helpers: cellify_run, independent_*_baselines,
+                     validate_manifest, eval_seed_basis
+tests/              unit + integration tests
 ```
 
 ## Datasets
 
-Only `make fig5` and retraining need the raw images; everything else renders
-from committed numbers. The datasets are not downloaded automatically — the
-loaders raise a clear error if they are missing. By default they are read from
+Only `make 00`/`01`/`02` and retraining need the raw images; everything else
+renders from committed numbers. (This is separate from the `data/` folder in
+the repo layout above, which holds committed *appendix* inputs, not raw image
+data.) The datasets are not downloaded automatically — the loaders raise a
+clear error if they are missing. By default they are read from
 `/home/claude-user/ParametricDFT-Benchmarks.jl/data/`:
 
 - `quickdraw/*.npy` — Quick Draw `numpy_bitmap` categories, 28×28 uint8.
