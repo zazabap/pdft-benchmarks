@@ -15,7 +15,7 @@
 #   fig10     fig:app_unfreeze_dynamics             tools/analysis/render_qft_unfreeze.py
 #   fig11     fig:app_seed_robustness{_a,_b}        render_init_distribution.py + render_seed_scatter_ratios.py
 #   fig12-14  fig:disturbance_{psnr,loss,recovery}  tools/analysis/render_disturbance_curve.py
-#   table3    tab:{div2k,quickdraw}_repr            render_div2k_paper_table.py + render_paper_table.py
+#   table3    tab:{div2k,quickdraw}_repr            render_div2k_paper_table.py (x2: div2k + quickdraw)
 #   table5    tab:app_seed_variance                 tools/analysis/render_seed_variance_table.py
 #   table6    tab:disturbance                       tools/analysis/render_disturbance_curve.py
 #
@@ -105,7 +105,9 @@ fig12-14: $(retrain_dist)
 # ------------------------------------------------------------------- tables
 table3: $(retrain_structure)
 	$(PYTHON) tools/paper/render_div2k_paper_table.py
-	$(PYTHON) tools/paper/render_paper_table.py
+	$(PYTHON) tools/paper/render_div2k_paper_table.py \
+	    --by-basis $(QD_DIR)/by_basis \
+	    --out $(QD_DIR)/tables/published_8q_quickdraw.tex
 
 table5: $(retrain_seed)
 	$(PYTHON) tools/analysis/render_seed_variance_table.py --base $(SEED_BASE)
