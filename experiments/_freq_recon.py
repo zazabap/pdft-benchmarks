@@ -1,20 +1,24 @@
 #!/usr/bin/env python3
-"""Render a single PNG: rows = methods, cols = (freq spectrum, reconstruction).
+"""Shared Fig 5 renderer: rows = keep ratios, cols = (freq spectrum, recon).
 
-Used by results/<dataset>_pca_vs_block_dct/writeup.typ (QuickDraw or
-DIV2K-8q, selected via --dataset) to embed a side-by-side visualisation
-of each transform's behaviour on representative test images at multiple
-keep ratios.
+Ported from tools/paper/render_freq_recon_grid.py so
+experiments/02_bases_div2k.py (DIV2K panel) and experiments/01_bases_quickdraw.py
+(Quick Draw panel) share one code path for Fig 5. Only the argparse CLI layer
+was flattened into render_freq_recon_grid()'s keyword arguments — the loading,
+reconstruction, and plotting logic is unchanged from the original renderer.
 
-Loads trained bases from results/<dataset>_pca_vs_block_dct/by_basis/{name}/trained_{name}.json,
-fits classical PCA baselines on the same train split, then applies the
-shared analysis helpers to compute frequency magnitudes and clipped
-recoveries for each method.
+Loads trained bases from <by_basis>/{name}/trained_{name}.json, fits classical
+PCA baselines on the same train split, then applies the shared analysis
+helpers to compute frequency magnitudes and clipped recoveries for each
+method.
+
+Does not use _paper_style.py — the original renderer never called
+set_paper_rcparams()/apply_paper_style(), so this port leaves matplotlib at
+its default rcParams to preserve behavior exactly.
 """
 
 from __future__ import annotations
 
-import argparse
 import os
 from pathlib import Path
 
@@ -65,68 +69,58 @@ TABLE_METHODS = (
     "block_dct_8", "block_fft_8",
 )
 
+DATASET_CONFIG = {
+    "quickdraw": {
+        "by_basis": "results/structure/quickdraw_pca_vs_block_dct/by_basis",
+        "out_default": "results/structure/quickdraw_pca_vs_block_dct/figures/freq_recon_grid.pdf",
+        "img_size": 32,
+        "title_label": "QuickDraw",
+    },
+    "div2k_8q": {
+        "by_basis": "results/structure/div2k_8q_pca_vs_block_dct/by_basis",
+        "out_default": "results/structure/div2k_8q_pca_vs_block_dct/figures/freq_recon_grid.pdf",
+        "img_size": 256,
+        "title_label": "DIV2K-8q",
+    },
+}
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--keep-ratios", type=str, default="0.05,0.10,0.15,0.20",
-                    help="Comma-separated keep ratios.")
-    ap.add_argument("--image-indices", type=str, default="",
-                    help="Comma-separated test-split image indices (use empty string to skip).")
-    ap.add_argument("--div2k-source-indices", type=str, default="",
-                    help="Comma-separated DIV2K-HR source-file IDs "
-                         "(e.g. '390' loads 0390.png). Loaded alongside "
-                         "any --image-indices via the same centre-crop + "
-                         "LANCZOS-resize preprocessing as load_div2k. "
-                         "Only valid for --dataset=div2k_8q.")
-    ap.add_argument("--n-train", type=int, default=500)
-    ap.add_argument("--n-test", type=int, default=50)
-    ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--out", default=None,
-                    help="Output PNG path. None → auto-derived from --dataset.")
-    ap.add_argument("--gpu", type=int, default=0)
-    ap.add_argument("--dataset", choices=["quickdraw", "div2k_8q"],
-                    default="quickdraw",
-                    help="Which dataset+experiment-tree to render against.")
-    ap.add_argument("--methods", type=str, default="",
-                    help="Comma-separated method names to include "
-                         "(e.g. 'fft,dct,qft,block_dct_8,real_rich_8'). "
-                         "Empty → include all available. When given, the "
-                         "columns follow this exact order.")
-    ap.add_argument("--custom-images", type=str, default="",
-                    help="Comma-separated 'path:label' (or just path) image "
-                         "files to render on, resized to the dataset img_size; "
-                         "label becomes the output _img<label> suffix.")
-    ap.add_argument("--by-basis-root", type=str, default="",
-                    help="Override the by_basis directory the trained cells are "
-                         "discovered from (default: the dataset's canonical tree).")
-    args = ap.parse_args()
 
-    DATASET_CONFIG = {
-        "quickdraw": {
-            "by_basis": "results/structure/quickdraw_pca_vs_block_dct/by_basis",
-            "out_default": "results/structure/quickdraw_pca_vs_block_dct/figures/freq_recon_grid.pdf",
-            "img_size": 32,
-            "title_label": "QuickDraw",
-        },
-        "div2k_8q": {
-            "by_basis": "results/structure/div2k_8q_pca_vs_block_dct/by_basis",
-            "out_default": "results/structure/div2k_8q_pca_vs_block_dct/figures/freq_recon_grid.pdf",
-            "img_size": 256,
-            "title_label": "DIV2K-8q",
-        },
-    }
-    cfg = DATASET_CONFIG[args.dataset]
-    if args.out is None:
-        args.out = cfg["out_default"]
+def render_freq_recon_grid(
+    dataset: str,
+    *,
+    keep_ratios: str = "0.05,0.10,0.15,0.20",
+    image_indices: str = "",
+    div2k_source_indices: str = "",
+    n_train: int = 500,
+    n_test: int = 50,
+    seed: int = 42,
+    out: str | None = None,
+    gpu: int = 0,
+    methods: str = "",
+    custom_images: str = "",
+    by_basis_root: str = "",
+) -> list[Path]:
+    """Render the freq-spectrum + reconstruction grid(s) for `dataset`.
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
+    One PNG-equivalent PDF+SVG pair (plus a companion `_freq` PDF+SVG pair)
+    is written per selected image, named `<out-stem>_img<label>.<ext>` /
+    `<out-stem>_img<label>_freq.<ext>`. Mirrors the CLI args of the original
+    tools/paper/render_freq_recon_grid.py 1:1 (dataset, keep-ratios,
+    image-indices, div2k-source-indices, n-train, n-test, seed, out, gpu,
+    methods, custom-images, by-basis-root). Returns the list of paths written.
+    """
+    cfg = DATASET_CONFIG[dataset]
+    if out is None:
+        out = cfg["out_default"]
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
     os.environ.setdefault("JAX_ENABLE_X64", "1")
 
-    image_indices = [int(x) for x in args.image_indices.split(",") if x.strip()]
-    div2k_source_indices = [int(x) for x in args.div2k_source_indices.split(",") if x.strip()]
-    if div2k_source_indices and args.dataset != "div2k_8q":
+    image_indices_list = [int(x) for x in image_indices.split(",") if x.strip()]
+    div2k_source_indices_list = [int(x) for x in div2k_source_indices.split(",") if x.strip()]
+    if div2k_source_indices_list and dataset != "div2k_8q":
         raise ValueError("--div2k-source-indices is only valid for --dataset=div2k_8q")
-    keep_ratios = [float(x) for x in args.keep_ratios.split(",")]
+    keep_ratios_list = [float(x) for x in keep_ratios.split(",")]
 
     import matplotlib
     matplotlib.use("Agg")
@@ -137,40 +131,40 @@ def main():
         _forward_magnitude, _baseline_freq_magnitude, _peak_normalized_log,
     )
 
-    if args.dataset == "quickdraw":
+    if dataset == "quickdraw":
         from pdft_benchmarks.datasets import load_quickdraw
-        train, test = load_quickdraw(args.n_train, args.n_test, seed=args.seed, img_size=cfg["img_size"])
-    elif args.dataset == "div2k_8q":
+        train, test = load_quickdraw(n_train, n_test, seed=seed, img_size=cfg["img_size"])
+    elif dataset == "div2k_8q":
         from pdft_benchmarks.datasets import load_div2k
-        train, test = load_div2k(args.n_train, args.n_test, seed=args.seed, size=cfg["img_size"])
+        train, test = load_div2k(n_train, n_test, seed=seed, size=cfg["img_size"])
     else:
-        raise ValueError(f"unknown dataset: {args.dataset}")
+        raise ValueError(f"unknown dataset: {dataset}")
 
     images: list = []
     image_labels: list[int] = []
-    for i in image_indices:
+    for i in image_indices_list:
         images.append(np.asarray(test[i], dtype=np.float64))
         image_labels.append(i)
-    for src_id in div2k_source_indices:
+    for src_id in div2k_source_indices_list:
         images.append(_load_div2k_source_image(src_id, size=cfg["img_size"]))
         image_labels.append(src_id)
-    for spec in [s for s in args.custom_images.split(",") if s.strip()]:
+    for spec in [s for s in custom_images.split(",") if s.strip()]:
         path, label = spec.rsplit(":", 1) if ":" in spec else (spec, Path(spec).stem)
         images.append(_load_custom_image(path, size=cfg["img_size"]))
         image_labels.append(label)
     if not images:
         raise ValueError("no images selected; pass --image-indices, "
                          "--div2k-source-indices, and/or --custom-images")
-    print(f"[viz] {len(images)} images, labels={image_labels}, ρ={keep_ratios}")
+    print(f"[viz] {len(images)} images, labels={image_labels}, ρ={keep_ratios_list}")
 
     # ---- Load trained bases ----
     # Discover from disk: any <by_basis>/<name>/trained_<name>.json present.
     # This handles both datasets and any future basis names without
     # hardcoding (e.g. blocked vs blocked_8, with/without mera).
-    by_basis_root = Path(args.by_basis_root) if args.by_basis_root else Path(cfg["by_basis"])
+    by_basis_root_path = Path(by_basis_root) if by_basis_root else Path(cfg["by_basis"])
     trained: dict = {}
-    if by_basis_root.is_dir():
-        for cell in sorted(by_basis_root.iterdir()):
+    if by_basis_root_path.is_dir():
+        for cell in sorted(by_basis_root_path.iterdir()):
             if not cell.is_dir():
                 continue
             name = cell.name
@@ -186,7 +180,7 @@ def main():
             except Exception as e:
                 print(f"[viz] failed to load {name}: {e}")
     else:
-        print(f"[viz] WARN: {by_basis_root} not a directory; no trained bases loaded")
+        print(f"[viz] WARN: {by_basis_root_path} not a directory; no trained bases loaded")
 
     # ---- Build classical baselines (fit on same train split) ----
     classical_names = ["fft", "dct", "block_fft_8", "block_dct_8", "bd_pca", "block_bd_pca_8"]
@@ -215,7 +209,7 @@ def main():
 
     rec: dict = {}
     for i_idx, img in zip(image_labels, images):
-        for kr in keep_ratios:
+        for kr in keep_ratios_list:
             per_method: dict = {}
             for name, basis in trained.items():
                 try:
@@ -234,13 +228,13 @@ def main():
             rec[(i_idx, kr)] = per_method
 
     # ---- Plot — one separate PNG per test image ----
-    # Method ordering. With --methods the columns follow that exact order;
+    # Method ordering. With `methods` the columns follow that exact order;
     # otherwise fall back to block-wrapped-on-the-left, global-on-the-right.
-    sample_key = (image_labels[0], keep_ratios[0])
+    sample_key = (image_labels[0], keep_ratios_list[0])
     available = list(rec[sample_key].keys())
-    if args.methods:
-        methods = [m.strip() for m in args.methods.split(",") if m.strip()]
-        missing = [m for m in methods if m not in available]
+    if methods:
+        methods_list = [m.strip() for m in methods.split(",") if m.strip()]
+        missing = [m for m in methods_list if m not in available]
         if missing:
             raise ValueError(
                 f"requested methods not available: {missing}; "
@@ -252,12 +246,12 @@ def main():
         # Plain discovery would also sweep in anything else that happens to
         # have a trained_*.json on disk (real_rich_full, block variants, ...),
         # which is how the two drifted apart before.
-        methods = [m for m in TABLE_METHODS if m in available]
+        methods_list = [m for m in TABLE_METHODS if m in available]
     # Learned (trained) bases get one header colour, classical baselines another.
     trained_names = set(trained)
-    n_methods = len(methods)
+    n_methods = len(methods_list)
     n_cols = 1 + n_methods
-    n_rows = len(keep_ratios)
+    n_rows = len(keep_ratios_list)
 
     cell = 0.78
     fig_w = n_cols * cell + 0.55
@@ -272,10 +266,11 @@ def main():
         "tebd_u4": "TEBD", "mera_u4": "MERA",
         "block_dct_8": "block DCT 8$\\times$8", "block_fft_8": "block DFT 8$\\times$8",
     }
-    headers = ["original"] + [header_labels.get(m, m) for m in methods]
+    headers = ["original"] + [header_labels.get(m, m) for m in methods_list]
 
-    out_base = Path(args.out)
+    out_base = Path(out)
     img_lookup = dict(zip(image_labels, images))
+    written: list[Path] = []
 
     for i_idx in image_labels:
         img = img_lookup[i_idx]
@@ -289,13 +284,13 @@ def main():
         for c, h in enumerate(headers):
             if c == 0:
                 color = "black"
-            elif methods[c - 1] in trained_names:
+            elif methods_list[c - 1] in trained_names:
                 color = "#0a3d8c"
             else:
                 color = "#666666"
             axes[0, c].set_title(h, fontsize=6.5, color=color, pad=2)
 
-        for r_idx, kr in enumerate(keep_ratios):
+        for r_idx, kr in enumerate(keep_ratios_list):
             ax0 = axes[r_idx, 0]
             ax0.imshow(img, cmap="gray", vmin=0, vmax=1,
                        interpolation="nearest", aspect="equal")
@@ -303,7 +298,7 @@ def main():
             ax0.set_ylabel(f"ρ={kr:.2f}", fontsize=8.5, rotation=90,
                            labelpad=4, va="center")
 
-            for c_idx, name in enumerate(methods, start=1):
+            for c_idx, name in enumerate(methods_list, start=1):
                 ax = axes[r_idx, c_idx]
                 r_img, p = rec[(i_idx, kr)][name]
                 if r_img is not None:
@@ -327,6 +322,7 @@ def main():
         out_svg = out_path.with_suffix(".svg")
         fig.savefig(out_svg, bbox_inches="tight")
         print(f"[viz] wrote {out_path} + {out_svg}")
+        written += [out_path, out_svg]
         plt.close(fig)
 
         # ---- Companion freq-space figure for the same image ----
@@ -350,7 +346,7 @@ def main():
         for c, h in enumerate(headers):
             if c == 0:
                 color = "black"
-            elif methods[c - 1] in trained_names:
+            elif methods_list[c - 1] in trained_names:
                 color = "#0a3d8c"
             else:
                 color = "#666666"
@@ -361,7 +357,7 @@ def main():
                          interpolation="nearest", aspect="equal")
         axes_f[0].set_xticks([]); axes_f[0].set_yticks([])
         last_im = None
-        for c_idx, name in enumerate(methods, start=1):
+        for c_idx, name in enumerate(methods_list, start=1):
             last_im = axes_f[c_idx].imshow(
                 log_freq[name], cmap="viridis", vmin=zmin, vmax=zmax,
                 interpolation="nearest", aspect="equal",
@@ -383,8 +379,7 @@ def main():
         out_freq_svg = out_freq.with_suffix(".svg")
         fig_f.savefig(out_freq_svg, bbox_inches="tight")
         print(f"[viz] wrote {out_freq} + {out_freq_svg}")
+        written += [out_freq, out_freq_svg]
         plt.close(fig_f)
 
-
-if __name__ == "__main__":
-    main()
+    return written

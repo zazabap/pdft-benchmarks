@@ -17,9 +17,9 @@ Needs pdft.DCT4Basis pinned at commit 5365a5a (sliced CRY apply). Put that pdft
 src first on PYTHONPATH; pdft_benchmarks is imported from THIS repo's src.
 
 Usage:
-    python experiments/dct4/dct4_disturbance_sweep.py --gpu 2 --fractions 0.01 --seeds 1
-    python experiments/dct4/dct4_disturbance_sweep.py --gpu 2 --seeds 1-3        # full grid
-    python experiments/dct4/dct4_disturbance_sweep.py --aggregate-only
+    python experiments/_train/dct4_disturbance_sweep.py --gpu 2 --fractions 0.01 --seeds 1
+    python experiments/_train/dct4_disturbance_sweep.py --gpu 2 --seeds 1-3        # full grid
+    python experiments/_train/dct4_disturbance_sweep.py --aggregate-only
 """
 from __future__ import annotations
 
