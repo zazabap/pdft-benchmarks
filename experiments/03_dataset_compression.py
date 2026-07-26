@@ -143,7 +143,7 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
     trained, dct, raw_bpi = cr["trained"], cr["dct"], cr["raw_bpi"]
     pct = lambda b: 100.0 * b / raw_bpi
 
-    fig, ax = plt.subplots(figsize=(3.5, 3.0))
+    fig, ax = plt.subplots(figsize=(3.5, 2.56))
 
     ax.plot([pct(p["bytes_per_image"]) for p in trained],
             [p["test"]["mean_psnr"] for p in trained],

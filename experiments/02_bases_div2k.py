@@ -120,7 +120,7 @@ def render_fig4_topology_loss(by_basis: Path = BY_BASIS,
     set_paper_rcparams()
 
     fig, (hi, lo) = plt.subplots(
-        2, 1, sharex=True, figsize=(3.9, 3.0),
+        2, 1, sharex=True, figsize=(3.9, 2.85),
         gridspec_kw=dict(height_ratios=[1, 1.15], hspace=0.08))
 
     finals: dict[str, float] = {}
