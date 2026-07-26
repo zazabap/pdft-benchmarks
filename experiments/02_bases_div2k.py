@@ -140,24 +140,31 @@ def render_fig4_topology_loss(by_basis: Path = BY_BASIS,
     hi.set_yticks(UPPER_TICKS)
     lo.set_yticks(LOWER_TICKS)
 
-    # Drop the spines facing the break, then mark it with the usual diagonals.
+    # Match the RD panel's style: no top/right borders, thin dark spines,
+    # outward ticks, recessive grid. The spines facing the break are dropped
+    # too, and the break diagonals sit on the left edge only, since there is
+    # no right border any more.
+    for a in (hi, lo):
+        a.spines["top"].set_visible(False)
+        a.spines["right"].set_visible(False)
     hi.spines["bottom"].set_visible(False)
     lo.spines["top"].set_visible(False)
-    hi.tick_params(bottom=False, labelsize=8.5)
-    lo.tick_params(labelsize=8.5)
+    hi.tick_params(bottom=False, labelsize=8, direction="out")
+    lo.tick_params(labelsize=8, direction="out")
     brk = dict(marker=[(-1, -0.5), (1, 0.5)], markersize=3.6, linestyle="none",
-               color="k", mec="k", mew=0.8, clip_on=False)
-    hi.plot([0, 1], [0, 0], transform=hi.transAxes, **brk)
-    lo.plot([0, 1], [1, 1], transform=lo.transAxes, **brk)
+               color="0.25", mec="0.25", mew=0.8, clip_on=False)
+    hi.plot([0], [0], transform=hi.transAxes, **brk)
+    lo.plot([0], [1], transform=lo.transAxes, **brk)
 
     for a in (hi, lo):
-        a.grid(alpha=0.25, linewidth=0.5)
-        for sp in a.spines.values():
-            sp.set_linewidth(0.8)
+        a.grid(alpha=0.22, linewidth=0.5)
+        for side in ("left", "bottom"):
+            a.spines[side].set_linewidth(0.8)
+            a.spines[side].set_color("0.25")
 
-    lo.set_xlabel("training step", fontsize=9.5)
+    lo.set_xlabel("training step", fontsize=9)
     lo.set_xlim(0, 1010)
-    hi.legend(fontsize=8, frameon=False, loc="upper right",
+    hi.legend(fontsize=7.8, frameon=False, loc="upper right",
               handlelength=2.2, labelspacing=0.22, borderaxespad=0.2)
     fig.tight_layout(pad=0.4)
     fig.subplots_adjust(left=0.135, right=0.985, top=0.985)
