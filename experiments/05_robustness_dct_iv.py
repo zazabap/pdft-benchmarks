@@ -95,6 +95,18 @@ def _pct(fk: str) -> float:
     return float(fk) * 100.0
 
 
+def _paper_axes_style(ax):
+    """Match the main-content figure family (Figs 4a/4b): no top/right
+    spines, thin dark left/bottom spines, outward ticks, recessive grid."""
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    for side in ("left", "bottom"):
+        ax.spines[side].set_linewidth(0.8)
+        ax.spines[side].set_color("0.25")
+    ax.tick_params(labelsize=8, direction="out")
+    ax.grid(alpha=0.22, linewidth=0.5)
+
+
 def _save(fig, out_stem: Path) -> None:
     """Write <out_stem>.pdf and <out_stem>.svg -- both committed formats for
     every disturbance figure (unlike 04's paper figures, which are PDF-only)."""
@@ -147,26 +159,31 @@ def render_fig_recovery(ss: dict, out_stem: Path = FIG_RECOVERY) -> Path:
 
     fractions = [f"{f:g}" for f in ss["fractions"]]
     xs = np.array([_pct(fk) for fk in fractions])
-    fig, ax = plt.subplots(figsize=(5.2, 3.6))
+    fig, ax = plt.subplots(figsize=(3.5, 2.56))
     for rk in RHO_KEYS:
         colour, _ls, mk = STYLE[rk]
         tr = np.array([ss["agg_trained"][fk][rk]["mean"] for fk in fractions])
         un = np.array([ss["agg_untrained"][fk][rk]["mean"] for fk in fractions])
-        ax.plot(xs, tr, "-", color=colour, marker=mk, ms=4, lw=1.6)
-        ax.plot(xs, un, ":", color=colour, marker=mk, ms=3, lw=1.3, alpha=0.75)
+        ax.plot(xs, tr, "-", color=colour, marker=mk, ms=3.2,
+                markeredgewidth=0, lw=1.8)
+        ax.plot(xs, un, ":", color=colour, marker=mk, ms=2.8,
+                markeredgewidth=0, lw=1.4, alpha=0.8)
     ax.set_xscale("log")
-    ax.set_xlabel("disturbed parameters (% of 2200 gate entries)")
-    ax.set_ylabel("test PSNR (dB)")
+    ax.set_xlabel("disturbed parameters (% of 2200 entries)", fontsize=9)
+    ax.set_ylabel("test PSNR (dB)", fontsize=9)
     ax.set_xticks(xs)
-    ax.set_xticklabels([f"{v:g}" for v in xs], fontsize=8)
-    ax.grid(True, which="both", ls=":", lw=0.4, alpha=0.5)
-    handles = [Line2D([], [], color=STYLE[rk][0], marker=STYLE[rk][2], ms=4,
-                      lw=1.6, label=RHO_LABEL[rk]) for rk in RHO_KEYS]
-    handles += [Line2D([], [], color="0.2", lw=1.6, ls="-", label="trained"),
-                Line2D([], [], color="0.2", lw=1.3, ls=":",
+    ax.set_xticklabels([f"{v:g}" for v in xs], fontsize=7.5)
+    ax.minorticks_off()
+    _paper_axes_style(ax)
+    handles = [Line2D([], [], color=STYLE[rk][0], marker=STYLE[rk][2], ms=3.2,
+                      lw=1.8, label=RHO_LABEL[rk]) for rk in RHO_KEYS]
+    handles += [Line2D([], [], color="0.2", lw=1.8, ls="-", label="trained"),
+                Line2D([], [], color="0.2", lw=1.4, ls=":",
                        label="perturbed init")]
-    ax.legend(handles=handles, frameon=False, fontsize=7.5, ncol=2,
-              loc="lower left")
+    ax.legend(handles=handles, frameon=False, fontsize=7.2, ncol=2,
+              loc="lower left", handlelength=1.9, labelspacing=0.3,
+              columnspacing=1.0, borderaxespad=0.2)
+    fig.tight_layout(pad=0.4)
     _save(fig, out_stem)
     return out_stem
 
@@ -178,27 +195,30 @@ def render_fig_recovery(ss: dict, out_stem: Path = FIG_RECOVERY) -> Path:
 def render_fig_init_loss(ss: dict, out_stem: Path = FIG_INIT_LOSS) -> Path:
     fractions = [f"{f:g}" for f in ss["fractions"]]
     xs = np.array([_pct(fk) for fk in fractions])
-    fig, ax = plt.subplots(figsize=(5.2, 3.6))
+    fig, ax = plt.subplots(figsize=(3.5, 2.56))
     im = np.array([ss["agg_init_loss"][fk]["mean"] for fk in fractions])
     isd = np.array([ss["agg_init_loss"][fk]["std"] for fk in fractions])
     fm = np.array([ss["agg_final_loss"][fk]["mean"] for fk in fractions])
     fsd = np.array([ss["agg_final_loss"][fk]["std"] for fk in fractions])
-    ax.plot(xs, im, "-", color="#D55E00", marker="o", ms=4, lw=1.6,
-            label="at init (perturbed)")
+    ax.plot(xs, im, "-", color="#D55E00", marker="o", ms=3.2,
+            markeredgewidth=0, lw=1.8, label="at init (perturbed)")
     ax.fill_between(xs, im - isd, im + isd, color="#D55E00", alpha=0.18, lw=0)
-    ax.plot(xs, fm, "--", color="#009E73", marker="s", ms=4, lw=1.6,
-            label="after training")
+    ax.plot(xs, fm, "--", color="#009E73", marker="s", ms=3.2,
+            markeredgewidth=0, lw=1.8, label="after training")
     ax.fill_between(xs, fm - fsd, fm + fsd, color="#009E73", alpha=0.18, lw=0)
     if ss.get("baseline") and ss["baseline"].get("init_loss") is not None:
-        ax.axhline(ss["baseline"]["init_loss"], color="k", ls=":", lw=0.9, alpha=0.55,
-                   label="exact init")
+        ax.axhline(ss["baseline"]["init_loss"], color="k", ls=":", lw=0.9,
+                   alpha=0.55, label="exact init")
     ax.set_xscale("log")
-    ax.set_xlabel("disturbed parameters (% of 2200 gate entries)")
-    ax.set_ylabel("top-$k$ MSE loss (train pool)")
+    ax.set_xlabel("disturbed parameters (% of 2200 entries)", fontsize=9)
+    ax.set_ylabel("top-$k$ MSE loss (train pool)", fontsize=9)
     ax.set_xticks(xs)
-    ax.set_xticklabels([f"{v:g}" for v in xs])
-    ax.grid(True, which="both", ls=":", lw=0.4, alpha=0.5)
-    ax.legend(frameon=False, fontsize=8)
+    ax.set_xticklabels([f"{v:g}" for v in xs], fontsize=7.5)
+    ax.minorticks_off()
+    _paper_axes_style(ax)
+    ax.legend(frameon=False, fontsize=7.5, loc="upper left",
+              handlelength=1.9, labelspacing=0.3, borderaxespad=0.2)
+    fig.tight_layout(pad=0.4)
     _save(fig, out_stem)
     return out_stem
 
