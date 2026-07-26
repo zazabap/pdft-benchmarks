@@ -179,22 +179,30 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
             linestyle="none", markerfacecolor="white", markeredgecolor="black",
             markeredgewidth=1.0, zorder=6)
 
-    # Label placement is deterministic and collision-free: the two %-labels
-    # sit ABOVE the 35 dB line on opposite sides of their markers, the two
-    # dB-labels sit BELOW their markers on opposite sides of the 40% line,
-    # each in its series color, with a white bbox so grid/guides never
-    # strike through the text.
+    # Label placement is deterministic and collision-free. Both curves climb
+    # to the upper right, so: "42%" sits above the 35 dB guide left of its
+    # marker; "46%" sits BELOW the guide right of its marker (empty wedge --
+    # both curves have crossed above 35 dB there); "31.1 dB" sits below-right
+    # of its marker under the green curve; "34.0 dB" gets a thin leader to
+    # the open zone upper-left, since the blue curve runs straight into its
+    # marker from below-left. White bboxes keep guides/grid from striking
+    # through the text.
     LBL = dict(textcoords="offset points", fontsize=7.5, zorder=7,
                bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
                          edgecolor="none", alpha=0.85))
     ax.annotate(f"{xr:.0f}%", xy=(xr, PSNR_CUT), xytext=(-5, 7),
                 ha="right", va="bottom", color=BLUE, **LBL)
-    ax.annotate(f"{xd:.0f}%", xy=(xd, PSNR_CUT), xytext=(5, 7),
-                ha="left", va="bottom", color=GREEN, **LBL)
-    ax.annotate(f"{y_trained:.1f} dB", xy=(V_PCT, y_trained), xytext=(-7, -9),
-                ha="right", va="top", color=BLUE, **LBL)
+    ax.annotate(f"{xd:.0f}%", xy=(xd, PSNR_CUT), xytext=(5, -9),
+                ha="left", va="top", color=GREEN, **LBL)
     ax.annotate(f"{y_dct:.1f} dB", xy=(V_PCT, y_dct), xytext=(7, -9),
                 ha="left", va="top", color=GREEN, **LBL)
+    ax.annotate(f"{y_trained:.1f} dB", xy=(V_PCT, y_trained),
+                xytext=(27.0, 36.6), textcoords="data",
+                ha="left", va="center", fontsize=7.5, color=BLUE, zorder=7,
+                bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
+                          edgecolor="none", alpha=0.85),
+                arrowprops=dict(arrowstyle="-", color="0.45", linewidth=0.7,
+                                shrinkA=2, shrinkB=4))
 
     ax.set_xlabel("compressed size (% of raw)", fontsize=9)
     ax.set_ylabel("test PSNR (dB)", fontsize=9)
