@@ -65,7 +65,7 @@ from pdft_benchmarks._loading import load_trained_basis  # noqa: F401  (re-expor
 # order the table lists them. Bases absent for a dataset (MERA needs a
 # power-of-two qubit count, so it is undefined on Quick Draw's 5) drop out.
 TABLE_METHODS = (
-    "rich_full", "dct4_ctl", "qft", "entangled_qft", "tebd_u4", "mera_u4",
+    "qft", "entangled_qft", "rich_full", "tebd_u4", "mera_u4", "dct4_ctl",
     "block_dct_8", "block_fft_8",
 )
 

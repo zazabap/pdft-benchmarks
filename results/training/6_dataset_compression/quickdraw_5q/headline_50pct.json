@@ -29,6 +29,33 @@
  },
  "budget_bytes": 281600.0,
  "by_basis": {
+  "dct4_ctl": {
+   "keep_ratio": 0.3,
+   "bits": 8,
+   "blob_bytes_total": 233581,
+   "basis_bytes": 23698,
+   "total_bytes": 257279,
+   "bytes_per_image": 467.78,
+   "ratio_vs_raw": 0.45681640625,
+   "train": {
+    "mean_mse": 0.0002605013187305582,
+    "std_mse": 0.0002443737679960861,
+    "mean_psnr": 37.81619939281023,
+    "std_psnr": 4.421030748522333,
+    "mean_ssim": 0.9483189749888993,
+    "std_ssim": 0.02137966514531416,
+    "nan_count": 0
+   },
+   "test": {
+    "mean_mse": 0.00024792254066140673,
+    "std_mse": 0.00018444813446913072,
+    "mean_psnr": 37.31966985367159,
+    "std_psnr": 3.431024263798171,
+    "mean_ssim": 0.9488673726956242,
+    "std_ssim": 0.016214778476799602,
+    "nan_count": 0
+   }
+  },
   "real_rich": {
    "keep_ratio": 0.4,
    "bits": 8,

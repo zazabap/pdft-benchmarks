@@ -31,3 +31,19 @@ dB below the committed structure-tree tables; compare gaps, not absolutes.
 
 `metrics.json` + `env.json` here are the retrained run's own outputs
 (includes the same-run classical baselines used for the gap check above).
+
+## DCT-IV contender added (2026-07-26)
+
+`trained_dct4_ctl.json` is the committed
+`results/structure/quickdraw_pca_vs_block_dct/by_basis/dct4_ctl` cell's
+checkpoint (trained on the current data snapshot; its plain top-k metrics
+reproduce here to within quantization), stored **realified**: the U(1)^4
+sign gates sit ~1e-3 off the exact real point after training, and zeroing
+the imaginary parts measured 0.000 dB PSNR change at every (keep_ratio,
+bits) grid point on the test split while shrinking the stored basis file
+from 65,307 to 23,698 bytes. The codec reads this exact file
+(is_complex=False), so the counted basis bytes are what the decoder uses.
+The rd_curves.json sweep was regenerated on CPU with all four contenders
+(dct4_ctl, real_rich, rich, block_dct_8); the pre-existing contenders'
+readings reproduced the prior committed sweep (35 dB crossing 369 vs 474
+B/img, +7.0 dB at 40% of raw).

@@ -41,7 +41,13 @@ $k\/d in {0.05, dots, 0.5}$, $b in {6, 8, 10}$, all 550 images (500 train
 \+ 50 held-out test, seed-42 split). All PSNR/SSIM below are on the 50
 held-out test images. The real-valued rich bases were retrained at the
 headline budget (1008 steps, no early stop) because the original runs
-saved only metrics, not parameters (see "Reproduction gate" below).
+saved only metrics, not parameters (see "Reproduction gate" below). The
+2026-07-26 refresh added the trained DCT-IV (`dct4_ctl`, the strongest
+learned basis of the paper's results table) as a fourth contender; its
+checkpoint is stored realified — the trained sign gates sit $tilde.op 10^(-3)$
+off the exact real point and zeroing the imaginary parts measured 0.000 dB
+change at every grid point (see `GATE_NOTE.md`) — and its coefficients are
+coded as one real component each.
 
 = Headline: recovery at half the bytes
 
@@ -54,12 +60,18 @@ At a total budget of 50% of raw uint8 size, the best operating points are:
   [QuickDraw — real rich (trained)],
     [#f1(qd.by_basis.real_rich.bytes_per_image)], [#pct(qd.by_basis.real_rich)],
     [#f2(qd.by_basis.real_rich.test.mean_psnr)], [#f2(qd.by_basis.real_rich.test.mean_ssim)],
+  [QuickDraw — DCT-IV (trained)],
+    [#f1(qd.by_basis.dct4_ctl.bytes_per_image)], [#pct(qd.by_basis.dct4_ctl)],
+    [#f2(qd.by_basis.dct4_ctl.test.mean_psnr)], [#f2(qd.by_basis.dct4_ctl.test.mean_ssim)],
   [QuickDraw — block DCT 8×8],
     [#f1(qd.by_basis.block_dct_8.bytes_per_image)], [#pct(qd.by_basis.block_dct_8)],
     [#f2(qd.by_basis.block_dct_8.test.mean_psnr)], [#f2(qd.by_basis.block_dct_8.test.mean_ssim)],
   [DIV2K-8q — real rich (trained)],
     [#f1(dv.by_basis.real_rich_8.bytes_per_image)], [#pct(dv.by_basis.real_rich_8)],
     [#f2(dv.by_basis.real_rich_8.test.mean_psnr)], [#f2(dv.by_basis.real_rich_8.test.mean_ssim)],
+  [DIV2K-8q — DCT-IV (trained)],
+    [#f1(dv.by_basis.dct4_ctl.bytes_per_image)], [#pct(dv.by_basis.dct4_ctl)],
+    [#f2(dv.by_basis.dct4_ctl.test.mean_psnr)], [#f2(dv.by_basis.dct4_ctl.test.mean_ssim)],
   [DIV2K-8q — block DCT 8×8],
     [#f1(dv.by_basis.block_dct_8.bytes_per_image)], [#pct(dv.by_basis.block_dct_8)],
     [#f2(dv.by_basis.block_dct_8.test.mean_psnr)], [#f2(dv.by_basis.block_dct_8.test.mean_ssim)],
@@ -123,6 +135,24 @@ artifact of the codec machinery.
   point within the 50%-of-raw budget (dotted vertical). Grey dotted
   verticals: lossless deflate / PNG references.],
 )
+
+= The paper's Fig 6 contender: trained DCT-IV
+
+The paper's rate--distortion figure plots the trained DCT-IV against block
+DCT, for consistency with its results table (where DCT-IV is the strongest
+learned basis at most keep ratios). Off the Pareto frontiers of
+`rd_curves.json`: matched quality at 35 dB costs 426 B/img against block
+DCT's 474 (10.1% fewer bytes, peaking at 12.5% near 30 dB), and matched
+size at 40% of raw reads $+2.94$ dB (33.99 vs 31.06). At the 50%-of-raw
+grid budget the best DCT-IV point reaches
+#f2(qd.by_basis.dct4_ctl.test.mean_psnr) dB against block DCT's
+#f2(qd.by_basis.block_dct_8.test.mean_psnr). Within this sweep the
+real-valued rich basis remains the strongest storage basis (its curve and
+readings above are unchanged); the DCT-IV's matched-byte readings carry
+its amortised 23.7 KB basis file ($tilde.op$4% of a raw sketch per image).
+On the DIV2K control the DCT-IV needs $tilde.op$30% more bytes than block
+DCT at 35 dB and closes to within 2% at 38--40 dB — the no-gain control
+outcome, as with real rich.
 
 = What the advantage measures
 

@@ -34,6 +34,11 @@ results/**/failures/
 # per-step block-emergence training snapshots (bulky raw blobs; the curated
 # block_emergence_spectrogram.json + figures are tracked instead)
 results/**/checkpoints/
+# ...except the dataset-compression codec's stored basis files, whose byte
+# sizes are part of the experiment's accounting (counted in every reported
+# size) and which --retrain reads back in.
+!results/training/6_dataset_compression/*/checkpoints/
+!results/training/6_dataset_compression/*/checkpoints/**
 # raw XLA profiler traces (bulky protobuf; the curated profile.json + report.md
 # + figures alongside them carry the findings)
 results/**/trace/

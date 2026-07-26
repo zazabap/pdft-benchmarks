@@ -25,8 +25,13 @@ the figure outputs exist, reprints the renderer's own crossing headline
 (bytes/image at the matched-quality cut, dB at the matched-size cut) from
 rd_curves.json, and separately checks headline_50pct.json's numbers are
 internally consistent (byte accounting, budget respected) -- headline_50pct
-is the source of the paper's "50%-of-raw budget" sentence (+7.8 dB,
-44.7 vs 36.9 dB).
+is the source of the paper's "50%-of-raw budget" sentence.
+
+The storage contender is the trained DCT-IV basis (dct4_ctl), the
+strongest learned basis on Quick Draw in the paper's Table 3; its
+coefficients are stored real-only (see the sweep driver's docstring for
+the measured 0.00 dB justification). The retrained rich/real_rich curves
+stay in rd_curves.json for provenance but are no longer plotted.
 
 --retrain reruns experiments/_train/dataset_compression.py's real
 compress/store/decompress sweep directly (in-process, via its own main()),
@@ -35,8 +40,8 @@ own --out default already IS this results/ directory, so no redirection is
 needed here (unlike 04/05, which reroute a data/-relocated input back to an
 unchanged results/ path). QuickDraw runs on CPU per that script's docstring,
 but still needs the committed trained checkpoints
-(checkpoints/trained_{real_rich,rich}.json) and the QuickDraw dataset
-submodule.
+(checkpoints/trained_{dct4_ctl,real_rich,rich}.json) and the QuickDraw
+dataset submodule.
 """
 from __future__ import annotations
 
@@ -66,7 +71,7 @@ HEADLINE_50PCT = DDIR / "headline_50pct.json"
 FIG_OUT = DDIR / "figures/rd_quickdraw_paper"
 
 BLUE, GREEN = WONG["blue"], WONG["green"]
-RICH_KEY = "real_rich"      # the storage contender: real-valued trained RichBasis
+TRAINED_KEY = "dct4_ctl"    # the storage contender: trained DCT-IV basis
 DCT_KEY = "block_dct_8"     # classical reference
 PSNR_CUT = 35.0              # matched-quality horizontal reading (dB)
 V_PCT = 40.0                 # matched-size vertical reading (% of raw)
@@ -105,45 +110,43 @@ def _load_rd_curves(path: Path = RD_CURVES) -> dict:
 
 
 def _crossings(rd: dict) -> dict:
-    """Port of render_paper_compression_rd.py::main()'s crossing computation
-    for the quickdraw_5q branch: the matched-quality (bytes at PSNR_CUT) and
-    matched-size (PSNR at V_PCT of raw) readings for both bases, off their
-    Pareto frontiers."""
+    """The matched-quality (bytes at PSNR_CUT) and matched-size (PSNR at
+    V_PCT of raw) readings for the trained DCT-IV contender and the block
+    DCT reference, off their Pareto frontiers."""
     curves, meta = rd["curves"], rd["meta"]
     raw_bpi = meta["raw_bytes_per_image"]
-    rich = pareto(curves[RICH_KEY])
+    trained = pareto(curves[TRAINED_KEY])
     dct = pareto(curves[DCT_KEY])
 
-    x_rich = bytes_at_psnr(rich, PSNR_CUT)
+    x_trained = bytes_at_psnr(trained, PSNR_CUT)
     x_dct = bytes_at_psnr(dct, PSNR_CUT)
-    saved_pct = 100.0 * (1.0 - x_rich / x_dct)
+    saved_pct = 100.0 * (1.0 - x_trained / x_dct)
 
     v_bytes = V_PCT / 100.0 * raw_bpi
-    y_rich = psnr_at_bytes(rich, v_bytes)
+    y_trained = psnr_at_bytes(trained, v_bytes)
     y_dct = psnr_at_bytes(dct, v_bytes)
-    d_psnr = y_rich - y_dct
+    d_psnr = y_trained - y_dct
 
-    return dict(rich=rich, dct=dct, raw_bpi=raw_bpi,
-                x_rich=x_rich, x_dct=x_dct, saved_pct=saved_pct,
-                y_rich=y_rich, y_dct=y_dct, d_psnr=d_psnr)
+    return dict(trained=trained, dct=dct, raw_bpi=raw_bpi,
+                x_trained=x_trained, x_dct=x_dct, saved_pct=saved_pct,
+                y_trained=y_trained, y_dct=y_dct, d_psnr=d_psnr)
 
 
 # ===========================================================================
-# Fig 6 -- QuickDraw rate-distortion. Ports
-# tools/paper/render_paper_compression_rd.py::main()'s plotting body verbatim
-# for the quickdraw_5q branch (rich_key="real_rich", psnr_cut=35, v_pct=40).
+# Fig 6 -- QuickDraw rate-distortion (trained DCT-IV vs block DCT 8x8,
+# psnr_cut=35, v_pct=40).
 # ===========================================================================
 def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
     cr = _crossings(rd)
-    rich, dct, raw_bpi = cr["rich"], cr["dct"], cr["raw_bpi"]
+    trained, dct, raw_bpi = cr["trained"], cr["dct"], cr["raw_bpi"]
     pct = lambda b: 100.0 * b / raw_bpi
 
     fig, ax = plt.subplots(figsize=(3.5, 3.0))
 
-    ax.plot([pct(p["bytes_per_image"]) for p in rich],
-            [p["test"]["mean_psnr"] for p in rich],
+    ax.plot([pct(p["bytes_per_image"]) for p in trained],
+            [p["test"]["mean_psnr"] for p in trained],
             color=BLUE, linestyle="-", marker="o", markersize=4,
-            linewidth=2.0, label="RichBasis (trained)", zorder=3)
+            linewidth=2.0, label="DCT-IV (trained)", zorder=3)
     ax.plot([pct(p["bytes_per_image"]) for p in dct],
             [p["test"]["mean_psnr"] for p in dct],
             color=GREEN, linestyle="-.", marker="s", markersize=3.5,
@@ -165,23 +168,23 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
 
     # Horizontal reading -- compressed size (% of raw) where each curve
     # reaches PSNR_CUT.
-    xr, xd = pct(cr["x_rich"]), pct(cr["x_dct"])
+    xr, xd = pct(cr["x_trained"]), pct(cr["x_dct"])
     ax.plot([xr, xd], [PSNR_CUT, PSNR_CUT], marker="o", markersize=4.5,
             linestyle="none", markerfacecolor="white", markeredgecolor="black",
             markeredgewidth=1.0, zorder=6)
-    ax.annotate(f"{xr:.0f}%", xy=(xr, PSNR_CUT), xytext=(-11, -6),
-                textcoords="offset points", ha="right", va="top",
+    ax.annotate(f"{xr:.0f}%", xy=(xr, PSNR_CUT), xytext=(-12, 4),
+                textcoords="offset points", ha="right", va="bottom",
                 fontsize=8, color=BLUE)
     ax.annotate(f"{xd:.0f}%", xy=(xd, PSNR_CUT), xytext=(4, -8),
                 textcoords="offset points", ha="left", va="top",
                 fontsize=8, color=GREEN)
 
     # Vertical reading -- test PSNR at V_PCT of raw.
-    y_rich, y_dct = cr["y_rich"], cr["y_dct"]
-    ax.plot([V_PCT, V_PCT], [y_rich, y_dct], marker="o", markersize=4.5,
+    y_trained, y_dct = cr["y_trained"], cr["y_dct"]
+    ax.plot([V_PCT, V_PCT], [y_trained, y_dct], marker="o", markersize=4.5,
             linestyle="none", markerfacecolor="white", markeredgecolor="black",
             markeredgewidth=1.0, zorder=6)
-    ax.annotate(f"{y_rich:.1f} dB", xy=(V_PCT, y_rich), xytext=(-7, 2),
+    ax.annotate(f"{y_trained:.1f} dB", xy=(V_PCT, y_trained), xytext=(-7, 2),
                 textcoords="offset points", ha="right", va="bottom",
                 fontsize=8, color=BLUE)
     ax.annotate(f"{y_dct:.1f} dB", xy=(V_PCT, y_dct), xytext=(7, -2),
@@ -222,8 +225,7 @@ def verify() -> bool:
     exist, reprint the renderer's own crossing headline from rd_curves.json,
     and check headline_50pct.json's numbers are internally consistent (byte
     accounting + budget respected) -- that JSON is what the paper's
-    "50%-of-raw budget" sentence (+7.8 dB, 44.7 vs 36.9) is quoted from.
-    Returns True/False."""
+    "50%-of-raw budget" sentence is quoted from. Returns True/False."""
     ok = True
     for ext in ("pdf", "svg"):
         p = FIG_OUT.with_suffix(f".{ext}")
@@ -237,10 +239,10 @@ def verify() -> bool:
     rd = _load_rd_curves()
     cr = _crossings(rd)
     print(f"[verify] QuickDraw @ {PSNR_CUT:.0f} dB (matched quality):  "
-          f"rich={cr['x_rich']:.0f} B/img  dct={cr['x_dct']:.0f} B/img  "
+          f"dct4={cr['x_trained']:.0f} B/img  dct={cr['x_dct']:.0f} B/img  "
           f"-> {cr['saved_pct']:.1f}% fewer bytes")
     print(f"[verify] QuickDraw @ {V_PCT:.0f}%-of-raw (matched size):  "
-          f"rich={cr['y_rich']:.2f} dB  dct={cr['y_dct']:.2f} dB  "
+          f"dct4={cr['y_trained']:.2f} dB  dct={cr['y_dct']:.2f} dB  "
           f"-> +{cr['d_psnr']:.2f} dB")
 
     if not HEADLINE_50PCT.exists():
@@ -286,12 +288,12 @@ def verify() -> bool:
               f"({100 * entry['ratio_vs_raw']:.1f}% raw), "
               f"test {entry['test']['mean_psnr']:.2f} dB")
 
-    rich50 = headline["by_basis"].get(RICH_KEY)
+    trained50 = headline["by_basis"].get(TRAINED_KEY)
     dct50 = headline["by_basis"].get(DCT_KEY)
-    if rich50 and dct50:
-        gain = rich50["test"]["mean_psnr"] - dct50["test"]["mean_psnr"]
+    if trained50 and dct50:
+        gain = trained50["test"]["mean_psnr"] - dct50["test"]["mean_psnr"]
         print(f"[verify] 50%-of-raw budget headline: "
-              f"{rich50['test']['mean_psnr']:.1f} vs "
+              f"{trained50['test']['mean_psnr']:.1f} vs "
               f"{dct50['test']['mean_psnr']:.1f} dB -> +{gain:.1f} dB")
 
     print("[verify] headline_50pct.json OK (accounting + budget consistent)"
@@ -301,9 +303,10 @@ def verify() -> bool:
 
 # ===========================================================================
 # retrain() -- rerun the real compress/store/decompress sweep (needs the
-# committed trained_{real_rich,rich}.json checkpoints + the QuickDraw dataset
-# submodule; CPU-only per dataset_compression.py's own docstring). See the
-# module docstring above for why no data/ redirection happens here.
+# committed trained_{dct4_ctl,real_rich,rich}.json checkpoints + the
+# QuickDraw dataset submodule; CPU-only per dataset_compression.py's own
+# docstring). See the module docstring above for why no data/ redirection
+# happens here.
 # ===========================================================================
 def _run_module_main(script_path: Path, argv: list[str]) -> int:
     """Load `script_path` as a module (without executing its __main__ guard)
@@ -325,7 +328,7 @@ def _run_module_main(script_path: Path, argv: list[str]) -> int:
 def retrain(gpu: int | None = None,
             keep_ratios: str = "0.05,0.1,0.15,0.2,0.3,0.4,0.5",
             bits: str = "6,8,10",
-            contenders: str = "real,complex,block_dct_8",
+            contenders: str = "dct4,real,complex,block_dct_8",
             limit: int | None = None) -> int:
     """Rerun experiments/_train/dataset_compression.py's sweep for
     quickdraw_5q, overwriting rd_curves.json + headline_50pct.json in place
@@ -371,8 +374,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="--retrain keep-ratio grid.")
     ap.add_argument("--bits", default="6,8,10",
                     help="--retrain bit-depth grid.")
-    ap.add_argument("--contenders", default="real,complex,block_dct_8",
-                    help="--retrain subset of {real,complex,block_dct_8}.")
+    ap.add_argument("--contenders", default="dct4,real,complex,block_dct_8",
+                    help="--retrain subset of {dct4,real,complex,block_dct_8}.")
     ap.add_argument("--limit", type=int, default=None,
                     help="--retrain: cap images per split (smoke testing).")
     args = ap.parse_args(argv)

@@ -197,7 +197,7 @@ def render() -> dict:
             dataset="div2k_8q",
             image_indices="11",
             div2k_source_indices="390",
-            keep_ratios="0.01,0.05,0.10,0.15,0.20",
+            keep_ratios="0.01,0.05,0.10,0.20",
         )
         outputs["fig5_div2k"] = fig5_paths
     except Exception as e:

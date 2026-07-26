@@ -82,7 +82,7 @@ def render() -> dict:
         fig5_paths = render_freq_recon_grid(
             dataset="quickdraw",
             custom_images=f"{CAT_IMAGE}:cat",
-            keep_ratios="0.01,0.05,0.10,0.15,0.20",
+            keep_ratios="0.01,0.05,0.10,0.20",
         )
         outputs["fig5_quickdraw"] = fig5_paths
     except Exception as e:

@@ -9,11 +9,18 @@ bytes plus PSNR/SSIM per split. Emits:
     <out>/rd_curves.json       every grid point, per basis
     <out>/headline_50pct.json  best test-PSNR point with total <= 50% raw
 
-Contenders: the retrained real-valued rich basis (headline), the complex
-rich basis (honest 2x storage), and classical block_dct_8. Lossless
-references (zlib of raw uint8, per-image optimized PNG) are recorded for
-the figure. Sizes count blob bytes + the basis checkpoint file (stored
-once; 0 for the analytic DCT).
+Contenders: the trained DCT-IV basis (headline storage contender), the
+retrained real-valued rich basis, the complex rich basis (honest 2x
+storage), and classical block_dct_8. Lossless references (zlib of raw
+uint8, per-image optimized PNG) are recorded for the figure. Sizes count
+blob bytes + the basis checkpoint file (stored once; 0 for the analytic
+DCT).
+
+The DCT-IV contender stores real components only (is_complex=False): its
+U(1)^4 sign gates sit ~1e-3 off the exact real point after training, and
+discarding the resulting imaginary parts measured 0.00 dB PSNR change at
+every (keep_ratio, bits) grid point on the QuickDraw test split while
+saving the imaginary-component bytes.
 
 GPU: optional (--gpu isolates via CUDA_VISIBLE_DEVICES before JAX
 import). QuickDraw runs fine on CPU; DIV2K wants a GPU for the ~23k
@@ -31,9 +38,11 @@ from pathlib import Path
 
 DATASETS = {
     "quickdraw_5q": dict(loader="quickdraw", preset_ns="quickdraw",
-                         real_key="real_rich", complex_key="rich"),
+                         real_key="real_rich", complex_key="rich",
+                         dct4_key="dct4_ctl"),
     "div2k_8q":     dict(loader="div2k", preset_ns="div2k_8q",
-                         real_key="real_rich_8", complex_key="rich_8"),
+                         real_key="real_rich_8", complex_key="rich_8",
+                         dct4_key="dct4_ctl"),
 }
 DEFAULT_KEEP_RATIOS = "0.05,0.1,0.15,0.2,0.3,0.4,0.5"
 DEFAULT_BITS = "6,8,10"
@@ -53,8 +62,8 @@ def main() -> int:
                         help="Where blob files are written+read (default /tmp/claude-0/blobs/<dataset>)")
     parser.add_argument("--keep-ratios", default=DEFAULT_KEEP_RATIOS)
     parser.add_argument("--bits", default=DEFAULT_BITS)
-    parser.add_argument("--contenders", default="real,complex,block_dct_8",
-                        help="Subset of {real,complex,block_dct_8} (smoke runs can drop the bases)")
+    parser.add_argument("--contenders", default="dct4,real,complex,block_dct_8",
+                        help="Subset of {dct4,real,complex,block_dct_8} (smoke runs can drop the bases)")
     parser.add_argument("--limit", type=int, default=None,
                         help="Cap images per split (smoke testing)")
     args = parser.parse_args()
@@ -102,6 +111,15 @@ def main() -> int:
 
     wanted = {c.strip() for c in args.contenders.split(",") if c.strip()}
     contenders: dict[str, dict] = {}
+    if "dct4" in wanted:
+        # Real-component storage: the trained DCT-IV's U(1)^4 sign gates sit
+        # ~1e-3 off the exact real point, and dropping the imaginary parts
+        # measured 0.00 dB PSNR change at every grid point (see module
+        # docstring), so is_complex=False is the honest storage mode.
+        p = ckpt_dir / f"trained_{cfg['dct4_key']}.json"
+        contenders[cfg["dct4_key"]] = dict(
+            pair=basis_pair(load_trained_basis(p), is_complex=False),
+            basis_bytes=p.stat().st_size)
     if "real" in wanted:
         p = ckpt_dir / f"trained_{cfg['real_key']}.json"
         contenders[cfg["real_key"]] = dict(
