@@ -139,26 +139,34 @@ def render_fig_psnr_vs_f(ss: dict, out_stem: Path = FIG_PSNR_VS_F) -> Path:
 # Ports render_disturbance_curve.py::render_recovery().
 # ===========================================================================
 def render_fig_recovery(ss: dict, out_stem: Path = FIG_RECOVERY) -> Path:
+    """Single-axes recovery view: one colour per keep ratio, solid = trained
+    endpoint (flat), dotted = perturbed init (falling). Aspect matches the
+    init-loss companion panel so the paper can place them side by side at
+    equal heights."""
+    from matplotlib.lines import Line2D
+
     fractions = [f"{f:g}" for f in ss["fractions"]]
     xs = np.array([_pct(fk) for fk in fractions])
-    fig, axes = plt.subplots(2, 2, figsize=(PAPER_TEXTWIDTH, 5.0), sharex=True)
-    for ax, rk in zip(axes.ravel(), RHO_KEYS):
-        colour, ls, mk = STYLE[rk]
+    fig, ax = plt.subplots(figsize=(5.2, 3.6))
+    for rk in RHO_KEYS:
+        colour, _ls, mk = STYLE[rk]
         tr = np.array([ss["agg_trained"][fk][rk]["mean"] for fk in fractions])
         un = np.array([ss["agg_untrained"][fk][rk]["mean"] for fk in fractions])
-        ax.plot(xs, tr, "-", color=colour, marker=mk, ms=4, lw=1.6, label="trained")
-        ax.plot(xs, un, ":", color=colour, marker=mk, ms=3, lw=1.3, alpha=0.7,
-                label="perturbed init")
-        ax.set_xscale("log")
-        ax.set_title(RHO_LABEL[rk], fontsize=9)
-        ax.grid(True, which="both", ls=":", lw=0.4, alpha=0.5)
-        ax.legend(frameon=False, fontsize=7)
-    for ax in axes[-1]:
-        ax.set_xlabel("disturbed %")
-        ax.set_xticks(xs)
-        ax.set_xticklabels([f"{v:g}" for v in xs], fontsize=7)
-    for ax in axes[:, 0]:
-        ax.set_ylabel("PSNR (dB)")
+        ax.plot(xs, tr, "-", color=colour, marker=mk, ms=4, lw=1.6)
+        ax.plot(xs, un, ":", color=colour, marker=mk, ms=3, lw=1.3, alpha=0.75)
+    ax.set_xscale("log")
+    ax.set_xlabel("disturbed parameters (% of 2200 gate entries)")
+    ax.set_ylabel("test PSNR (dB)")
+    ax.set_xticks(xs)
+    ax.set_xticklabels([f"{v:g}" for v in xs], fontsize=8)
+    ax.grid(True, which="both", ls=":", lw=0.4, alpha=0.5)
+    handles = [Line2D([], [], color=STYLE[rk][0], marker=STYLE[rk][2], ms=4,
+                      lw=1.6, label=RHO_LABEL[rk]) for rk in RHO_KEYS]
+    handles += [Line2D([], [], color="0.2", lw=1.6, ls="-", label="trained"),
+                Line2D([], [], color="0.2", lw=1.3, ls=":",
+                       label="perturbed init")]
+    ax.legend(handles=handles, frameon=False, fontsize=7.5, ncol=2,
+              loc="lower left")
     _save(fig, out_stem)
     return out_stem
 
