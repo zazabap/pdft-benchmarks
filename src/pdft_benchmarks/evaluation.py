@@ -108,6 +108,7 @@ def evaluate_basis_shared(
     import jax
 
     import pdft  # noqa: F401  -- ensures jax_enable_x64 is set before any jnp use
+    import pdft.io  # noqa: F401  -- pdft does not re-export io; attribute access below needs this
 
     cpu_basis = jax.tree_util.tree_map(jax.device_get, basis)
 

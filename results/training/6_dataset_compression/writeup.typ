@@ -136,20 +136,20 @@ artifact of the codec machinery.
   verticals: lossless deflate / PNG references.],
 )
 
-= The paper's Fig 6 contender: trained DCT-IV
+= The DCT-IV contender
 
-The paper's rate--distortion figure plots the trained DCT-IV against block
-DCT, for consistency with its results table (where DCT-IV is the strongest
-learned basis at most keep ratios). Off the Pareto frontiers of
-`rd_curves.json`: matched quality at 35 dB costs 426 B/img against block
-DCT's 474 (10.1% fewer bytes, peaking at 12.5% near 30 dB), and matched
-size at 40% of raw reads $+2.94$ dB (33.99 vs 31.06). At the 50%-of-raw
-grid budget the best DCT-IV point reaches
+The trained DCT-IV — the strongest *full-image* basis of the paper's
+results table — is swept as a fourth contender. The paper's Fig 6 plots
+the blocked real rich basis above (the results table's leader at the
+codec-scale ratio $k\/d = 0.4$); the DCT-IV curve stays in
+`rd_curves.json`. Off its Pareto frontier: matched quality at 35 dB costs
+426 B/img against block DCT's 474 (10.1% fewer bytes, peaking at 12.5%
+near 30 dB), and matched size at 40% of raw reads $+2.94$ dB (33.99 vs
+31.06). At the 50%-of-raw grid budget the best DCT-IV point reaches
 #f2(qd.by_basis.dct4_ctl.test.mean_psnr) dB against block DCT's
-#f2(qd.by_basis.block_dct_8.test.mean_psnr). Within this sweep the
-real-valued rich basis remains the strongest storage basis (its curve and
-readings above are unchanged); the DCT-IV's matched-byte readings carry
-its amortised 23.7 KB basis file ($tilde.op$4% of a raw sketch per image).
+#f2(qd.by_basis.block_dct_8.test.mean_psnr). The real rich basis remains
+the strongest storage basis; the DCT-IV's matched-byte readings carry its
+amortised 23.7 KB basis file ($tilde.op$4% of a raw sketch per image).
 On the DIV2K control the DCT-IV needs $tilde.op$30% more bytes than block
 DCT at 35 dB and closes to within 2% at 38--40 dB — the no-gain control
 outcome, as with real rich.

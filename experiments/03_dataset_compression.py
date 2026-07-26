@@ -27,11 +27,12 @@ rd_curves.json, and separately checks headline_50pct.json's numbers are
 internally consistent (byte accounting, budget respected) -- headline_50pct
 is the source of the paper's "50%-of-raw budget" sentence.
 
-The storage contender is the trained DCT-IV basis (dct4_ctl), the
-strongest learned basis on Quick Draw in the paper's Table 3; its
-coefficients are stored real-only (see the sweep driver's docstring for
-the measured 0.00 dB justification). The retrained rich/real_rich curves
-stay in rd_curves.json for provenance but are no longer plotted.
+The storage contender is the trained blocked real RichBasis (real_rich:
+an 8x8-blocked RealRichBasis, the strongest basis in the paper's results
+table at the codec-scale ratio rho=0.4), plotted against block DCT 8x8 --
+the two transforms share JPEG's block structure, so the comparison
+isolates the learned basis. The dct4_ctl and complex rich curves stay in
+rd_curves.json for provenance but are not plotted.
 
 --retrain reruns experiments/_train/dataset_compression.py's real
 compress/store/decompress sweep directly (in-process, via its own main()),
@@ -71,7 +72,7 @@ HEADLINE_50PCT = DDIR / "headline_50pct.json"
 FIG_OUT = DDIR / "figures/rd_quickdraw_paper"
 
 BLUE, GREEN = WONG["blue"], WONG["green"]
-TRAINED_KEY = "dct4_ctl"    # the storage contender: trained DCT-IV basis
+TRAINED_KEY = "real_rich"   # the storage contender: 8x8-blocked real RichBasis
 DCT_KEY = "block_dct_8"     # classical reference
 PSNR_CUT = 35.0              # matched-quality horizontal reading (dB)
 V_PCT = 40.0                 # matched-size vertical reading (% of raw)
@@ -146,7 +147,7 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
     ax.plot([pct(p["bytes_per_image"]) for p in trained],
             [p["test"]["mean_psnr"] for p in trained],
             color=BLUE, linestyle="-", marker="o", markersize=4,
-            linewidth=2.0, label="DCT-IV (trained)", zorder=3)
+            linewidth=2.0, label="blocked RichBasis (trained)", zorder=3)
     ax.plot([pct(p["bytes_per_image"]) for p in dct],
             [p["test"]["mean_psnr"] for p in dct],
             color=GREEN, linestyle="-.", marker="s", markersize=3.5,
@@ -172,8 +173,8 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
     ax.plot([xr, xd], [PSNR_CUT, PSNR_CUT], marker="o", markersize=4.5,
             linestyle="none", markerfacecolor="white", markeredgecolor="black",
             markeredgewidth=1.0, zorder=6)
-    ax.annotate(f"{xr:.0f}%", xy=(xr, PSNR_CUT), xytext=(-12, 4),
-                textcoords="offset points", ha="right", va="bottom",
+    ax.annotate(f"{xr:.0f}%", xy=(xr, PSNR_CUT), xytext=(-11, -6),
+                textcoords="offset points", ha="right", va="top",
                 fontsize=8, color=BLUE)
     ax.annotate(f"{xd:.0f}%", xy=(xd, PSNR_CUT), xytext=(4, -8),
                 textcoords="offset points", ha="left", va="top",
@@ -239,10 +240,10 @@ def verify() -> bool:
     rd = _load_rd_curves()
     cr = _crossings(rd)
     print(f"[verify] QuickDraw @ {PSNR_CUT:.0f} dB (matched quality):  "
-          f"dct4={cr['x_trained']:.0f} B/img  dct={cr['x_dct']:.0f} B/img  "
+          f"rich={cr['x_trained']:.0f} B/img  dct={cr['x_dct']:.0f} B/img  "
           f"-> {cr['saved_pct']:.1f}% fewer bytes")
     print(f"[verify] QuickDraw @ {V_PCT:.0f}%-of-raw (matched size):  "
-          f"dct4={cr['y_trained']:.2f} dB  dct={cr['y_dct']:.2f} dB  "
+          f"rich={cr['y_trained']:.2f} dB  dct={cr['y_dct']:.2f} dB  "
           f"-> +{cr['d_psnr']:.2f} dB")
 
     if not HEADLINE_50PCT.exists():
