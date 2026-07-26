@@ -80,8 +80,8 @@ from pdft_benchmarks.plots.style import WONG, save_figure, set_paper_rcparams  #
 # RichBasis, so it sits second and gets a high-contrast black dash-dot to stand
 # apart from the unitary family's coloured curves.
 TOPOLOGY_SERIES = [
-    ("rich_full",     "RichBasis",        WONG["blue"],      "-",               "o"),
-    ("dct4_ctl",      "DCT-IV",           WONG["black"],     (0, (3, 1, 1, 1)), "P"),
+    ("rich_full",     "RichBasis",        WONG["black"],     "-",               "o"),
+    ("dct4_ctl",      "DCT-IV",           WONG["blue"],      (0, (3, 1, 1, 1)), "P"),
     ("tebd_u4",       "TEBD",             WONG["green"],     (0, (5, 2)),       "D"),
     ("mera_u4",       "MERA",             WONG["sky"],       (0, (1, 1)),       "v"),
     ("qft",           "QFT",              WONG["orange"],    (0, (5, 2)),       "s"),

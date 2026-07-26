@@ -70,9 +70,9 @@ RD_CURVES = DDIR / "rd_curves.json"
 HEADLINE_50PCT = DDIR / "headline_50pct.json"
 FIG_OUT = DDIR / "figures/rd_quickdraw_paper"
 
-# Colours track Fig 4's topology-series assignment (DCT-IV = Wong black
+# Colours track Fig 4's topology-series assignment (DCT-IV = Wong blue
 # there), and the classical reference wears the paper's classical grey.
-TRAINED_C, DCT_C = WONG["black"], "0.45"
+TRAINED_C, DCT_C = WONG["blue"], "0.45"
 TRAINED_KEY = "dct4_ctl"    # the storage contender: trained DCT-IV basis
 DCT_KEY = "block_dct_8"     # classical reference
 PSNR_CUT = 35.0              # matched-quality horizontal reading (dB)
@@ -148,7 +148,7 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
     ax.plot([pct(p["bytes_per_image"]) for p in trained],
             [p["test"]["mean_psnr"] for p in trained],
             color=TRAINED_C, linestyle="-", marker="o", markersize=3.2,
-            markeredgewidth=0, linewidth=1.8, label="DCT-IV (trained)",
+            markeredgewidth=0, linewidth=1.8, label="DCT-IV",
             zorder=3)
     ax.plot([pct(p["bytes_per_image"]) for p in dct],
             [p["test"]["mean_psnr"] for p in dct],
@@ -198,8 +198,8 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
                 ha="left", va="top", color=DCT_C, **LBL)
     ax.annotate(f"{y_dct:.1f} dB", xy=(V_PCT, y_dct), xytext=(7, -9),
                 ha="left", va="top", color=DCT_C, **LBL)
-    ax.annotate(f"{y_trained:.1f} dB", xy=(V_PCT, y_trained), xytext=(7, -4),
-                ha="left", va="top", color=TRAINED_C, **LBL)
+    ax.annotate(f"{y_trained:.1f} dB", xy=(V_PCT, y_trained), xytext=(8, 0),
+                ha="left", va="center", color=TRAINED_C, **LBL)
 
     ax.set_xlabel("compressed size (% of raw)", fontsize=9)
     ax.set_ylabel("test PSNR (dB)", fontsize=9)
