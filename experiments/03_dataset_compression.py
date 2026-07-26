@@ -179,25 +179,31 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
             linestyle="none", markerfacecolor="white", markeredgecolor="black",
             markeredgewidth=1.0, zorder=6)
 
-    # Label placement is deterministic and collision-free. Both curves climb
-    # to the upper right, so: the trained %-label sits above the 35 dB guide
-    # left of its marker; the block %-label sits BELOW the guide right of
-    # its marker (empty wedge -- both curves have crossed above 35 dB
-    # there); "31.1 dB" sits below-right of its marker under the green
-    # curve; the trained dB-label sits above-left of its marker, which
-    # itself sits above the 35 dB guide in open space. White bboxes keep
-    # guides/grid from striking through the text.
-    LBL = dict(textcoords="offset points", fontsize=7.5, zorder=7,
-               bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
-                         edgecolor="none", alpha=0.85))
-    ax.annotate(f"{xr:.0f}%", xy=(xr, PSNR_CUT), xytext=(-5, 7),
-                ha="right", va="bottom", color=BLUE, **LBL)
-    ax.annotate(f"{xd:.0f}%", xy=(xd, PSNR_CUT), xytext=(5, -9),
-                ha="left", va="top", color=GREEN, **LBL)
-    ax.annotate(f"{y_dct:.1f} dB", xy=(V_PCT, y_dct), xytext=(7, -9),
-                ha="left", va="top", color=GREEN, **LBL)
-    ax.annotate(f"{y_trained:.1f} dB", xy=(V_PCT, y_trained), xytext=(7, -4),
-                ha="left", va="top", color=BLUE, **LBL)
+    # The two readings are drawn as GAPS, not as four separate values:
+    # a horizontal double arrow between the matched-quality crossings
+    # (labelled with the byte saving, above the guide left of the trained
+    # crossing, where both curves are still below 35 dB), and a vertical
+    # double arrow between the matched-size crossings (labelled alongside,
+    # rotated like the guide's own label). Neutral ink for the comparative
+    # stats; white bboxes keep guides from striking through.
+    INK = "0.15"
+    ax.annotate("", xy=(xd, PSNR_CUT), xytext=(xr, PSNR_CUT),
+                arrowprops=dict(arrowstyle="<->", color=INK, linewidth=1.0,
+                                shrinkA=4, shrinkB=4), zorder=5)
+    ax.annotate(f"{cr['saved_pct']:.0f}% fewer bytes", xy=(xr, PSNR_CUT),
+                xytext=(-8, 6), textcoords="offset points",
+                ha="right", va="bottom", fontsize=7.5, color=INK, zorder=7,
+                bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
+                          edgecolor="none", alpha=0.85))
+    ax.annotate("", xy=(V_PCT, y_trained), xytext=(V_PCT, y_dct),
+                arrowprops=dict(arrowstyle="<->", color=INK, linewidth=1.0,
+                                shrinkA=4, shrinkB=4), zorder=5)
+    ax.annotate(f"+{cr['d_psnr']:.1f} dB",
+                xy=(V_PCT, 0.5 * (y_trained + y_dct)), xytext=(7, 0),
+                textcoords="offset points", rotation=90,
+                ha="left", va="center", fontsize=7.5, color=INK, zorder=7,
+                bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
+                          edgecolor="none", alpha=0.85))
 
     ax.set_xlabel("compressed size (% of raw)", fontsize=9)
     ax.set_ylabel("test PSNR (dB)", fontsize=9)
