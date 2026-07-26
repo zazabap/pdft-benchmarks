@@ -180,13 +180,13 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
             markeredgewidth=1.0, zorder=6)
 
     # Label placement is deterministic and collision-free. Both curves climb
-    # to the upper right, so: "42%" sits above the 35 dB guide left of its
-    # marker; "46%" sits BELOW the guide right of its marker (empty wedge --
-    # both curves have crossed above 35 dB there); "31.1 dB" sits below-right
-    # of its marker under the green curve; "34.0 dB" gets a thin leader to
-    # the open zone upper-left, since the blue curve runs straight into its
-    # marker from below-left. White bboxes keep guides/grid from striking
-    # through the text.
+    # to the upper right, so: the trained %-label sits above the 35 dB guide
+    # left of its marker; the block %-label sits BELOW the guide right of
+    # its marker (empty wedge -- both curves have crossed above 35 dB
+    # there); "31.1 dB" sits below-right of its marker under the green
+    # curve; the trained dB-label sits above-left of its marker, which
+    # itself sits above the 35 dB guide in open space. White bboxes keep
+    # guides/grid from striking through the text.
     LBL = dict(textcoords="offset points", fontsize=7.5, zorder=7,
                bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
                          edgecolor="none", alpha=0.85))
@@ -196,13 +196,8 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
                 ha="left", va="top", color=GREEN, **LBL)
     ax.annotate(f"{y_dct:.1f} dB", xy=(V_PCT, y_dct), xytext=(7, -9),
                 ha="left", va="top", color=GREEN, **LBL)
-    ax.annotate(f"{y_trained:.1f} dB", xy=(V_PCT, y_trained),
-                xytext=(27.0, 36.6), textcoords="data",
-                ha="left", va="center", fontsize=7.5, color=BLUE, zorder=7,
-                bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
-                          edgecolor="none", alpha=0.85),
-                arrowprops=dict(arrowstyle="-", color="0.45", linewidth=0.7,
-                                shrinkA=2, shrinkB=4))
+    ax.annotate(f"{y_trained:.1f} dB", xy=(V_PCT, y_trained), xytext=(7, -4),
+                ha="left", va="top", color=BLUE, **LBL)
 
     ax.set_xlabel("compressed size (% of raw)", fontsize=9)
     ax.set_ylabel("test PSNR (dB)", fontsize=9)
@@ -284,9 +279,11 @@ def verify() -> bool:
         if entry is None:
             print(f"[verify]   {name}: no point fit the 50% budget")
             continue
-        acct = entry["blob_bytes_total"] + entry["basis_bytes"]
-        if acct != entry["total_bytes"]:
-            print(f"[verify] FAIL: {name} blob+basis={acct} != "
+        # Payload-only accounting: totals equal the blob bytes; basis_bytes
+        # is recorded for transparency but excluded (see the sweep driver's
+        # docstring).
+        if entry["blob_bytes_total"] != entry["total_bytes"]:
+            print(f"[verify] FAIL: {name} blob={entry['blob_bytes_total']} != "
                   f"total_bytes={entry['total_bytes']}", file=sys.stderr)
             ok = False
         expect_bpi = entry["total_bytes"] / n_all

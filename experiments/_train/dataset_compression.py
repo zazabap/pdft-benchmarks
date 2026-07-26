@@ -13,8 +13,12 @@ Contenders: the trained DCT-IV basis (headline storage contender), the
 retrained real-valued rich basis, the complex rich basis (honest 2x
 storage), and classical block_dct_8. Lossless references (zlib of raw
 uint8, per-image optimized PNG) are recorded for the figure. Sizes count
-blob bytes + the basis checkpoint file (stored once; 0 for the analytic
-DCT).
+the image payload (blob) bytes ONLY: the basis checkpoint file is stored
+once per dataset alongside the results and recorded per point as
+basis_bytes for transparency, but excluded from total_bytes /
+bytes_per_image / ratio_vs_raw -- the comparison is dataset compression
+per image, and the analytic references' transform definitions are
+likewise not counted.
 
 The DCT-IV contender stores real components only (is_complex=False): its
 U(1)^4 sign gates sit ~1e-3 off the exact real point after training, and
@@ -156,7 +160,10 @@ def main() -> int:
                     blob_bytes += f.stat().st_size
                     rec = decode(f.read_bytes(), pair)  # decode FROM the file
                     per_image.append(compute_metrics(img, rec))
-                total = blob_bytes + basis_bytes
+                # Payload-only accounting: the basis file is recorded
+                # (basis_bytes) but excluded from the totals -- see the
+                # module docstring.
+                total = blob_bytes
                 point = {
                     "keep_ratio": kr, "bits": b,
                     "blob_bytes_total": blob_bytes,

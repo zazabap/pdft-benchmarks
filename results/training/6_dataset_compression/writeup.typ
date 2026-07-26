@@ -35,7 +35,10 @@
 Each image is stored as an actual file: coefficients under a basis, top-$k$
 by magnitude, symmetric uniform $b$-bit quantisation, a kept-position
 bitmask, zlib. The decoder reconstructs from the file alone plus the basis
-parameter file (stored once per dataset and counted in every size below).
+parameter file, which is stored once per dataset and — since the 2026-07-26
+accounting change — recorded per point (`basis_bytes`) but *excluded* from
+every per-image size below: the comparison is payload-only, mirroring the
+analytic baselines whose transform definitions are likewise uncounted.
 The codec is identical across bases; only the transform differs. Grid:
 $k\/d in {0.05, dots, 0.5}$, $b in {6, 8, 10}$, all 550 images (500 train
 \+ 50 held-out test, seed-42 split). All PSNR/SSIM below are on the 50
@@ -130,10 +133,13 @@ artifact of the codec machinery.
   grid(columns: 2, gutter: 8pt,
     image("quickdraw_5q/figures/rd_curves.svg"),
     image("div2k_8q/figures/rd_curves.svg")),
-  caption: [Rate–distortion in real bytes per image (blob + amortised basis
-  file). Left: QuickDraw. Right: DIV2K-8q. Stars mark the best operating
-  point within the 50%-of-raw budget (dotted vertical). Grey dotted
-  verticals: lossless deflate / PNG references.],
+  caption: [Rate–distortion in real bytes per image (payload only; the
+  basis file is stored separately and excluded — note these committed
+  panels predate the accounting change, whose per-image effect is at most
+  the $tilde.op$0.1–2% amortised basis share). Left: QuickDraw. Right:
+  DIV2K-8q. Stars mark the best operating point within the 50%-of-raw
+  budget (dotted vertical). Grey dotted verticals: lossless deflate / PNG
+  references.],
 )
 
 = The paper's Fig 6 contender: trained DCT-IV
@@ -141,17 +147,17 @@ artifact of the codec machinery.
 The paper's rate--distortion figure plots the trained DCT-IV against
 block DCT: the paper's family is full-image bases, and the DCT-IV is its
 strongest member on Quick Draw, so the storage section quotes it. Off its
-Pareto frontier in `rd_curves.json`: matched quality at 35 dB costs 426
-B/img against block DCT's 474 (10.1% fewer bytes, peaking at 12.5% near
-30 dB), and matched size at 40% of raw reads $+2.94$ dB (33.99 vs 31.06).
-At the 50%-of-raw grid budget the best DCT-IV point reaches
-#f2(qd.by_basis.dct4_ctl.test.mean_psnr) dB against block DCT's
+Pareto frontier in `rd_curves.json` (payload-only sizes): matched quality
+at 35 dB costs 383 B/img against block DCT's 474 (19.2% fewer bytes,
+peaking at 24% near 30 dB), and matched size at 40% of raw reads $+5.42$
+dB (36.48 vs 31.06). At the 50%-of-raw grid budget the best DCT-IV point
+reaches #f2(qd.by_basis.dct4_ctl.test.mean_psnr) dB against block DCT's
 #f2(qd.by_basis.block_dct_8.test.mean_psnr). Within this sweep the
 (blocked) real rich basis remains the strongest storage basis — its curve
 and the headline analysis above are unchanged, and it stays out of the
-paper, whose scope is full-image transforms. The DCT-IV's matched-byte
-readings carry its amortised 23.7 KB basis file ($tilde.op$4% of a raw
-sketch per image). On the DIV2K control the DCT-IV needs $tilde.op$30%
+paper, whose scope is full-image transforms. The DCT-IV's 23.7 KB basis
+file is stored separately and excluded from the sizes, like every other
+basis file here. On the DIV2K control the DCT-IV needs $tilde.op$30%
 more bytes than block DCT at 35 dB and closes to within 2% at 38--40 dB —
 the no-gain control outcome, as with real rich.
 

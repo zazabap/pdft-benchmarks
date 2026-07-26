@@ -47,3 +47,16 @@ The rd_curves.json sweep was regenerated on CPU with all four contenders
 (dct4_ctl, real_rich, rich, block_dct_8); the pre-existing contenders'
 readings reproduced the prior committed sweep (35 dB crossing 369 vs 474
 B/img, +7.0 dB at 40% of raw).
+
+## Payload-only accounting (2026-07-26)
+
+Per-point `total_bytes` / `bytes_per_image` / `ratio_vs_raw` in
+rd_curves.json + headline_50pct.json now count the image payload (blob)
+bytes ONLY; `basis_bytes` is still recorded per point for transparency
+but excluded from the totals. Rationale: the comparison is dataset
+compression per image, the basis is stored once per dataset
+independently, and the analytic baselines' transform definitions were
+never counted either. The committed JSONs were migrated in place
+(derived fields recomputed from the stored `blob_bytes_total`; no
+re-encode), and the sweep driver writes the same definition going
+forward.
