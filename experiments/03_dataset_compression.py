@@ -70,7 +70,9 @@ RD_CURVES = DDIR / "rd_curves.json"
 HEADLINE_50PCT = DDIR / "headline_50pct.json"
 FIG_OUT = DDIR / "figures/rd_quickdraw_paper"
 
-BLUE, GREEN = WONG["blue"], WONG["green"]
+# Colours track Fig 4's topology-series assignment (DCT-IV = Wong black
+# there), and the classical reference wears the paper's classical grey.
+TRAINED_C, DCT_C = WONG["black"], "0.45"
 TRAINED_KEY = "dct4_ctl"    # the storage contender: trained DCT-IV basis
 DCT_KEY = "block_dct_8"     # classical reference
 PSNR_CUT = 35.0              # matched-quality horizontal reading (dB)
@@ -145,12 +147,12 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
 
     ax.plot([pct(p["bytes_per_image"]) for p in trained],
             [p["test"]["mean_psnr"] for p in trained],
-            color=BLUE, linestyle="-", marker="o", markersize=3.2,
+            color=TRAINED_C, linestyle="-", marker="o", markersize=3.2,
             markeredgewidth=0, linewidth=1.8, label="DCT-IV (trained)",
             zorder=3)
     ax.plot([pct(p["bytes_per_image"]) for p in dct],
             [p["test"]["mean_psnr"] for p in dct],
-            color=GREEN, linestyle="-.", marker="s", markersize=2.8,
+            color=DCT_C, linestyle="-.", marker="s", markersize=2.8,
             markeredgewidth=0, linewidth=1.8, label=r"block DCT 8$\times$8",
             zorder=3)
 
@@ -179,31 +181,25 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
             linestyle="none", markerfacecolor="white", markeredgecolor="black",
             markeredgewidth=1.0, zorder=6)
 
-    # The two readings are drawn as GAPS, not as four separate values:
-    # a horizontal double arrow between the matched-quality crossings
-    # (labelled with the byte saving, above the guide left of the trained
-    # crossing, where both curves are still below 35 dB), and a vertical
-    # double arrow between the matched-size crossings (labelled alongside,
-    # rotated like the guide's own label). Neutral ink for the comparative
-    # stats; white bboxes keep guides from striking through.
-    INK = "0.15"
-    ax.annotate("", xy=(xd, PSNR_CUT), xytext=(xr, PSNR_CUT),
-                arrowprops=dict(arrowstyle="<->", color=INK, linewidth=1.0,
-                                shrinkA=4, shrinkB=4), zorder=5)
-    ax.annotate(f"{cr['saved_pct']:.0f}% fewer bytes", xy=(xr, PSNR_CUT),
-                xytext=(-8, 6), textcoords="offset points",
-                ha="right", va="bottom", fontsize=7.5, color=INK, zorder=7,
-                bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
-                          edgecolor="none", alpha=0.85))
-    ax.annotate("", xy=(V_PCT, y_trained), xytext=(V_PCT, y_dct),
-                arrowprops=dict(arrowstyle="<->", color=INK, linewidth=1.0,
-                                shrinkA=4, shrinkB=4), zorder=5)
-    ax.annotate(f"+{cr['d_psnr']:.1f} dB",
-                xy=(V_PCT, 0.5 * (y_trained + y_dct)), xytext=(7, 0),
-                textcoords="offset points", rotation=90,
-                ha="left", va="center", fontsize=7.5, color=INK, zorder=7,
-                bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
-                          edgecolor="none", alpha=0.85))
+    # Written-out readings, deterministic collision-free placement: the
+    # trained %-label above the 35 dB guide left of its marker; the block
+    # %-label below the guide right of its marker (empty wedge -- both
+    # curves have crossed above 35 dB there); the trained dB-label just
+    # right of the guide crossing (its marker sits above the guide in open
+    # space); the block dB-label below-right of its marker under the grey
+    # curve. Series colours; white bboxes keep guides from striking
+    # through.
+    LBL = dict(textcoords="offset points", fontsize=7.5, zorder=7,
+               bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
+                         edgecolor="none", alpha=0.85))
+    ax.annotate(f"{xr:.0f}%", xy=(xr, PSNR_CUT), xytext=(-5, 7),
+                ha="right", va="bottom", color=TRAINED_C, **LBL)
+    ax.annotate(f"{xd:.0f}%", xy=(xd, PSNR_CUT), xytext=(5, -9),
+                ha="left", va="top", color=DCT_C, **LBL)
+    ax.annotate(f"{y_dct:.1f} dB", xy=(V_PCT, y_dct), xytext=(7, -9),
+                ha="left", va="top", color=DCT_C, **LBL)
+    ax.annotate(f"{y_trained:.1f} dB", xy=(V_PCT, y_trained), xytext=(7, -4),
+                ha="left", va="top", color=TRAINED_C, **LBL)
 
     ax.set_xlabel("compressed size (% of raw)", fontsize=9)
     ax.set_ylabel("test PSNR (dB)", fontsize=9)
