@@ -145,60 +145,72 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
 
     ax.plot([pct(p["bytes_per_image"]) for p in trained],
             [p["test"]["mean_psnr"] for p in trained],
-            color=BLUE, linestyle="-", marker="o", markersize=4,
-            linewidth=2.0, label="DCT-IV (trained)", zorder=3)
+            color=BLUE, linestyle="-", marker="o", markersize=3.2,
+            markeredgewidth=0, linewidth=1.8, label="DCT-IV (trained)",
+            zorder=3)
     ax.plot([pct(p["bytes_per_image"]) for p in dct],
             [p["test"]["mean_psnr"] for p in dct],
-            color=GREEN, linestyle="-.", marker="s", markersize=3.5,
-            linewidth=2.0, label=r"block DCT 8$\times$8", zorder=3)
+            color=GREEN, linestyle="-.", marker="s", markersize=2.8,
+            markeredgewidth=0, linewidth=1.8, label=r"block DCT 8$\times$8",
+            zorder=3)
 
     # Grid-aligned reference lines: the matched-quality PSNR (horizontal) and
-    # the matched-size % of raw (vertical); both land on grid lines.
-    ax.axhline(PSNR_CUT, color="0.55", linestyle=(0, (5, 3)), linewidth=1.1,
+    # the matched-size % of raw (vertical); both land on grid lines and stay
+    # recessive so the data carries the figure.
+    ax.axhline(PSNR_CUT, color="0.62", linestyle=(0, (5, 3)), linewidth=0.9,
                zorder=1)
-    ax.axvline(V_PCT, color="0.55", linestyle=(0, (5, 3)), linewidth=1.1,
+    ax.axvline(V_PCT, color="0.62", linestyle=(0, (5, 3)), linewidth=0.9,
                zorder=1)
-    ax.text(pct(100), PSNR_CUT + 0.5, f"{PSNR_CUT:.0f} dB", fontsize=8,
-            color="0.3", ha="left", va="bottom")
-    ax.annotate(f"{V_PCT:.0f}% of raw", xy=(V_PCT, 20.5), xytext=(-4, 0),
-                textcoords="offset points", fontsize=8, rotation=90,
-                ha="right", va="center", color="0.25",
+    ax.text(pct(100), PSNR_CUT + 0.5, f"{PSNR_CUT:.0f} dB", fontsize=7.5,
+            color="0.35", ha="left", va="bottom")
+    ax.annotate(f"{V_PCT:.0f}% of raw", xy=(V_PCT, 19.5), xytext=(-4, 0),
+                textcoords="offset points", fontsize=7.5, rotation=90,
+                ha="right", va="center", color="0.35",
                 bbox=dict(boxstyle="round,pad=0.12", facecolor="white",
                           edgecolor="none", alpha=0.85))
 
-    # Horizontal reading -- compressed size (% of raw) where each curve
-    # reaches PSNR_CUT.
+    # Crossing markers: white-filled circles on both readings.
     xr, xd = pct(cr["x_trained"]), pct(cr["x_dct"])
-    ax.plot([xr, xd], [PSNR_CUT, PSNR_CUT], marker="o", markersize=4.5,
-            linestyle="none", markerfacecolor="white", markeredgecolor="black",
-            markeredgewidth=1.0, zorder=6)
-    ax.annotate(f"{xr:.0f}%", xy=(xr, PSNR_CUT), xytext=(-12, 4),
-                textcoords="offset points", ha="right", va="bottom",
-                fontsize=8, color=BLUE)
-    ax.annotate(f"{xd:.0f}%", xy=(xd, PSNR_CUT), xytext=(4, -8),
-                textcoords="offset points", ha="left", va="top",
-                fontsize=8, color=GREEN)
-
-    # Vertical reading -- test PSNR at V_PCT of raw.
     y_trained, y_dct = cr["y_trained"], cr["y_dct"]
-    ax.plot([V_PCT, V_PCT], [y_trained, y_dct], marker="o", markersize=4.5,
+    ax.plot([xr, xd], [PSNR_CUT, PSNR_CUT], marker="o", markersize=5,
             linestyle="none", markerfacecolor="white", markeredgecolor="black",
             markeredgewidth=1.0, zorder=6)
-    ax.annotate(f"{y_trained:.1f} dB", xy=(V_PCT, y_trained), xytext=(-7, 2),
-                textcoords="offset points", ha="right", va="bottom",
-                fontsize=8, color=BLUE)
-    ax.annotate(f"{y_dct:.1f} dB", xy=(V_PCT, y_dct), xytext=(7, -2),
-                textcoords="offset points", ha="left", va="top",
-                fontsize=8, color=GREEN)
+    ax.plot([V_PCT, V_PCT], [y_trained, y_dct], marker="o", markersize=5,
+            linestyle="none", markerfacecolor="white", markeredgecolor="black",
+            markeredgewidth=1.0, zorder=6)
+
+    # Label placement is deterministic and collision-free: the two %-labels
+    # sit ABOVE the 35 dB line on opposite sides of their markers, the two
+    # dB-labels sit BELOW their markers on opposite sides of the 40% line,
+    # each in its series color, with a white bbox so grid/guides never
+    # strike through the text.
+    LBL = dict(textcoords="offset points", fontsize=7.5, zorder=7,
+               bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
+                         edgecolor="none", alpha=0.85))
+    ax.annotate(f"{xr:.0f}%", xy=(xr, PSNR_CUT), xytext=(-5, 7),
+                ha="right", va="bottom", color=BLUE, **LBL)
+    ax.annotate(f"{xd:.0f}%", xy=(xd, PSNR_CUT), xytext=(5, 7),
+                ha="left", va="bottom", color=GREEN, **LBL)
+    ax.annotate(f"{y_trained:.1f} dB", xy=(V_PCT, y_trained), xytext=(-7, -9),
+                ha="right", va="top", color=BLUE, **LBL)
+    ax.annotate(f"{y_dct:.1f} dB", xy=(V_PCT, y_dct), xytext=(7, -9),
+                ha="left", va="top", color=GREEN, **LBL)
 
     ax.set_xlabel("compressed size (% of raw)", fontsize=9)
     ax.set_ylabel("test PSNR (dB)", fontsize=9)
     ax.set_xlim(pct(90), pct(575))
-    ax.set_ylim(14.5, 49.5)
+    ax.set_ylim(15.0, 48.0)
     ax.set_xticks([10, 20, 30, 40, 50])
-    ax.tick_params(labelsize=8)
-    ax.legend(fontsize=7.8, frameon=False, loc="upper left")
-    ax.grid(alpha=0.25, linewidth=0.5)
+    ax.set_yticks([15, 20, 25, 30, 35, 40, 45])
+    ax.tick_params(labelsize=8, direction="out")
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    for side in ("left", "bottom"):
+        ax.spines[side].set_linewidth(0.8)
+        ax.spines[side].set_color("0.25")
+    ax.legend(fontsize=7.8, frameon=False, loc="upper left",
+              handlelength=2.2, borderaxespad=0.2)
+    ax.grid(alpha=0.22, linewidth=0.5)
     fig.tight_layout(pad=0.4)
 
     written = save_figure(fig, out_stem)
