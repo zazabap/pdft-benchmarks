@@ -198,8 +198,8 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
                 ha="left", va="top", color=DCT_C, **LBL)
     ax.annotate(f"{y_dct:.1f} dB", xy=(V_PCT, y_dct), xytext=(7, -9),
                 ha="left", va="top", color=DCT_C, **LBL)
-    ax.annotate(f"{y_trained:.1f} dB", xy=(V_PCT, y_trained), xytext=(8, 0),
-                ha="left", va="center", color=TRAINED_C, **LBL)
+    ax.annotate(f"{y_trained:.1f} dB", xy=(V_PCT, y_trained), xytext=(-5, 14),
+                ha="right", va="bottom", color=TRAINED_C, **LBL)
 
     ax.set_xlabel("compressed size (% of raw)", fontsize=9)
     ax.set_ylabel("test PSNR (dB)", fontsize=9)
