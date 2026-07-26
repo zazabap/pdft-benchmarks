@@ -161,7 +161,7 @@ def render_fig4_topology_loss(by_basis: Path = BY_BASIS,
               handlelength=2.2, labelspacing=0.22, borderaxespad=0.2)
     fig.tight_layout(pad=0.4)
     fig.subplots_adjust(left=0.135, right=0.985, top=0.985)
-    fig.text(0.008, 0.55, "validation MSE", rotation=90, va="center",
+    fig.text(0.008, 0.55, "validation loss", rotation=90, va="center",
              ha="left", fontsize=9.5)
 
     figdir = write_base / "figures"
