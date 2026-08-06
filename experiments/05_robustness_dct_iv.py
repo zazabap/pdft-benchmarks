@@ -186,7 +186,7 @@ def render_fig_init_loss(ss: dict, out_stem: Path = FIG_INIT_LOSS) -> Path:
                    label="exact init")
     ax.set_xscale("log")
     ax.set_xlabel("disturbed parameters (% of 2200 gate entries)")
-    ax.set_ylabel("top-$k$ MSE loss (train pool)")
+    ax.set_ylabel("top-$k$ truncation loss $\\mathcal{L}_k$ (train pool)")
     ax.set_xticks(xs)
     ax.set_xticklabels([f"{v:g}" for v in xs])
     ax.grid(True, which="both", ls=":", lw=0.4, alpha=0.5)
