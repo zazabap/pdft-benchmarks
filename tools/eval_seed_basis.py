@@ -20,7 +20,7 @@ import os
 import sys
 from pathlib import Path
 
-DEFAULT_BASE = Path("results/training/2_direct_training/random_seed/div2k_8q")
+DEFAULT_BASE = Path("data/direct_training/random_seed/div2k_8q")
 
 
 def _parse_list(spec, cast):

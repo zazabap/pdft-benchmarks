@@ -219,7 +219,7 @@ def main() -> int:
     seeds = _parse_seeds(args.seeds)
     keep_ratios = (0.05, 0.10, 0.15, 0.20)
     out_base = Path(args.out) if args.out else \
-        Path(f"results/training/2_direct_training/random_seed/{args.dataset}")
+        Path(f"data/direct_training/random_seed/{args.dataset}")
     out_base.mkdir(parents=True, exist_ok=True)
 
     # --- aggregate-only short-circuit: no JAX, no GPU. -----------------------
