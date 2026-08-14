@@ -33,6 +33,18 @@ removed.
   (`trained_seed_NNN.json`) and reports MSE/PSNR on the fixed seed-42 test
   split — the "use" half of the seed sweep in
   `experiments/_train/qft_seed_sweep.py`.
+- **`reeval_table2_uncertainty.py`** — regenerates the paper's Table 2
+  (the 500/100 split evaluation at keep ratios up to ρ=0.40) plus its
+  committed provenance record
+  `results/structure/table2_500x100_uncertainty.json` (frozen split
+  manifest, per-image PSNRs, SEMs, paired-bootstrap CIs). Validates the
+  first-50 image means against the committed cell metrics before writing
+  anything; see [REPRODUCE.md](../REPRODUCE.md#table-2-the-500100-evaluation-with-uncertainty).
+- **`reeval_topk_tables.py`** — evaluation-only protocol cross-check: loads
+  each committed trained basis and re-scores mean test PSNR/SSIM with the
+  exact pipeline protocol at an extended keep-ratio grid (adds ρ=0.4),
+  reporting drift against each cell's committed metrics. Writes
+  `results/structure/<experiment>/independent_reruns/topk_reeval.json`.
 
 ## Conventions
 

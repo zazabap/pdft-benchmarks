@@ -37,6 +37,9 @@ results/**/checkpoints/
 # raw XLA profiler traces (bulky protobuf; the curated profile.json + report.md
 # + figures alongside them carry the findings)
 results/**/trace/
+# resumable per-method cache of tools/reeval_table2_uncertainty.py; the
+# assembled table2_500x100_uncertainty.json is the tracked artifact
+results/structure/table2_500x100_parts/
 results/**/block_emergence*/loss_history.json
 
 # Local virtualenv (created for runs; not part of the repo)
