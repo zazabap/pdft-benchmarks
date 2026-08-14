@@ -1,0 +1,1173 @@
+{
+ "meta": {
+  "dataset": "quickdraw_5q",
+  "n_train": 500,
+  "n_test": 100,
+  "image_shape": [
+   32,
+   32
+  ],
+  "raw_bytes_total": 614400,
+  "raw_bytes_per_image": 1024,
+  "deflate_raw_total": 161903,
+  "png_total": 236853,
+  "seed": 42,
+  "keep_ratios": [
+   0.05,
+   0.1,
+   0.15,
+   0.2,
+   0.3,
+   0.4,
+   0.5
+  ],
+  "bits": [
+   6,
+   8,
+   10
+  ],
+  "basis_size_policy": "excluded",
+  "split_sha256": "2cbfa8cbc20d610ea088e2b71bf7871fc578ec320d0675cd561cd111e3065f62",
+  "split_manifest": "/workspaces/parametric-dft-paper/pdft-benchmarks/results/structure/table2_500x100_uncertainty.json"
+ },
+ "curves": {
+  "dct4_ctl": [
+   {
+    "keep_ratio": 0.05,
+    "bits": 6,
+    "blob_bytes_total": 72339,
+    "basis_bytes": 65307,
+    "total_bytes": 72339,
+    "bytes_per_image": 120.565,
+    "ratio_vs_raw": 0.1177392578125,
+    "train": {
+     "mean_mse": 0.014977297507810322,
+     "std_mse": 0.007234321532056919,
+     "mean_psnr": 18.826095364742752,
+     "std_psnr": 2.4153427057204886,
+     "mean_ssim": 0.7818184116903563,
+     "std_ssim": 0.03817945974540532,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.01443045653505671,
+     "std_mse": 0.006415585878032006,
+     "mean_psnr": 18.90510517592485,
+     "std_psnr": 2.204467573652747,
+     "mean_ssim": 0.7828996403169112,
+     "std_ssim": 0.036931830621982076,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.05,
+    "bits": 8,
+    "blob_bytes_total": 79891,
+    "basis_bytes": 65307,
+    "total_bytes": 79891,
+    "bytes_per_image": 133.15166666666667,
+    "ratio_vs_raw": 0.13003092447916667,
+    "train": {
+     "mean_mse": 0.014947702128927255,
+     "std_mse": 0.007234947883486455,
+     "mean_psnr": 18.838362147853367,
+     "std_psnr": 2.425036040093665,
+     "mean_ssim": 0.7821619541517778,
+     "std_ssim": 0.03822501961160554,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.014408688476997786,
+     "std_mse": 0.006423178645598308,
+     "mean_psnr": 18.91583931911347,
+     "std_psnr": 2.216092381476846,
+     "mean_ssim": 0.782940896074082,
+     "std_ssim": 0.036903262426281704,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.05,
+    "bits": 10,
+    "blob_bytes_total": 88156,
+    "basis_bytes": 65307,
+    "total_bytes": 88156,
+    "bytes_per_image": 146.92666666666668,
+    "ratio_vs_raw": 0.14348307291666668,
+    "train": {
+     "mean_mse": 0.01494606257252678,
+     "std_mse": 0.007234732110965233,
+     "mean_psnr": 18.83893878898728,
+     "std_psnr": 2.425199010879825,
+     "mean_ssim": 0.7821890751331214,
+     "std_ssim": 0.03824067168913795,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.014407598545915924,
+     "std_mse": 0.0064235590805993064,
+     "mean_psnr": 18.916424308891184,
+     "std_psnr": 2.2168683903166198,
+     "mean_ssim": 0.7829532086316582,
+     "std_ssim": 0.036928113729758225,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.1,
+    "bits": 6,
+    "blob_bytes_total": 108965,
+    "basis_bytes": 65307,
+    "total_bytes": 108965,
+    "bytes_per_image": 181.60833333333332,
+    "ratio_vs_raw": 0.17735188802083332,
+    "train": {
+     "mean_mse": 0.005336066340748996,
+     "std_mse": 0.0033018995336857163,
+     "mean_psnr": 23.662379282952042,
+     "std_psnr": 3.090996818715475,
+     "mean_ssim": 0.8648798955717949,
+     "std_ssim": 0.028087003896176837,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.0051150773254788695,
+     "std_mse": 0.0028659872557132834,
+     "mean_psnr": 23.71187961691654,
+     "std_psnr": 2.836608277106822,
+     "mean_ssim": 0.864879746832801,
+     "std_ssim": 0.027559966051429113,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.1,
+    "bits": 8,
+    "blob_bytes_total": 124402,
+    "basis_bytes": 65307,
+    "total_bytes": 124402,
+    "bytes_per_image": 207.33666666666667,
+    "ratio_vs_raw": 0.20247721354166667,
+    "train": {
+     "mean_mse": 0.005281844714870148,
+     "std_mse": 0.003303300390856388,
+     "mean_psnr": 23.736276858319986,
+     "std_psnr": 3.153587258374231,
+     "mean_ssim": 0.8660686135535223,
+     "std_ssim": 0.02816543218096319,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.00506522131992122,
+     "std_mse": 0.0028713226564867776,
+     "mean_psnr": 23.782239244480856,
+     "std_psnr": 2.89741997230548,
+     "mean_ssim": 0.8662532744061057,
+     "std_ssim": 0.02763732359985141,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.1,
+    "bits": 10,
+    "blob_bytes_total": 141293,
+    "basis_bytes": 65307,
+    "total_bytes": 141293,
+    "bytes_per_image": 235.48833333333334,
+    "ratio_vs_raw": 0.22996907552083334,
+    "train": {
+     "mean_mse": 0.005278609750356616,
+     "std_mse": 0.0033032035133333175,
+     "mean_psnr": 23.740515520097215,
+     "std_psnr": 3.157010974484059,
+     "mean_ssim": 0.8661468361417083,
+     "std_ssim": 0.028117495788388597,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.005062002202997119,
+     "std_mse": 0.0028714044902260114,
+     "mean_psnr": 23.786227822085472,
+     "std_psnr": 2.899664379795268,
+     "mean_ssim": 0.8664343800940657,
+     "std_ssim": 0.027697837015595615,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.15,
+    "bits": 6,
+    "blob_bytes_total": 139225,
+    "basis_bytes": 65307,
+    "total_bytes": 139225,
+    "bytes_per_image": 232.04166666666666,
+    "ratio_vs_raw": 0.22660319010416666,
+    "train": {
+     "mean_mse": 0.002316254120458109,
+     "std_mse": 0.001635416893604011,
+     "mean_psnr": 27.498545833554783,
+     "std_psnr": 3.3772663776733896,
+     "mean_ssim": 0.8958734707524957,
+     "std_ssim": 0.03018059737834416,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.0021999007430073265,
+     "std_mse": 0.0013822224180588974,
+     "mean_psnr": 27.57021498568654,
+     "std_psnr": 3.16037374291771,
+     "mean_ssim": 0.8960099820478594,
+     "std_ssim": 0.02854810155300895,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.15,
+    "bits": 8,
+    "blob_bytes_total": 161894,
+    "basis_bytes": 65307,
+    "total_bytes": 161894,
+    "bytes_per_image": 269.8233333333333,
+    "ratio_vs_raw": 0.2634993489583333,
+    "train": {
+     "mean_mse": 0.0022363326187052283,
+     "std_mse": 0.0016326114296914124,
+     "mean_psnr": 27.777134387275403,
+     "std_psnr": 3.616853385676895,
+     "mean_ssim": 0.898388462576179,
+     "std_ssim": 0.029806264939959005,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.002130177498462484,
+     "std_mse": 0.001388360951184055,
+     "mean_psnr": 27.829769676092848,
+     "std_psnr": 3.397785797220461,
+     "mean_ssim": 0.8988541153744529,
+     "std_ssim": 0.02835899192866035,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.15,
+    "bits": 10,
+    "blob_bytes_total": 188199,
+    "basis_bytes": 65307,
+    "total_bytes": 188199,
+    "bytes_per_image": 313.665,
+    "ratio_vs_raw": 0.3063134765625,
+    "train": {
+     "mean_mse": 0.002231868478267599,
+     "std_mse": 0.0016328031329788414,
+     "mean_psnr": 27.79507747482163,
+     "std_psnr": 3.636194683659529,
+     "mean_ssim": 0.8985517893165782,
+     "std_ssim": 0.029763972093974814,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.0021256060674015942,
+     "std_mse": 0.0013879780466249537,
+     "mean_psnr": 27.84491454382079,
+     "std_psnr": 3.4081364468841486,
+     "mean_ssim": 0.898993456176331,
+     "std_ssim": 0.028346647512079264,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.2,
+    "bits": 6,
+    "blob_bytes_total": 167361,
+    "basis_bytes": 65307,
+    "total_bytes": 167361,
+    "bytes_per_image": 278.935,
+    "ratio_vs_raw": 0.2723974609375,
+    "train": {
+     "mean_mse": 0.0011458552276204861,
+     "std_mse": 0.0008590451673143948,
+     "mean_psnr": 30.605591428439233,
+     "std_psnr": 3.3609657501206494,
+     "mean_ssim": 0.9128460007104497,
+     "std_ssim": 0.029786701541585553,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.001078836719108617,
+     "std_mse": 0.0006982351441513659,
+     "mean_psnr": 30.671942961387835,
+     "std_psnr": 3.1219593042159897,
+     "mean_ssim": 0.9135811607701249,
+     "std_ssim": 0.02641494017649698,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.2,
+    "bits": 8,
+    "blob_bytes_total": 196185,
+    "basis_bytes": 65307,
+    "total_bytes": 196185,
+    "bytes_per_image": 326.975,
+    "ratio_vs_raw": 0.3193115234375,
+    "train": {
+     "mean_mse": 0.0010423779325400176,
+     "std_mse": 0.0008544520244705612,
+     "mean_psnr": 31.38997008711223,
+     "std_psnr": 4.0068280616899425,
+     "mean_ssim": 0.9179804218741793,
+     "std_ssim": 0.029014587635760043,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.0009806751692189959,
+     "std_mse": 0.0007057848809102062,
+     "mean_psnr": 31.437145876725275,
+     "std_psnr": 3.7547138956590884,
+     "mean_ssim": 0.9189649676892654,
+     "std_ssim": 0.0256801713163079,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.2,
+    "bits": 10,
+    "blob_bytes_total": 232410,
+    "basis_bytes": 65307,
+    "total_bytes": 232410,
+    "bytes_per_image": 387.35,
+    "ratio_vs_raw": 0.378271484375,
+    "train": {
+     "mean_mse": 0.0010364764362282028,
+     "std_mse": 0.0008548550562775869,
+     "mean_psnr": 31.448768819236008,
+     "std_psnr": 4.069897503797606,
+     "mean_ssim": 0.9183300198023429,
+     "std_ssim": 0.0289883612766495,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.0009742661254114744,
+     "std_mse": 0.0007060589350625452,
+     "mean_psnr": 31.49789823825467,
+     "std_psnr": 3.8144193443074896,
+     "mean_ssim": 0.9194866695642014,
+     "std_ssim": 0.025646121272524122,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.3,
+    "bits": 6,
+    "blob_bytes_total": 221622,
+    "basis_bytes": 65307,
+    "total_bytes": 221622,
+    "bytes_per_image": 369.37,
+    "ratio_vs_raw": 0.360712890625,
+    "train": {
+     "mean_mse": 0.00041973658914695776,
+     "std_mse": 0.0002499734541784431,
+     "mean_psnr": 34.41710747499884,
+     "std_psnr": 2.3465090409651186,
+     "mean_ssim": 0.9305310101237492,
+     "std_ssim": 0.028041278765048448,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.0003946014834865148,
+     "std_mse": 0.0001884910640978179,
+     "mean_psnr": 34.51191958999495,
+     "std_psnr": 2.044383206556125,
+     "mean_ssim": 0.9310581747498312,
+     "std_ssim": 0.02455435637648622,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.3,
+    "bits": 8,
+    "blob_bytes_total": 254777,
+    "basis_bytes": 65307,
+    "total_bytes": 254777,
+    "bytes_per_image": 424.62833333333333,
+    "ratio_vs_raw": 0.41467610677083333,
+    "train": {
+     "mean_mse": 0.00026050322796899604,
+     "std_mse": 0.0002443772488172423,
+     "mean_psnr": 37.81619680577595,
+     "std_psnr": 4.421054549929064,
+     "mean_ssim": 0.9483207141553632,
+     "std_ssim": 0.021379555874910482,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.00024152228280224707,
+     "std_mse": 0.0001958787899311181,
+     "mean_psnr": 37.85516479783589,
+     "std_psnr": 4.175274717661729,
+     "mean_ssim": 0.9477285263867224,
+     "std_ssim": 0.01864061611372232,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.3,
+    "bits": 10,
+    "blob_bytes_total": 317899,
+    "basis_bytes": 65307,
+    "total_bytes": 317899,
+    "bytes_per_image": 529.8316666666667,
+    "ratio_vs_raw": 0.5174137369791667,
+    "train": {
+     "mean_mse": 0.0002513989060751457,
+     "std_mse": 0.0002445227569366613,
+     "mean_psnr": 38.281431020665174,
+     "std_psnr": 4.911286795651446,
+     "mean_ssim": 0.9496431359952566,
+     "std_ssim": 0.021420307544112244,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.00023254853446233247,
+     "std_mse": 0.0001967951976374663,
+     "mean_psnr": 38.308906301975014,
+     "std_psnr": 4.654601073429453,
+     "mean_ssim": 0.9488898677747963,
+     "std_ssim": 0.019042663784847095,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.4,
+    "bits": 6,
+    "blob_bytes_total": 268170,
+    "basis_bytes": 65307,
+    "total_bytes": 268170,
+    "bytes_per_image": 446.95,
+    "ratio_vs_raw": 0.436474609375,
+    "train": {
+     "mean_mse": 0.00029525743462807804,
+     "std_mse": 0.000116210769716972,
+     "mean_psnr": 35.621830019761006,
+     "std_psnr": 1.6933843979127472,
+     "mean_ssim": 0.9344205905210147,
+     "std_ssim": 0.029746751475776118,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.0002838981839946532,
+     "std_mse": 9.567148963149544e-05,
+     "mean_psnr": 35.71895426330338,
+     "std_psnr": 1.5063660123193705,
+     "mean_ssim": 0.9353342730007833,
+     "std_ssim": 0.025557266979121366,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.4,
+    "bits": 8,
+    "blob_bytes_total": 300027,
+    "basis_bytes": 65307,
+    "total_bytes": 300027,
+    "bytes_per_image": 500.045,
+    "ratio_vs_raw": 0.4883251953125,
+    "train": {
+     "mean_mse": 8.24239719529081e-05,
+     "std_mse": 7.281492842362271e-05,
+     "mean_psnr": 42.401143136023194,
+     "std_psnr": 3.763586957839853,
+     "mean_ssim": 0.9701614598397141,
+     "std_ssim": 0.013565154648829613,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 7.516935225000634e-05,
+     "std_mse": 5.546972762022905e-05,
+     "mean_psnr": 42.48290997627893,
+     "std_psnr": 3.422510848115727,
+     "mean_ssim": 0.9701608138851402,
+     "std_ssim": 0.011379508036696401,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.4,
+    "bits": 10,
+    "blob_bytes_total": 398777,
+    "basis_bytes": 65307,
+    "total_bytes": 398777,
+    "bytes_per_image": 664.6283333333333,
+    "ratio_vs_raw": 0.6490511067708333,
+    "train": {
+     "mean_mse": 7.043233492020387e-05,
+     "std_mse": 7.296949564651659e-05,
+     "mean_psnr": 44.25904652029924,
+     "std_psnr": 5.451636225648604,
+     "mean_ssim": 0.9734060384556896,
+     "std_ssim": 0.014091713761255219,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 6.326037891960822e-05,
+     "std_mse": 5.6664944257863095e-05,
+     "mean_psnr": 44.33559874151315,
+     "std_psnr": 5.125011580311212,
+     "mean_ssim": 0.9735125130693534,
+     "std_ssim": 0.01253200105894055,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.5,
+    "bits": 6,
+    "blob_bytes_total": 301456,
+    "basis_bytes": 65307,
+    "total_bytes": 301456,
+    "bytes_per_image": 502.4266666666667,
+    "ratio_vs_raw": 0.4906510416666667,
+    "train": {
+     "mean_mse": 0.0002856377564038795,
+     "std_mse": 0.00011136457677485567,
+     "mean_psnr": 35.75891858284068,
+     "std_psnr": 1.6728531542443734,
+     "mean_ssim": 0.9347542619031626,
+     "std_ssim": 0.030110152591235225,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.00027774240564736307,
+     "std_mse": 9.55956600140862e-05,
+     "mean_psnr": 35.81901351707838,
+     "std_psnr": 1.5116648409540303,
+     "mean_ssim": 0.935675818993487,
+     "std_ssim": 0.02591528232639102,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.5,
+    "bits": 8,
+    "blob_bytes_total": 338440,
+    "basis_bytes": 65307,
+    "total_bytes": 338440,
+    "bytes_per_image": 564.0666666666667,
+    "ratio_vs_raw": 0.5508463541666667,
+    "train": {
+     "mean_mse": 3.59959130214536e-05,
+     "std_mse": 2.1531969340829377e-05,
+     "mean_psnr": 45.11358171193476,
+     "std_psnr": 2.41060225759229,
+     "mean_ssim": 0.9816861141333465,
+     "std_ssim": 0.007598127996818104,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 3.357185930825079e-05,
+     "std_mse": 1.5641665169219982e-05,
+     "mean_psnr": 45.21945293224836,
+     "std_psnr": 2.0922599415970087,
+     "mean_ssim": 0.9818739648481695,
+     "std_ssim": 0.0067653891644289125,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.5,
+    "bits": 10,
+    "blob_bytes_total": 473316,
+    "basis_bytes": 65307,
+    "total_bytes": 473316,
+    "bytes_per_image": 788.86,
+    "ratio_vs_raw": 0.77037109375,
+    "train": {
+     "mean_mse": 2.105677087903332e-05,
+     "std_mse": 2.1305511536950992e-05,
+     "mean_psnr": 49.40815289406441,
+     "std_psnr": 5.291562765765905,
+     "mean_ssim": 0.9884991056296696,
+     "std_ssim": 0.007422394176056675,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 1.8657002336342655e-05,
+     "std_mse": 1.6409151658812334e-05,
+     "mean_psnr": 49.554852029527865,
+     "std_psnr": 4.979467129371035,
+     "mean_ssim": 0.9886426995880373,
+     "std_ssim": 0.007052743784377281,
+     "nan_count": 0
+    }
+   }
+  ],
+  "block_dct_8": [
+   {
+    "keep_ratio": 0.05,
+    "bits": 6,
+    "blob_bytes_total": 69254,
+    "basis_bytes": 0,
+    "total_bytes": 69254,
+    "bytes_per_image": 115.42333333333333,
+    "ratio_vs_raw": 0.11271809895833333,
+    "train": {
+     "mean_mse": 0.021982480426404202,
+     "std_mse": 0.008995275626522284,
+     "mean_psnr": 16.99622737339427,
+     "std_psnr": 2.0166271208234843,
+     "mean_ssim": 0.710826395736104,
+     "std_ssim": 0.06224491300262389,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.02211257071513257,
+     "std_mse": 0.00788576177771955,
+     "mean_psnr": 16.88698765946875,
+     "std_psnr": 1.809421434817834,
+     "mean_ssim": 0.7033542236237715,
+     "std_ssim": 0.05711524626472072,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.05,
+    "bits": 8,
+    "blob_bytes_total": 77136,
+    "basis_bytes": 0,
+    "total_bytes": 77136,
+    "bytes_per_image": 128.56,
+    "ratio_vs_raw": 0.125546875,
+    "train": {
+     "mean_mse": 0.02195406757147076,
+     "std_mse": 0.008995768402109132,
+     "mean_psnr": 17.003120719607622,
+     "std_psnr": 2.0197778690742596,
+     "mean_ssim": 0.7113875317599752,
+     "std_ssim": 0.06267369935422835,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.02208719642654435,
+     "std_mse": 0.007892947743358004,
+     "mean_psnr": 16.893350919546222,
+     "std_psnr": 1.813066848873935,
+     "mean_ssim": 0.7037520362184567,
+     "std_ssim": 0.057621666535246974,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.05,
+    "bits": 10,
+    "blob_bytes_total": 85165,
+    "basis_bytes": 0,
+    "total_bytes": 85165,
+    "bytes_per_image": 141.94166666666666,
+    "ratio_vs_raw": 0.13861490885416666,
+    "train": {
+     "mean_mse": 0.021952198083447335,
+     "std_mse": 0.008995393453085252,
+     "mean_psnr": 17.003564660011897,
+     "std_psnr": 2.0200219813140534,
+     "mean_ssim": 0.7114088561038913,
+     "std_ssim": 0.06265742005662644,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.02208450623115266,
+     "std_mse": 0.007891383885911098,
+     "mean_psnr": 16.893781702587564,
+     "std_psnr": 1.8126933657951045,
+     "mean_ssim": 0.703876986530644,
+     "std_ssim": 0.05760845723616701,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.1,
+    "bits": 6,
+    "blob_bytes_total": 105780,
+    "basis_bytes": 0,
+    "total_bytes": 105780,
+    "bytes_per_image": 176.3,
+    "ratio_vs_raw": 0.17216796875,
+    "train": {
+     "mean_mse": 0.010408869879683423,
+     "std_mse": 0.005337808317199306,
+     "mean_psnr": 20.50625468538674,
+     "std_psnr": 2.6378555701056627,
+     "mean_ssim": 0.8199883077392341,
+     "std_ssim": 0.041118056928220244,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.010466699127441016,
+     "std_mse": 0.004636623768240225,
+     "mean_psnr": 20.328595093137885,
+     "std_psnr": 2.302877438289867,
+     "mean_ssim": 0.8108499214360101,
+     "std_ssim": 0.03802012111884455,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.1,
+    "bits": 8,
+    "blob_bytes_total": 121570,
+    "basis_bytes": 0,
+    "total_bytes": 121570,
+    "bytes_per_image": 202.61666666666667,
+    "ratio_vs_raw": 0.19786783854166667,
+    "train": {
+     "mean_mse": 0.010351824037912953,
+     "std_mse": 0.005333362459892022,
+     "mean_psnr": 20.53782254485396,
+     "std_psnr": 2.6541229859775957,
+     "mean_ssim": 0.8212714677308869,
+     "std_ssim": 0.04145265837739249,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.010419624117799193,
+     "std_mse": 0.004647537841948166,
+     "mean_psnr": 20.356194618939682,
+     "std_psnr": 2.3211769913807094,
+     "mean_ssim": 0.8120050379318432,
+     "std_ssim": 0.03894617564803558,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.1,
+    "bits": 10,
+    "blob_bytes_total": 138219,
+    "basis_bytes": 0,
+    "total_bytes": 138219,
+    "bytes_per_image": 230.365,
+    "ratio_vs_raw": 0.2249658203125,
+    "train": {
+     "mean_mse": 0.010348004471787863,
+     "std_mse": 0.005332794140016806,
+     "mean_psnr": 20.540055372889537,
+     "std_psnr": 2.6556824344256387,
+     "mean_ssim": 0.8213864624940477,
+     "std_ssim": 0.04148975323210173,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.010417124298314838,
+     "std_mse": 0.00464763437294076,
+     "mean_psnr": 20.357508372844187,
+     "std_psnr": 2.321711076842828,
+     "mean_ssim": 0.8120882996891124,
+     "std_ssim": 0.038983123209635644,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.15,
+    "bits": 6,
+    "blob_bytes_total": 137162,
+    "basis_bytes": 0,
+    "total_bytes": 137162,
+    "bytes_per_image": 228.60333333333332,
+    "ratio_vs_raw": 0.22324544270833332,
+    "train": {
+     "mean_mse": 0.005604357320856191,
+     "std_mse": 0.0033684581701495637,
+     "mean_psnr": 23.48055831314937,
+     "std_psnr": 3.21284891362937,
+     "mean_ssim": 0.8699111349404596,
+     "std_ssim": 0.035187442283281765,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.005612538212307233,
+     "std_mse": 0.0028950581716822533,
+     "mean_psnr": 23.232114049815674,
+     "std_psnr": 2.7315036212960924,
+     "mean_ssim": 0.8638575436255773,
+     "std_ssim": 0.030879057951451516,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.15,
+    "bits": 8,
+    "blob_bytes_total": 159577,
+    "basis_bytes": 0,
+    "total_bytes": 159577,
+    "bytes_per_image": 265.96166666666664,
+    "ratio_vs_raw": 0.25972819010416665,
+    "train": {
+     "mean_mse": 0.005521045941747657,
+     "std_mse": 0.0033629751419035595,
+     "mean_psnr": 23.58277807729844,
+     "std_psnr": 3.2886314760964224,
+     "mean_ssim": 0.8729936318201892,
+     "std_ssim": 0.03601881586571217,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.00553880600763934,
+     "std_mse": 0.002911940646481466,
+     "mean_psnr": 23.32417452488958,
+     "std_psnr": 2.804844052585547,
+     "mean_ssim": 0.8667598826813259,
+     "std_ssim": 0.03212120159530849,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.15,
+    "bits": 10,
+    "blob_bytes_total": 186153,
+    "basis_bytes": 0,
+    "total_bytes": 186153,
+    "bytes_per_image": 310.255,
+    "ratio_vs_raw": 0.3029833984375,
+    "train": {
+     "mean_mse": 0.0055156884377568684,
+     "std_mse": 0.0033627264483219706,
+     "mean_psnr": 23.58988872678604,
+     "std_psnr": 3.295018825205156,
+     "mean_ssim": 0.8731946155232588,
+     "std_ssim": 0.03604151903195467,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.005534543564827855,
+     "std_mse": 0.002912166118431378,
+     "mean_psnr": 23.3287573727647,
+     "std_psnr": 2.8068487608250883,
+     "mean_ssim": 0.8668560861036396,
+     "std_ssim": 0.032192288311978894,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.2,
+    "bits": 6,
+    "blob_bytes_total": 165866,
+    "basis_bytes": 0,
+    "total_bytes": 165866,
+    "bytes_per_image": 276.4433333333333,
+    "ratio_vs_raw": 0.26996419270833333,
+    "train": {
+     "mean_mse": 0.0032104156593773785,
+     "std_mse": 0.002179690140099717,
+     "mean_psnr": 26.182444055731118,
+     "std_psnr": 3.7016892916383695,
+     "mean_ssim": 0.9023185474294063,
+     "std_ssim": 0.030832600797751096,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.003208217674462787,
+     "std_mse": 0.0018490134302574358,
+     "mean_psnr": 25.861312892443742,
+     "std_psnr": 3.1275596912706214,
+     "mean_ssim": 0.8961542246537415,
+     "std_ssim": 0.028241210165343075,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.2,
+    "bits": 8,
+    "blob_bytes_total": 192193,
+    "basis_bytes": 0,
+    "total_bytes": 192193,
+    "bytes_per_image": 320.32166666666666,
+    "ratio_vs_raw": 0.31281412760416666,
+    "train": {
+     "mean_mse": 0.0030986998734632357,
+     "std_mse": 0.0021721676697522238,
+     "mean_psnr": 26.479523229726976,
+     "std_psnr": 3.995066398956066,
+     "mean_ssim": 0.9083281196479714,
+     "std_ssim": 0.031591493475829485,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.0031089506567372016,
+     "std_mse": 0.0018685346924724442,
+     "mean_psnr": 26.10314977003095,
+     "std_psnr": 3.331183449529045,
+     "mean_ssim": 0.9016868774799984,
+     "std_ssim": 0.0301461786119834,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.2,
+    "bits": 10,
+    "blob_bytes_total": 230909,
+    "basis_bytes": 0,
+    "total_bytes": 230909,
+    "bytes_per_image": 384.84833333333336,
+    "ratio_vs_raw": 0.37582845052083336,
+    "train": {
+     "mean_mse": 0.003092042356685722,
+     "std_mse": 0.0021713940396319996,
+     "mean_psnr": 26.499408009703068,
+     "std_psnr": 4.019911043241485,
+     "mean_ssim": 0.9087692916627947,
+     "std_ssim": 0.031684183478805195,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.0031028888830065566,
+     "std_mse": 0.0018691181517518469,
+     "mean_psnr": 26.11928209668926,
+     "std_psnr": 3.347563991852803,
+     "mean_ssim": 0.9019805811109397,
+     "std_ssim": 0.030132670987858334,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.3,
+    "bits": 6,
+    "blob_bytes_total": 218187,
+    "basis_bytes": 0,
+    "total_bytes": 218187,
+    "bytes_per_image": 363.645,
+    "ratio_vs_raw": 0.3551220703125,
+    "train": {
+     "mean_mse": 0.0012149860150773013,
+     "std_mse": 0.0009511082318284789,
+     "mean_psnr": 30.678038890073196,
+     "std_psnr": 3.925907505901676,
+     "mean_ssim": 0.9374434254208411,
+     "std_ssim": 0.02387207755360548,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.0012026956799417996,
+     "std_mse": 0.0007778445544550309,
+     "mean_psnr": 30.340608039524213,
+     "std_psnr": 3.4667325254167456,
+     "mean_ssim": 0.9319174626451059,
+     "std_ssim": 0.022322692880282626,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.3,
+    "bits": 8,
+    "blob_bytes_total": 249081,
+    "basis_bytes": 0,
+    "total_bytes": 249081,
+    "bytes_per_image": 415.135,
+    "ratio_vs_raw": 0.4054052734375,
+    "train": {
+     "mean_mse": 0.001049457643997833,
+     "std_mse": 0.0009359337889932541,
+     "mean_psnr": 32.258413120523144,
+     "std_psnr": 5.569241569876344,
+     "mean_ssim": 0.9519388406950638,
+     "std_ssim": 0.024640034938589187,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.001050657612958202,
+     "std_mse": 0.0007965463376984838,
+     "mean_psnr": 31.609385977024907,
+     "std_psnr": 4.686015736774185,
+     "mean_ssim": 0.9463794368453197,
+     "std_ssim": 0.022846748935547088,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.3,
+    "bits": 10,
+    "blob_bytes_total": 316018,
+    "basis_bytes": 0,
+    "total_bytes": 316018,
+    "bytes_per_image": 526.6966666666667,
+    "ratio_vs_raw": 0.5143522135416667,
+    "train": {
+     "mean_mse": 0.0010394969831425548,
+     "std_mse": 0.0009361028577021015,
+     "mean_psnr": 32.509602330073974,
+     "std_psnr": 6.161437526345783,
+     "mean_ssim": 0.9530219751139308,
+     "std_ssim": 0.024971663414355298,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.0010414190037299883,
+     "std_mse": 0.0007975573786611858,
+     "mean_psnr": 31.7377730902826,
+     "std_psnr": 4.876752801011122,
+     "mean_ssim": 0.9475454256900171,
+     "std_ssim": 0.023059945357959057,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.4,
+    "bits": 6,
+    "blob_bytes_total": 259895,
+    "basis_bytes": 0,
+    "total_bytes": 259895,
+    "bytes_per_image": 433.15833333333336,
+    "ratio_vs_raw": 0.42300618489583336,
+    "train": {
+     "mean_mse": 0.0005989181551166138,
+     "std_mse": 0.0004220622188507715,
+     "mean_psnr": 33.27447563928099,
+     "std_psnr": 3.1240231218091252,
+     "mean_ssim": 0.9489091222861821,
+     "std_ssim": 0.02159392476216375,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.000578695747098346,
+     "std_mse": 0.0003200676622488419,
+     "mean_psnr": 33.154409386026046,
+     "std_psnr": 2.794755568996842,
+     "mean_ssim": 0.9453673915566319,
+     "std_ssim": 0.022235170970426498,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.4,
+    "bits": 8,
+    "blob_bytes_total": 291221,
+    "basis_bytes": 0,
+    "total_bytes": 291221,
+    "bytes_per_image": 485.36833333333334,
+    "ratio_vs_raw": 0.47399251302083334,
+    "train": {
+     "mean_mse": 0.00037454155081005473,
+     "std_mse": 0.0004045940423854595,
+     "mean_psnr": 37.91754961111164,
+     "std_psnr": 6.583805680757269,
+     "mean_ssim": 0.975163869174787,
+     "std_ssim": 0.01783132397633304,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.00036558568703222097,
+     "std_mse": 0.0003385846274236109,
+     "mean_psnr": 37.28718092483144,
+     "std_psnr": 5.971152426334273,
+     "mean_ssim": 0.9719233140791753,
+     "std_ssim": 0.017262025821819182,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.4,
+    "bits": 10,
+    "blob_bytes_total": 392671,
+    "basis_bytes": 0,
+    "total_bytes": 392671,
+    "bytes_per_image": 654.4516666666667,
+    "ratio_vs_raw": 0.6391129557291667,
+    "train": {
+     "mean_mse": 0.00036134196752662365,
+     "std_mse": 0.00040450148163856,
+     "mean_psnr": 39.41678385756335,
+     "std_psnr": 8.740755313149707,
+     "mean_ssim": 0.9771829150538154,
+     "std_ssim": 0.018602456997131752,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.0003532354759492852,
+     "std_mse": 0.0003404217964601298,
+     "mean_psnr": 38.3830411048914,
+     "std_psnr": 7.652188848755026,
+     "mean_ssim": 0.9741752306717134,
+     "std_ssim": 0.01801605659597406,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.5,
+    "bits": 6,
+    "blob_bytes_total": 281618,
+    "basis_bytes": 0,
+    "total_bytes": 281618,
+    "bytes_per_image": 469.36333333333334,
+    "ratio_vs_raw": 0.45836263020833334,
+    "train": {
+     "mean_mse": 0.0004194201006969387,
+     "std_mse": 0.0002518538008911945,
+     "mean_psnr": 34.47990154919999,
+     "std_psnr": 2.5226723212954743,
+     "mean_ssim": 0.9520385957301422,
+     "std_ssim": 0.022653043879423504,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.0003891467886124642,
+     "std_mse": 0.00018144437771137344,
+     "mean_psnr": 34.62192724902895,
+     "std_psnr": 2.248043209667975,
+     "mean_ssim": 0.9496544151833156,
+     "std_ssim": 0.024559236295386665,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.5,
+    "bits": 8,
+    "blob_bytes_total": 318831,
+    "basis_bytes": 0,
+    "total_bytes": 318831,
+    "bytes_per_image": 531.385,
+    "ratio_vs_raw": 0.5189306640625,
+    "train": {
+     "mean_mse": 0.00013579348119639812,
+     "std_mse": 0.00015998700407454983,
+     "mean_psnr": 41.93392668248115,
+     "std_psnr": 5.711572953151382,
+     "mean_ssim": 0.9864101004743582,
+     "std_ssim": 0.010539443664093642,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.00012746542790021488,
+     "std_mse": 0.0001285303482913008,
+     "mean_psnr": 41.6236024974899,
+     "std_psnr": 5.275592770728519,
+     "mean_ssim": 0.985242410767611,
+     "std_ssim": 0.009955105548540372,
+     "nan_count": 0
+    }
+   },
+   {
+    "keep_ratio": 0.5,
+    "bits": 10,
+    "blob_bytes_total": 455225,
+    "basis_bytes": 0,
+    "total_bytes": 455225,
+    "bytes_per_image": 758.7083333333334,
+    "ratio_vs_raw": 0.7409261067708334,
+    "train": {
+     "mean_mse": 0.00011943182912035582,
+     "std_mse": 0.00015950036073272006,
+     "mean_psnr": 46.59448231647212,
+     "std_psnr": 10.48420994113589,
+     "mean_ssim": 0.9896354746325988,
+     "std_ssim": 0.011169809678875986,
+     "nan_count": 0
+    },
+    "test": {
+     "mean_mse": 0.00011214050007653145,
+     "std_mse": 0.0001315273236158882,
+     "mean_psnr": 45.83866666283092,
+     "std_psnr": 9.890603512164914,
+     "mean_ssim": 0.9887667611380471,
+     "std_ssim": 0.010939343939448846,
+     "nan_count": 0
+    }
+   }
+  ]
+ }
+}
