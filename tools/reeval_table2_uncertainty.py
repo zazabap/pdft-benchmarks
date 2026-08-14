@@ -599,7 +599,9 @@ def render_table(result: dict[str, Any]) -> str:
                 r"\caption{Mean test PSNR (dB) on $100$ held-out images per dataset at keep "
                 r"ratios $\rho$. Per column, the highest mean is \textbf{bold} and the second "
                 r"highest is \underline{underlined}; MERA is undefined on Quick Draw's $5$ "
-                r"qubits per axis (---).}"
+                r"qubits per axis (---). Per-image PSNRs, standard errors ($0.1$--$1.0$~dB "
+                r"per cell), and paired-bootstrap intervals for every cell are recorded in "
+                r"the benchmark repository.}"
             ),
             r"\label{tab:div2k_repr}\label{tab:quickdraw_repr}",
             r"\small",
