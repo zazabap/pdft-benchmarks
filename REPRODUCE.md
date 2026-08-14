@@ -55,6 +55,34 @@ The headline training budget behind the `RETRAIN=1` path is
 **`--epochs 112 --no-early-stop`** (1008 steps). Its keep-ratio grid includes
 ρ=0.01 so the headline table's ρ=0.01 column reproduces.
 
+## Table 2 (the 500/100 evaluation with uncertainty)
+
+The paper's Table 2 evaluates every method on **100** held-out images (the
+historical 50 plus 50 disjoint extensions, identities preserved) at keep
+ratios up to ρ=0.40. It is not a `make` target; it regenerates with:
+
+```bash
+JAX_PLATFORMS=cpu .venv/bin/python tools/reeval_table2_uncertainty.py
+```
+
+This rebuilds the frozen seed-42 split (`--split-only` re-derives it in
+seconds and must reproduce the committed `split_sha256`), re-scores each
+committed checkpoint / classical baseline per image, **validates the
+first-50 means against the committed cell metrics** before assembling, and
+writes:
+
+- `results/structure/table2_500x100_uncertainty.json` — the committed
+  provenance record: split manifest (SHA-256 per split), per-image PSNRs,
+  mean ± SEM per cell, and paired-bootstrap 95% CIs;
+- `results/structure/table2_500x100.tex` — the paper's Table 2, byte-for-byte.
+
+The full run needs both datasets and a few CPU-hours; per-method parts are
+cached under `results/structure/table2_500x100_parts/` (gitignored) so it is
+resumable. `tools/reeval_topk_tables.py` is the companion protocol
+cross-check: it re-evaluates the stored bases at the extended grid (adds
+ρ=0.4) on the current data snapshot and reports drift against each committed
+cell.
+
 ### Authored in the paper repository, not here
 
 These have no benchmark provenance — hand-drawn typst diagrams or a composited
@@ -68,8 +96,12 @@ banner, built by the paper's own `make diagrams` / `make banner`:
 | `cooley_tukey_to_dct.pdf` (`fig:cooley_tukey_to_dct`) | `scripts/diagrams/cooley_tukey_to_dct.typ` |
 | `qft_unfreeze_circuit.pdf` (`fig:app_circuit`) | `scripts/diagrams/qft_unfreeze_circuit.typ` |
 
-`tab:circuits`, `tab:hyperparams`, and `tab:gate_relaxations` are authored
-directly in the paper's `main.tex`.
+`tab:circuits` (Table 1) and `tab:gate_relaxations` (Table 3) are authored
+directly in the paper's `main.tex`. The training hyperparameters that a
+previous revision tabulated in the paper are recorded per run in each
+released cell's `env.json` (`epochs: 112`, `batch_size: 50`,
+`lr_peak: 3e-3` → `lr_final: 3e-4`, `warmup_frac: 0.05`,
+`max_grad_norm: 1.0`, `validation_split: 0.15`, `seed: 42`).
 
 **Fig 3 (`ar1_histogram.pdf`, `fig:ar1_histogram`) moved here.** It used to be
 paper-authored (`scripts/plot_ar1_histogram.py`, importing this repo's dataset

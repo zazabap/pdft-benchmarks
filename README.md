@@ -25,8 +25,8 @@ make 02              # or just one section
 committed data and writes its figure(s)/table, printing headline numbers so
 you can check them against the paper. `make 00`, `01`, and `02` additionally
 need the raw image datasets to compute Fig 3 / Fig 5 from pixels (see
-[Datasets](#datasets)) — without them, `01`/`02` still render Table 3 and
-print a note that the image-derived panel was skipped. `03`, `04`, and `05`
+[Datasets](#datasets)) — without them, `01`/`02` still render their PSNR
+tables and print a note that the image-derived panel was skipped. `03`, `04`, and `05`
 render entirely from committed JSON, no datasets needed.
 
 To rerun a section's experiment from scratch instead of rendering the
@@ -49,11 +49,18 @@ Outputs are always **PDF + SVG, never PNG**.
 | Target | Script | Paper artifacts | Output location |
 |---|---|---|---|
 | `make 00` | `experiments/00_dataset_dist.py` | Fig 3 — AR(1) histogram | `results/dataset_dist/figures/ar1_histogram.{pdf,svg}` |
-| `make 01` | `experiments/01_bases_quickdraw.py` | Table 3 Quick Draw column + Fig 5 Quick Draw panel | `results/structure/quickdraw_pca_vs_block_dct/{figures/freq_recon_grid_imgcat*,tables/published_8q_quickdraw.tex}` |
-| `make 02` | `experiments/02_bases_div2k.py` | Table 3 DIV2K column + Fig 4 topology loss + Fig 5 DIV2K panel | `results/structure/div2k_8q_pca_vs_block_dct/{figures/{topology_loss_curve,freq_recon_grid_img390}*,tables/published_8q_div2k.tex}` |
-| `make 03` | `experiments/03_dataset_compression.py` | Fig 6 — Quick Draw rate–distortion | `results/training/6_dataset_compression/quickdraw_5q/figures/rd_quickdraw_paper.{pdf,svg}` |
-| `make 04` | `experiments/04_robustness_qft.py` | Appendix C: Fig 10 unfreeze dynamics + Fig 11 a/b seed robustness + Table 5 | `results/training/2_direct_training/{unfreeze,random_seed}/…` |
-| `make 05` | `experiments/05_robustness_dct_iv.py` | Appendix D: Figs 12–14 + Table 6 disturbance sweep | `results/training/4_exact_disturbance/…` |
+| `make 01` | `experiments/01_bases_quickdraw.py` | Fig 5 Quick Draw panel + the 50-image Quick Draw PSNR table (Table 2's protocol check) | `results/structure/quickdraw_pca_vs_block_dct/{figures/freq_recon_grid_imgcat*,tables/published_8q_quickdraw.tex}` |
+| `make 02` | `experiments/02_bases_div2k.py` | Fig 4a topology loss + Fig 5 DIV2K panel + the 50-image DIV2K PSNR table (Table 2's protocol check) | `results/structure/div2k_8q_pca_vs_block_dct/{figures/{topology_loss_curve,freq_recon_grid_img390}*,tables/published_8q_div2k.tex}` |
+| `make 03` | `experiments/03_dataset_compression.py` | Fig 4b — Quick Draw rate–distortion | `results/training/6_dataset_compression/quickdraw_5q/figures/rd_quickdraw_paper.{pdf,svg}` |
+| `make 04` | `experiments/04_robustness_qft.py` | Appendix C: Fig 9b unfreeze dynamics + Fig 9a/9c seed robustness + the seed-variance stats quoted in the App C prose | `results/training/2_direct_training/{unfreeze,random_seed}/…` |
+| `make 05` | `experiments/05_robustness_dct_iv.py` | Appendix D: Fig 10 disturbance panels + the sweep table behind the App D prose | `results/training/4_exact_disturbance/…` |
+
+**Paper Table 2** (mean test PSNR on 100 held-out images, ρ up to 0.40) is not
+a `make` target: it regenerates via `tools/reeval_table2_uncertainty.py`, which
+also rebuilds its committed provenance record
+`results/structure/table2_500x100_uncertainty.json` (frozen split manifest +
+per-image PSNRs + SEMs + paired-bootstrap CIs). See
+[REPRODUCE.md](REPRODUCE.md) for the protocol.
 
 `make all` runs every section in order. Each section script prints its
 headline numbers to stdout as part of `verify()`, so you can spot-check
@@ -80,7 +87,7 @@ headline training budget for the two basis-comparison drivers is
 | `make 01` (Quick Draw bases, m=n=5, 32×32) | `experiments/_train/quickdraw_pca_vs_block_dct.py` | `results/structure/quickdraw_pca_vs_block_dct/by_basis/` |
 | `make 02` (DIV2K-8q bases, m=n=8, 256×256) | `experiments/_train/div2k_8q_pca_vs_block_dct.py` | `results/structure/div2k_8q_pca_vs_block_dct/by_basis/` |
 | `make 03` (dataset compression / rate–distortion) | `experiments/_train/dataset_compression.py` | `results/training/6_dataset_compression/` |
-| `make 04` (QFT seed sweep → Table 5 + Fig 11a) | `experiments/_train/qft_seed_sweep.py` | `data/direct_training/random_seed/` |
+| `make 04` (QFT seed sweep → Fig 9a + the App C seed stats) | `experiments/_train/qft_seed_sweep.py` | `data/direct_training/random_seed/` |
 | `make 05` (DCT-IV disturbance sweep) | `experiments/_train/dct4_disturbance_sweep.py` | `data/exact_disturbance/` |
 
 The two basis-comparison drivers (`01`, `02`) train once per **dataset** (a
@@ -89,8 +96,8 @@ evaluate on held-out test images. After a run, `tools/cellify_run.py` folds
 the flat output into the `by_basis/<basis>/` layout the section scripts read.
 
 `make 04`'s `--retrain` is only partial honesty, not a full regeneration: it
-reruns the seed sweep (Table 5, Fig 11a), but Fig 10's unfreeze traces and
-Fig 11b's seed-scatter data have no from-scratch generator on this branch —
+reruns the seed sweep (the App C seed stats, Fig 9a), but Fig 9b's unfreeze
+traces and Fig 9c's seed-scatter data have no from-scratch generator on this branch —
 those two inputs stay as committed data under `data/direct_training/` and are
 only rendered, never rebuilt, by `RETRAIN=1 make 04`.
 
