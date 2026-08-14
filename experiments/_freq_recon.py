@@ -368,7 +368,7 @@ def render_freq_recon_grid(
         cbar_ax = axes_f[-1]
         cb = fig_f.colorbar(last_im, cax=cbar_ax)
         cb.ax.tick_params(labelsize=7)
-        cb.set_label("log₁₀(|F| / |F|_max)", fontsize=7.5,
+        cb.set_label("log₁₀(|Tx| / max|Tx|)", fontsize=7.5,
                      rotation=90, labelpad=4)
 
         fig_f.subplots_adjust(left=0.04, right=0.985, top=0.78, bottom=0.02)
