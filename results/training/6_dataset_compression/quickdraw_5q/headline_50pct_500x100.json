@@ -1,0 +1,90 @@
+{
+ "meta": {
+  "dataset": "quickdraw_5q",
+  "n_train": 500,
+  "n_test": 100,
+  "image_shape": [
+   32,
+   32
+  ],
+  "raw_bytes_total": 614400,
+  "raw_bytes_per_image": 1024,
+  "deflate_raw_total": 161903,
+  "png_total": 236853,
+  "seed": 42,
+  "keep_ratios": [
+   0.05,
+   0.1,
+   0.15,
+   0.2,
+   0.3,
+   0.4,
+   0.5
+  ],
+  "bits": [
+   6,
+   8,
+   10
+  ],
+  "basis_size_policy": "excluded",
+  "split_sha256": "2cbfa8cbc20d610ea088e2b71bf7871fc578ec320d0675cd561cd111e3065f62",
+  "split_manifest": "/workspaces/parametric-dft-paper/pdft-benchmarks/results/structure/table2_500x100_uncertainty.json"
+ },
+ "budget_bytes": 307200.0,
+ "by_basis": {
+  "dct4_ctl": {
+   "keep_ratio": 0.4,
+   "bits": 8,
+   "blob_bytes_total": 300027,
+   "basis_bytes": 65307,
+   "total_bytes": 300027,
+   "bytes_per_image": 500.045,
+   "ratio_vs_raw": 0.4883251953125,
+   "train": {
+    "mean_mse": 8.24239719529081e-05,
+    "std_mse": 7.281492842362271e-05,
+    "mean_psnr": 42.401143136023194,
+    "std_psnr": 3.763586957839853,
+    "mean_ssim": 0.9701614598397141,
+    "std_ssim": 0.013565154648829613,
+    "nan_count": 0
+   },
+   "test": {
+    "mean_mse": 7.516935225000634e-05,
+    "std_mse": 5.546972762022905e-05,
+    "mean_psnr": 42.48290997627893,
+    "std_psnr": 3.422510848115727,
+    "mean_ssim": 0.9701608138851402,
+    "std_ssim": 0.011379508036696401,
+    "nan_count": 0
+   }
+  },
+  "block_dct_8": {
+   "keep_ratio": 0.4,
+   "bits": 8,
+   "blob_bytes_total": 291221,
+   "basis_bytes": 0,
+   "total_bytes": 291221,
+   "bytes_per_image": 485.36833333333334,
+   "ratio_vs_raw": 0.47399251302083334,
+   "train": {
+    "mean_mse": 0.00037454155081005473,
+    "std_mse": 0.0004045940423854595,
+    "mean_psnr": 37.91754961111164,
+    "std_psnr": 6.583805680757269,
+    "mean_ssim": 0.975163869174787,
+    "std_ssim": 0.01783132397633304,
+    "nan_count": 0
+   },
+   "test": {
+    "mean_mse": 0.00036558568703222097,
+    "std_mse": 0.0003385846274236109,
+    "mean_psnr": 37.28718092483144,
+    "std_psnr": 5.971152426334273,
+    "mean_ssim": 0.9719233140791753,
+    "std_ssim": 0.017262025821819182,
+    "nan_count": 0
+   }
+  }
+ }
+}

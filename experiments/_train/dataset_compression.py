@@ -2,7 +2,7 @@
 """6_dataset_compression: real compress->store->decompress sweep.
 
 For each contender basis, encodes the full experiment dataset (train +
-test, standard seed-42 split) to real blob files at every point of a
+test, either the standard seed-42 split or an explicit frozen manifest) to real blob files at every point of a
 (keep_ratio x bits) grid, decodes the files back, and records actual
 bytes plus PSNR/SSIM per split. Emits:
 
@@ -12,8 +12,9 @@ bytes plus PSNR/SSIM per split. Emits:
 Contenders: the retrained real-valued rich basis (headline), the complex
 rich basis (honest 2x storage), and classical block_dct_8. Lossless
 references (zlib of raw uint8, per-image optimized PNG) are recorded for
-the figure. Sizes count blob bytes + the basis checkpoint file (stored
-once; 0 for the analytic DCT).
+the figure. Sizes count blob bytes + the basis checkpoint file by default
+(stored once; 0 for the analytic DCT). ``--exclude-basis-from-size``
+records the paper's transform-definition-excluded comparison instead.
 
 GPU: optional (--gpu isolates via CUDA_VISIBLE_DEVICES before JAX
 import). QuickDraw runs fine on CPU; DIV2K wants a GPU for the ~23k
@@ -31,12 +32,39 @@ from pathlib import Path
 
 DATASETS = {
     "quickdraw_5q": dict(loader="quickdraw", preset_ns="quickdraw",
-                         real_key="real_rich", complex_key="rich"),
+                         real_key="real_rich", complex_key="rich",
+                         dct4_key="dct4_ctl"),
     "div2k_8q":     dict(loader="div2k", preset_ns="div2k_8q",
                          real_key="real_rich_8", complex_key="rich_8"),
 }
 DEFAULT_KEEP_RATIOS = "0.05,0.1,0.15,0.2,0.3,0.4,0.5"
 DEFAULT_BITS = "6,8,10"
+
+
+def _load_quickdraw_manifest(path: Path):
+    """Load the exact train/test identities embedded in a Table 2 result JSON."""
+    import numpy as np
+
+    payload = json.loads(path.read_text())
+    manifest = payload.get("split", payload)
+    split = manifest["datasets"]["quickdraw"]
+    data_root = Path(split["source_root"])
+    arrays = {
+        name: np.load(data_root / name, mmap_mode="r")
+        for name in sorted(
+            {str(identity[0]) for group in (split["train"], split["test"]) for identity in group}
+        )
+    }
+
+    def materialize(identities):
+        out = np.zeros((len(identities), 32, 32), dtype=np.float32)
+        for i, (name, row) in enumerate(identities):
+            out[i, 2:30, 2:30] = np.asarray(
+                arrays[str(name)][int(row)], dtype=np.float32
+            ).reshape(28, 28) / 255.0
+        return out
+
+    return materialize(split["train"]), materialize(split["test"]), manifest["split_sha256"]
 
 
 def main() -> int:
@@ -49,12 +77,22 @@ def main() -> int:
                              "results/training/6_dataset_compression/<dataset>/checkpoints")
     parser.add_argument("--out", default=None,
                         help="Default: results/training/6_dataset_compression/<dataset>")
+    parser.add_argument("--rd-name", default="rd_curves.json",
+                        help="Filename for the full sweep under --out.")
+    parser.add_argument("--headline-name", default="headline_50pct.json",
+                        help="Filename for the 50%%-budget summary under --out.")
     parser.add_argument("--blob-dir", default=None,
                         help="Where blob files are written+read (default /tmp/claude-0/blobs/<dataset>)")
     parser.add_argument("--keep-ratios", default=DEFAULT_KEEP_RATIOS)
     parser.add_argument("--bits", default=DEFAULT_BITS)
     parser.add_argument("--contenders", default="real,complex,block_dct_8",
-                        help="Subset of {real,complex,block_dct_8} (smoke runs can drop the bases)")
+                        help="Subset of {real,complex,dct4_ctl,block_dct_8} (smoke runs can drop the bases)")
+    parser.add_argument("--dct4-checkpoint", default=None,
+                        help="Checkpoint for the optional dct4_ctl contender.")
+    parser.add_argument("--split-manifest", default=None,
+                        help="Self-contained Table 2 JSON whose embedded split fixes train/test identities.")
+    parser.add_argument("--exclude-basis-from-size", action="store_true",
+                        help="Exclude the shared basis definition from reported compressed sizes.")
     parser.add_argument("--limit", type=int, default=None,
                         help="Cap images per split (smoke testing)")
     args = parser.parse_args()
@@ -82,8 +120,16 @@ def main() -> int:
     blob_root = Path(args.blob_dir or f"/tmp/claude-0/blobs/{args.dataset}")
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    train_imgs, test_imgs = load(cfg["loader"], n_train=preset.n_train,
-                                 n_test=preset.n_test, seed=preset.seed)
+    split_sha256 = None
+    if args.split_manifest:
+        if args.dataset != "quickdraw_5q":
+            raise ValueError("--split-manifest currently supports quickdraw_5q only")
+        train_imgs, test_imgs, split_sha256 = _load_quickdraw_manifest(
+            Path(args.split_manifest)
+        )
+    else:
+        train_imgs, test_imgs = load(cfg["loader"], n_train=preset.n_train,
+                                     n_test=preset.n_test, seed=preset.seed)
     if args.limit:
         train_imgs, test_imgs = train_imgs[:args.limit], test_imgs[:args.limit]
     imgs = np.concatenate([train_imgs, test_imgs]).astype(np.float64)
@@ -112,6 +158,17 @@ def main() -> int:
         contenders[cfg["complex_key"]] = dict(
             pair=basis_pair(load_trained_basis(p), is_complex=True),
             basis_bytes=p.stat().st_size)
+    if "dct4_ctl" in wanted:
+        if args.dataset != "quickdraw_5q":
+            raise ValueError("dct4_ctl contender currently supports quickdraw_5q only")
+        p = Path(
+            args.dct4_checkpoint
+            or "results/structure/quickdraw_pca_vs_block_dct/by_basis/"
+               "dct4_ctl/trained_dct4_ctl.json"
+        )
+        contenders[cfg["dct4_key"]] = dict(
+            pair=basis_pair(load_trained_basis(p), is_complex=False),
+            basis_bytes=p.stat().st_size)
     if "block_dct_8" in wanted:
         contenders["block_dct_8"] = dict(pair=block_dct_pair(8), basis_bytes=0)
 
@@ -138,7 +195,7 @@ def main() -> int:
                     blob_bytes += f.stat().st_size
                     rec = decode(f.read_bytes(), pair)  # decode FROM the file
                     per_image.append(compute_metrics(img, rec))
-                total = blob_bytes + basis_bytes
+                total = blob_bytes if args.exclude_basis_from_size else blob_bytes + basis_bytes
                 point = {
                     "keep_ratio": kr, "bits": b,
                     "blob_bytes_total": blob_bytes,
@@ -161,8 +218,14 @@ def main() -> int:
         "raw_bytes_per_image": h * w,
         "deflate_raw_total": deflate_total, "png_total": png_total,
         "seed": preset.seed, "keep_ratios": keep_ratios, "bits": bit_widths,
+        "basis_size_policy": (
+            "excluded" if args.exclude_basis_from_size else "included_once_per_dataset"
+        ),
     }
-    (out_dir / "rd_curves.json").write_text(
+    if split_sha256 is not None:
+        meta["split_sha256"] = split_sha256
+        meta["split_manifest"] = str(Path(args.split_manifest))
+    (out_dir / args.rd_name).write_text(
         json.dumps({"meta": meta, "curves": curves}, indent=1))
 
     headline = {"meta": meta, "budget_bytes": 0.5 * raw_total, "by_basis": {}}
@@ -173,8 +236,8 @@ def main() -> int:
             headline["by_basis"][name] = best
         else:
             headline["by_basis"][name] = None
-    (out_dir / "headline_50pct.json").write_text(json.dumps(headline, indent=1))
-    print(f"wrote {out_dir}/rd_curves.json and headline_50pct.json")
+    (out_dir / args.headline_name).write_text(json.dumps(headline, indent=1))
+    print(f"wrote {out_dir / args.rd_name} and {out_dir / args.headline_name}")
     return 0
 
 

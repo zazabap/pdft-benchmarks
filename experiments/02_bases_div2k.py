@@ -81,7 +81,7 @@ from pdft_benchmarks.plots.style import WONG, save_figure, set_paper_rcparams  #
 # apart from the unitary family's coloured curves.
 TOPOLOGY_SERIES = [
     ("rich_full",     "RichBasis",        WONG["blue"],      "-",               "o"),
-    ("dct4_ctl",      "DCT-IV (relaxed)", WONG["black"],     (0, (3, 1, 1, 1)), "P"),
+    ("dct4_ctl",      "DCT-IV",           WONG["black"],     (0, (3, 1, 1, 1)), "P"),
     ("tebd_u4",       "TEBD",             WONG["green"],     (0, (5, 2)),       "D"),
     ("mera_u4",       "MERA",             WONG["sky"],       (0, (1, 1)),       "v"),
     ("qft",           "QFT",              WONG["orange"],    (0, (5, 2)),       "s"),
@@ -160,14 +160,15 @@ def render_fig4_topology_loss(by_basis: Path = BY_BASIS,
     hi.legend(fontsize=8, frameon=False, loc="upper right",
               handlelength=2.2, labelspacing=0.22, borderaxespad=0.2)
     fig.tight_layout(pad=0.4)
-    fig.subplots_adjust(left=0.135, right=0.985, top=0.985)
-    fig.text(0.008, 0.55, "validation MSE", rotation=90, va="center",
+    fig.subplots_adjust(left=0.135, right=0.955, top=0.985, bottom=0.145)
+    fig.text(0.008, 0.55, "validation loss", rotation=90, va="center",
              ha="left", fontsize=9.5)
 
     figdir = write_base / "figures"
     figdir.mkdir(parents=True, exist_ok=True)
     pdf = figdir / "topology_loss_curve.pdf"
-    save_figure(fig, pdf)
+    # Full-canvas save (no tight crop) so this box matches 03's Fig 4b twin.
+    save_figure(fig, pdf, bbox_inches=None)
     plt.close(fig)
     print(f"[render] wrote {pdf} (+ .svg)")
     return pdf, finals

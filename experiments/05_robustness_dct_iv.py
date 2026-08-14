@@ -87,8 +87,8 @@ STYLE = {
     "0.2": ("#CC79A7", ":", "D"),     # pink,   dotted
 }
 RHO_KEYS = ["0.01", "0.05", "0.1", "0.2"]
-RHO_LABEL = {"0.01": r"$\rho=.01$", "0.05": r"$\rho=.05$",
-             "0.1": r"$\rho=.10$", "0.2": r"$\rho=.20$"}
+RHO_LABEL = {"0.01": r"$\rho = 0.01$", "0.05": r"$\rho = 0.05$",
+             "0.1": r"$\rho = 0.10$", "0.2": r"$\rho = 0.20$"}
 
 
 def _pct(fk: str) -> float:
@@ -186,7 +186,7 @@ def render_fig_init_loss(ss: dict, out_stem: Path = FIG_INIT_LOSS) -> Path:
                    label="exact init")
     ax.set_xscale("log")
     ax.set_xlabel("disturbed parameters (% of 2200 gate entries)")
-    ax.set_ylabel("top-$k$ MSE loss (train pool)")
+    ax.set_ylabel("top-$k$ truncation loss $\\mathcal{L}_k$ (train pool)")
     ax.set_xticks(xs)
     ax.set_xticklabels([f"{v:g}" for v in xs])
     ax.grid(True, which="both", ls=":", lw=0.4, alpha=0.5)
