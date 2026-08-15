@@ -131,7 +131,13 @@ data.) The datasets are not downloaded automatically — the loaders raise a
 clear error if they are missing. By default they are read from
 `/home/claude-user/ParametricDFT-Benchmarks.jl/data/`:
 
-- `quickdraw/*.npy` — Quick Draw `numpy_bitmap` categories, 28×28 uint8.
+- `quickdraw/*.npy` — Quick Draw `numpy_bitmap` categories, 28×28 uint8. Each
+  category file is exactly the **first 3000 rows** of the corresponding file in
+  Google's public `numpy_bitmap` release: the frozen split manifest
+  (`results/structure/table2_500x100_uncertainty.json`) records image
+  identities as rows into these 3000-row pools, and
+  `results/structure/quickdraw_pool.sha256` holds their checksums.
+  `REPRODUCE.md` has a snippet that derives and verifies them.
 - `DIV2K_train_HR/*.png` — `0001.png` … `0800.png`, centre-cropped and
   LANCZOS-resized to 256×256.
 
