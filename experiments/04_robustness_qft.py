@@ -212,7 +212,7 @@ def _draw_init_L0(ax, L0, n_seeds):
     ax.axvline(L0.mean(), color="k", ls="--", lw=1.2,
                label=f"mean {L0.mean():.1f} ($\\sigma$={L0.std(ddof=1):.1f})")
     ax.set_xlabel("initial top-$k$ MSE loss $L_0$  (random init)", fontsize=8.5)
-    ax.set_ylabel(f"# seeds (n={n_seeds})", fontsize=8.5)
+    ax.set_ylabel(f"# seeds ({n_seeds} total)", fontsize=8.5)
     ax.legend(frameon=False, fontsize=7.5)
 
 
