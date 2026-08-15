@@ -40,6 +40,37 @@ without it, `01`/`02` still render Table 3 and print a skip note for the
 image-derived panel. `03`, `04`, and `05` render entirely from committed JSON
 under `results/` / `data/` — no dataset needed.
 
+The six Quick Draw category files are **not** Google's full release: each is
+exactly the first 3000 rows of the corresponding public `numpy_bitmap` file,
+so the frozen split manifest's row indices resolve against these 3000-row
+pools. Derive them with the snippet below (a range request fetches only the
+needed ~2.3 MB per category), then verify against the committed checksums:
+
+```bash
+python - <<'EOF'
+import pathlib, struct, urllib.request
+import numpy as np
+
+BASE = "https://storage.googleapis.com/quickdraw_dataset/full/numpy_bitmap"
+# Loader default; see README "Datasets" to point elsewhere.
+DEST = pathlib.Path("/home/claude-user/ParametricDFT-Benchmarks.jl/data/quickdraw")
+DEST.mkdir(parents=True, exist_ok=True)
+for cat in ["airplane", "apple", "banana", "car", "cat", "clock"]:
+    url = f"{BASE}/{cat}.npy"
+    head = urllib.request.urlopen(
+        urllib.request.Request(url, headers={"Range": "bytes=0-9"})).read()
+    hlen = 10 + struct.unpack("<H", head[8:10])[0]  # .npy v1 total header size
+    rng = f"bytes={hlen}-{hlen + 3000 * 784 - 1}"
+    raw = urllib.request.urlopen(
+        urllib.request.Request(url, headers={"Range": rng})).read()
+    np.save(DEST / f"{cat}.npy",
+            np.frombuffer(raw, np.uint8).reshape(3000, 784))
+    print("wrote", DEST / f"{cat}.npy")
+EOF
+(cd /home/claude-user/ParametricDFT-Benchmarks.jl/data/quickdraw \
+    && sha256sum -c "$OLDPWD"/results/structure/quickdraw_pool.sha256)
+```
+
 On mixed-GPU hosts the Makefile already exports `CUDA_DEVICE_ORDER=PCI_BUS_ID`
 and `XLA_PYTHON_CLIENT_PREALLOCATE=false`.
 
