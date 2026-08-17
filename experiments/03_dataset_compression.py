@@ -173,8 +173,7 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
                 fontsize=8, color=GREEN)
 
     ax.set_xlabel("compressed size (% of raw)", fontsize=9.5)
-    ax.set_ylabel(r"test $\mathrm{PSNR} = 10\log_{10}(1/\mathrm{MSE})$ (dB)",
-                  fontsize=9.5)
+    ax.set_ylabel(r"$10\log_{10}(1/\mathrm{MSE})$ (dB)", fontsize=9.5)
     ax.set_xlim(pct(90), pct(575))
     ax.set_ylim(14.5, 49.5)
     ax.set_xticks([10, 20, 30, 40, 50])

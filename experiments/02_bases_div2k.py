@@ -162,7 +162,7 @@ def render_fig4_topology_loss(by_basis: Path = BY_BASIS,
     fig.tight_layout(pad=0.4)
     fig.subplots_adjust(left=0.15, right=0.955, top=0.985, bottom=0.145)
     fig.text(0.012, 0.55,
-             r"$|\mathcal{V}|^{-1}\,\Sigma_{\mathbf{x}\in\mathcal{V}}\,"
+             r"$(1/|\mathcal{V}|)\,\Sigma_{\mathbf{x}\in\mathcal{V}}\,"
              r"\mathcal{L}_k(\theta;\mathbf{x})$",
              rotation=90, va="center", ha="left", fontsize=9.5)
 
