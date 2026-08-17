@@ -160,9 +160,11 @@ def render_fig4_topology_loss(by_basis: Path = BY_BASIS,
     hi.legend(fontsize=8, frameon=False, loc="upper right",
               handlelength=2.2, labelspacing=0.22, borderaxespad=0.2)
     fig.tight_layout(pad=0.4)
-    fig.subplots_adjust(left=0.135, right=0.955, top=0.985, bottom=0.145)
-    fig.text(0.008, 0.55, "validation loss", rotation=90, va="center",
-             ha="left", fontsize=9.5)
+    fig.subplots_adjust(left=0.15, right=0.955, top=0.985, bottom=0.145)
+    fig.text(0.012, 0.55,
+             r"$|\mathcal{V}|^{-1}\,\Sigma_{\mathbf{x}\in\mathcal{V}}\,"
+             r"\mathcal{L}_k(\theta;\mathbf{x})$",
+             rotation=90, va="center", ha="left", fontsize=9.5)
 
     figdir = write_base / "figures"
     figdir.mkdir(parents=True, exist_ok=True)
