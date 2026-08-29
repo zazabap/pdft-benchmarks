@@ -295,9 +295,10 @@ def render_fig11b_seed_scatter(read_base: Path = DATA_SEED_DIV2K,
             sd = float(vals.std(ddof=1) if vals.size > 1 else 0.0)
             ax.errorbar(i, m, yerr=sd, fmt="_", color="black", ms=18, lw=1.6,
                         capsize=4, zorder=5)
-            ax.text(i + (i - 1) * 0.12, -0.16, f"${m:.2f}{{\\pm}}{sd:.2f}$",
-                    transform=tick_tr, ha="center", va="top", fontsize=5,
-                    color=color)
+            ax.text(i, -0.155, f"${m:.2f}$", transform=tick_tr,
+                    ha="center", va="top", fontsize=6.5, color=color)
+            ax.text(i, -0.25, f"$\\pm{sd:.2f}$", transform=tick_tr,
+                    ha="center", va="top", fontsize=6.5, color=color)
         if classical:
             if "block_dct_8" in classical and r in classical["block_dct_8"]:
                 ax.axhline(classical["block_dct_8"][r], color="k", ls="--", lw=1.2)
