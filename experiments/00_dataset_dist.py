@@ -101,7 +101,7 @@ def _plot(rho: dict[str, np.ndarray], out_stem: Path = FIG_OUT) -> list[Path]:
     bins = np.linspace(0.4, 1.0, 25)
     for label, r, color in series:
         ax.hist(r, bins=bins, alpha=0.6, color=color,
-                 label=f"{label}  ($n={len(r)}$)", edgecolor="white",
+                 label=f"{label}  ($L={len(r)}$)", edgecolor="white",
                  linewidth=0.4)
     ax.set_xlim(0.4, 1.0)
     ymax = ax.get_ylim()[1]
