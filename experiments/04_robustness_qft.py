@@ -255,18 +255,21 @@ def render_fig11a_init_distribution(read_base: Path = DATA_SEED_DIV2K,
 # Ports tools/analysis/render_seed_scatter_ratios.py main(--paper-style).
 # ===========================================================================
 _SCATTER_STYLE = {
-    "bg": ("#0072B2", "block-growth"),
-    "lr": ("#E69F00", "left→right"),
-    "rl": ("#009E73", "right→left"),
+    "bg": ("#1B9E77", "bg"),
+    "lr": ("#D95F02", "lr"),
+    "rl": ("#7570B3", "rl"),
 }
 
 
 def render_fig11b_seed_scatter(read_base: Path = DATA_SEED_DIV2K,
                                 write_base: Path = RESULTS_SEED_DIV2K,
                                 ratios=("0.01", "0.05", "0.1", "0.2")) -> Path:
-    """Per-seed PSNR scatter, one panel per keep ratio. Reads
+    """Per-seed PSNR scatter, one panel per keep ratio, each ordering's
+    mean±σ printed under its tick. Reads
     <read_base>/reference/seed_scatter_ratios.json; writes
     <write_base>/figures/paper/seed_scatter_ratios.pdf."""
+    from matplotlib.transforms import blended_transform_factory
+
     merged_path = read_base / "reference" / "seed_scatter_ratios.json"
     if not merged_path.exists():
         raise RuntimeError(f"[fig11b] no {merged_path}")
@@ -279,6 +282,7 @@ def render_fig11b_seed_scatter(read_base: Path = DATA_SEED_DIV2K,
     axes = axes[0]
     rng = np.random.default_rng(0)
     for ax, r in zip(axes, ratios):
+        tick_tr = blended_transform_factory(ax.transData, ax.transAxes)
         for i, o in enumerate(orderings):
             color, _lab = _SCATTER_STYLE[o]
             vals = np.array([v[r] for v in per_ordering[o].values() if r in v])
@@ -291,20 +295,31 @@ def render_fig11b_seed_scatter(read_base: Path = DATA_SEED_DIV2K,
             sd = float(vals.std(ddof=1) if vals.size > 1 else 0.0)
             ax.errorbar(i, m, yerr=sd, fmt="_", color="black", ms=18, lw=1.6,
                         capsize=4, zorder=5)
+            ax.text(i, -0.155, f"${m:.2f}$", transform=tick_tr,
+                    ha="center", va="top", fontsize=6.5, color=color)
+            ax.text(i, -0.25, f"$\\pm{sd:.2f}$", transform=tick_tr,
+                    ha="center", va="top", fontsize=6.5, color=color)
         if classical:
             if "block_dct_8" in classical and r in classical["block_dct_8"]:
-                ax.axhline(classical["block_dct_8"][r], color="0.45", ls=":", lw=1.3,
-                           label="block-DCT 8×8")
+                ax.axhline(classical["block_dct_8"][r], color="k", ls="--", lw=1.2)
             if "block_fft_8" in classical and r in classical["block_fft_8"]:
-                ax.axhline(classical["block_fft_8"][r], color="k", ls="--", lw=1.2,
-                           label="block-FFT 8×8")
+                ax.axhline(classical["block_fft_8"][r], color="0.45", ls=":", lw=1.3)
         ax.set_xticks(range(len(orderings)))
-        ax.set_xticklabels([_SCATTER_STYLE[o][1] for o in orderings], fontsize=7,
-                           rotation=20, ha="right")
-        ax.set_title(f"$\\rho = {r}$", fontsize=9)
+        ax.set_xticklabels([_SCATTER_STYLE[o][1] for o in orderings], fontsize=8)
+        ax.set_title(f"$\\rho = {float(r):.2f}$", fontsize=9)
     axes[0].set_ylabel("test PSNR (dB)", fontsize=8.5)
     if classical:
-        axes[-1].legend(frameon=False, fontsize=7, loc="lower left")
+        r_last = ratios[-1]
+        ax_last = axes[-1]
+        line_tr = blended_transform_factory(ax_last.transAxes, ax_last.transData)
+        if "block_dct_8" in classical and r_last in classical["block_dct_8"]:
+            ax_last.text(0.97, classical["block_dct_8"][r_last], "block-DCT 8×8",
+                         transform=line_tr, ha="right", va="top", fontsize=7,
+                         color="k")
+        if "block_fft_8" in classical and r_last in classical["block_fft_8"]:
+            ax_last.text(0.03, classical["block_fft_8"][r_last], "block-DFT 8×8",
+                         transform=line_tr, ha="left", va="top", fontsize=7,
+                         color="0.45")
 
     fig.tight_layout()
     out = write_base / "figures" / "paper" / "seed_scatter_ratios.pdf"
