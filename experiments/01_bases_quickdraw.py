@@ -82,7 +82,9 @@ def render() -> dict:
         fig5_paths = render_freq_recon_grid(
             dataset="quickdraw",
             custom_images=f"{CAT_IMAGE}:cat",
-            keep_ratios="0.01,0.05,0.10,0.15,0.20",
+            # The paper's Fig 5 rows: every evaluated ratio up to 0.20
+            # except 0.15, which the manuscript figure omits.
+            keep_ratios="0.01,0.05,0.10,0.20",
         )
         outputs["fig5_quickdraw"] = fig5_paths
     except Exception as e:
