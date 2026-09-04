@@ -48,7 +48,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # for _paper_style
-from _paper_style import apply_paper_style, PAPER_TEXTWIDTH  # noqa: E402
+from _paper_style import apply_paper_style, manuscript_default_style  # noqa: E402
 
 import difflib
 import importlib.util
@@ -135,31 +135,36 @@ def render_fig_psnr_vs_f(ss: dict, out_stem: Path = FIG_PSNR_VS_F) -> Path:
 
 
 # ===========================================================================
-# Fig — untrained (perturbed init) vs trained PSNR, 2x2 panels (one per rho).
-# Ports render_disturbance_curve.py::render_recovery().
+# Fig 10a — untrained (perturbed init) vs trained PSNR, the manuscript's
+# committed design: one shared axes, colour+marker per rho, solid = trained
+# and dotted = perturbed init, in matplotlib's default (DejaVu) style.
+# Reconstructed against the paper's committed disturbance_recovery.pdf
+# (its original renderer was a one-off that never landed in either repo).
 # ===========================================================================
 def render_fig_recovery(ss: dict, out_stem: Path = FIG_RECOVERY) -> Path:
     fractions = [f"{f:g}" for f in ss["fractions"]]
     xs = np.array([_pct(fk) for fk in fractions])
-    fig, axes = plt.subplots(2, 2, figsize=(PAPER_TEXTWIDTH, 5.0), sharex=True)
-    for ax, rk in zip(axes.ravel(), RHO_KEYS):
-        colour, ls, mk = STYLE[rk]
-        tr = np.array([ss["agg_trained"][fk][rk]["mean"] for fk in fractions])
-        un = np.array([ss["agg_untrained"][fk][rk]["mean"] for fk in fractions])
-        ax.plot(xs, tr, "-", color=colour, marker=mk, ms=4, lw=1.6, label="trained")
-        ax.plot(xs, un, ":", color=colour, marker=mk, ms=3, lw=1.3, alpha=0.7,
-                label="perturbed init")
+    with manuscript_default_style():
+        fig, ax = plt.subplots(figsize=(5.2, 3.6))
+        for rk in RHO_KEYS:
+            colour, _ls, mk = STYLE[rk]
+            tr = np.array([ss["agg_trained"][fk][rk]["mean"] for fk in fractions])
+            un = np.array([ss["agg_untrained"][fk][rk]["mean"] for fk in fractions])
+            ax.plot(xs, tr, "-", color=colour, marker=mk, ms=4, lw=1.6,
+                    label=RHO_LABEL[rk])
+            ax.plot(xs, un, ":", color=colour, marker=mk, ms=3, lw=1.3, alpha=0.75)
         ax.set_xscale("log")
-        ax.set_title(RHO_LABEL[rk], fontsize=9)
-        ax.grid(True, which="both", ls=":", lw=0.4, alpha=0.5)
-        ax.legend(frameon=False, fontsize=7)
-    for ax in axes[-1]:
-        ax.set_xlabel("disturbed %")
+        ax.set_xlabel("disturbed parameters (% of 2200 gate entries)")
+        ax.set_ylabel("test PSNR (dB)")
         ax.set_xticks(xs)
-        ax.set_xticklabels([f"{v:g}" for v in xs], fontsize=7)
-    for ax in axes[:, 0]:
-        ax.set_ylabel("PSNR (dB)")
-    _save(fig, out_stem)
+        ax.set_xticklabels([f"{v:g}" for v in xs])
+        handles, labels = ax.get_legend_handles_labels()
+        handles += [plt.Line2D([], [], color="black", ls="-", lw=1.6),
+                    plt.Line2D([], [], color="black", ls=":", lw=1.3)]
+        labels += ["trained", "perturbed init"]
+        ax.legend(handles, labels, frameon=False, fontsize=8, ncol=2,
+                  loc="lower left")
+        _save(fig, out_stem)
     return out_stem
 
 

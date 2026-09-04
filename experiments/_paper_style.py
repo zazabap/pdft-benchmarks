@@ -40,4 +40,18 @@ def apply_paper_style() -> None:
     })
 
 
-__all__ = ["apply_paper_style", "PAPER_TEXTWIDTH", "PAPER_COLUMNWIDTH"]
+def manuscript_default_style():
+    """rc_context restoring matplotlib defaults, for the three appendix panels
+    (Fig 9a/9b unfreeze-seed figures, Fig 10a recovery) whose committed
+    manuscript versions were authored in the default DejaVu style rather than
+    the CM-serif paper style. Rendering them inside this context keeps their
+    output identical to the manuscript's committed PDFs even after
+    apply_paper_style() has run (which, among other things, flips
+    savefig.bbox to "tight" globally)."""
+    rc = {k: v for k, v in mpl.rcParamsDefault.items()
+          if not (k.startswith("backend") or k == "interactive")}
+    return mpl.rc_context(rc)
+
+
+__all__ = ["apply_paper_style", "manuscript_default_style",
+           "PAPER_TEXTWIDTH", "PAPER_COLUMNWIDTH"]
