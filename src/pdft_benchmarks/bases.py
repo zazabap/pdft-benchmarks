@@ -692,16 +692,19 @@ def dct4_random_controlled_basis(m: int, n: int, seed: int):
     the mirror Q/R CNOTs are the structural "CX" flips (fixed routing) and the
     twiddle is a single-angle O(2) `CRY` leaf rather than dense O(4).
 
-      - (2,2,2,2) gate (the CX mirror CNOT): kept AS-IS — fixed routing, applied
-        as an index flip, contributes no trainable parameter.
+      - (2,2,2,2) gate (the CX mirror CNOT): init kept AS-IS at the exact
+        CNOT point (only the init is exempt from randomization; the gate
+        itself is still a learnable dense-U4 leaf).
       - controlled-phase "Delta" sign gate ((2,2), row 0 == [1, 1]):
         `controlled_phase_diag(random {0, pi})`.
       - any other (2,2) gate (the O(2) `CRY` twiddle or branch Hadamard):
         Haar SO(2).
 
-    Reproducible via `np.random.default_rng(seed)`. Returns the basis only
-    (the CX mirror has zero gradient by construction, so no `frozen_indices`
-    is needed — it cannot move).
+    Reproducible via `np.random.default_rng(seed)`. Returns the basis only,
+    with nothing frozen: under `train_basis_batched` the mirror CNOTs receive
+    gradients like every other gate and relax within O(4) from the exact-CNOT
+    point. Pass `frozen_indices` yourself (as `dct4_controlled_basis` does)
+    if the mirrors should stay fixed routing.
     """
     import jax.numpy as jnp
     import numpy as np
