@@ -1,0 +1,31 @@
+{
+  "out": "results/ttn/fashion_seed0",
+  "data": "/Users/liujinguo/.cache/pdft-reproduction/data",
+  "device": "mps",
+  "epochs": 30,
+  "batch": 256,
+  "bond": 16,
+  "train_size": 60000,
+  "test_size": 10000,
+  "seed": 0,
+  "threads": 4,
+  "root_ridge": 1e-06,
+  "methods": [
+    "adam",
+    "radam_printed",
+    "radam_corrected"
+  ],
+  "resume": false,
+  "torch": "2.14.1",
+  "torchvision": "0.29.1",
+  "python": "3.12.12",
+  "platform": "macOS-14.6.1-arm64-arm-64bit",
+  "git_commit": "40381478e9cfa9137550aae48e077e5b8f79ec9b",
+  "preprocessing": "float32 /255; bilinear antialias resize16; row-major",
+  "implementation_sha256": {
+    "compression.py": "cecde11d32db86963b2909e825904feac1041c18a9da57508890fb4233bed6ba",
+    "__init__.py": "7abccc781a24ece5688c870e5cfb8f9cab44dd097feb9e9c417c2a1df25763b6",
+    "model.py": "cddb2ebac19f3677a7e6681124ec5b7266693c4cd7d7a0d1db8e374bac0fe699",
+    "train.py": "2d03b37dcf86132e443ae8d9c1d03b96e8b0844c6a664a36bf9d6f1d762d9f3c"
+  }
+}

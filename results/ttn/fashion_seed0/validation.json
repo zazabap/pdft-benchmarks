@@ -1,0 +1,15 @@
+{
+  "unit_tests": 11,
+  "unit_test_result": "pass",
+  "lint": "ruff check passed",
+  "format": "ruff format --check passed",
+  "epochs_per_method": 30,
+  "epoch_records": 93,
+  "compression_evaluations": 216,
+  "compression_failures": 0,
+  "seed": 0,
+  "square_projection": "literal",
+  "freeze_control": "unit-tested, not full-trained",
+  "original_source_snapshot": "checkpoints/source",
+  "source_config_note": "original run source hashes are preserved; later changes add CLI guards, logging safety, an opt-in freeze control, and figure formatting"
+}

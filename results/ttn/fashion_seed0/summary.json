@@ -1,0 +1,41 @@
+{
+  "last_observed": {
+    "adam": {
+      "method": "adam",
+      "epoch": 30,
+      "test": {
+        "accuracy": 0.899,
+        "loss": 0.18614204139709473
+      },
+      "online_train_loss": 0.10173940773010254,
+      "training_seconds": 190.994061250065,
+      "epoch_seconds": 7.041028667008504,
+      "orthogonality_error": 57.162559509277344
+    },
+    "radam_printed": {
+      "method": "radam_printed",
+      "epoch": 30,
+      "test": {
+        "accuracy": 0.8459,
+        "loss": 0.27974364776611327
+      },
+      "online_train_loss": 0.26423417337735494,
+      "training_seconds": 342.2590199979895,
+      "epoch_seconds": 12.047032832997502,
+      "orthogonality_error": 6.603831366192026e-07
+    },
+    "radam_corrected": {
+      "method": "radam_corrected",
+      "epoch": 30,
+      "test": {
+        "accuracy": 0.868,
+        "loss": 0.24492150039672853
+      },
+      "online_train_loss": 0.22691793594360352,
+      "training_seconds": 339.0691982110002,
+      "epoch_seconds": 12.035052207997069,
+      "orthogonality_error": 1.2487439562391955e-06
+    }
+  },
+  "paper_reference_accuracy_approx": 0.89
+}

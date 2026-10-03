@@ -1,0 +1,41 @@
+{
+  "seconds": 10.797604708990548,
+  "layers": [
+    {
+      "level": 0,
+      "rank": 4,
+      "min_retained_weight": 1.0
+    },
+    {
+      "level": 1,
+      "rank": 16,
+      "min_retained_weight": 1.0
+    },
+    {
+      "level": 2,
+      "rank": 16,
+      "min_retained_weight": 0.9936895544768033
+    },
+    {
+      "level": 3,
+      "rank": 16,
+      "min_retained_weight": 0.9584660121079817
+    },
+    {
+      "level": 4,
+      "rank": 16,
+      "min_retained_weight": 0.9257934362131682
+    },
+    {
+      "level": 5,
+      "rank": 16,
+      "min_retained_weight": 0.865887025011134
+    },
+    {
+      "level": 6,
+      "rank": 16,
+      "min_retained_weight": 0.7851276904887895
+    }
+  ],
+  "root_ridge_relative": 1e-06
+}

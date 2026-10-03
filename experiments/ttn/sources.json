@@ -1,0 +1,62 @@
+[
+  {
+    "arxiv": "2609.00870",
+    "title": "Stochastic Optimization of Tree Tensor Networks",
+    "authors": [
+      "Willner, Marius",
+      "Scharf, Maximilian",
+      "Uschmajew, Andr\u00e9",
+      "Felser, Timo",
+      "Trenti, Marco"
+    ],
+    "url": "https://arxiv.org/abs/2609.00870",
+    "pdf_url": "https://arxiv.org/pdf/2609.00870",
+    "pdf_sha256": "89664636f8e2296a68592044a48a81ddfe646d55f4450eef6505572dd8d67899",
+    "downloaded_bytes": 997618,
+    "inspected": "2026-10-03"
+  },
+  {
+    "arxiv": "1801.00315",
+    "title": "Learning Relevant Features of Data with Multi-scale Tensor Networks",
+    "authors": [
+      "Stoudenmire, E. M."
+    ],
+    "url": "https://arxiv.org/abs/1801.00315",
+    "pdf_url": "https://arxiv.org/pdf/1801.00315v1",
+    "pdf_sha256": "d993240dd87af26f9762bece1846aa8774f7bcbea6d32faa5e15295af7c02e76",
+    "downloaded_bytes": 1187940,
+    "inspected": "2026-10-03"
+  },
+  {
+    "arxiv": "2602.14656",
+    "title": "An Embarrassingly Simple Way to Optimize Orthogonal Matrices at Scale",
+    "authors": [
+      "Javaloy, Adri\u00e1n",
+      "Vergari, Antonio"
+    ],
+    "url": "https://arxiv.org/abs/2602.14656",
+    "pdf_url": "https://arxiv.org/pdf/2602.14656",
+    "pdf_sha256": "46a3b3f8afdd408370b14d69f565fe978a2c863e06447e69631d8d79e75c1167",
+    "downloaded_bytes": 1283411,
+    "inspected": "2026-10-03"
+  },
+  {
+    "arxiv": "2604.25755",
+    "title": "Quantum-Inspired Robust and Scalable SAR Object Classification",
+    "authors": [
+      "Scharf, Maximilian",
+      "Trenti, Marco",
+      "Bock, Felix",
+      "Davidson, Padraig",
+      "Brosch, Tobias",
+      "de Miranda, Benjamin Rodrigues",
+      "Huber, Sigurd",
+      "Felser, Timo"
+    ],
+    "url": "https://arxiv.org/abs/2604.25755",
+    "pdf_url": "https://arxiv.org/pdf/2604.25755",
+    "pdf_sha256": "08473f9ee96177fd36bee08837882e4cc4ed61578d4d5f0a61b070aff43846ae",
+    "downloaded_bytes": 738397,
+    "inspected": "2026-10-03"
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "adam": {
+    "max_parameter_error": 0.0,
+    "status": "pass"
+  },
+  "radam_printed": {
+    "max_parameter_error": 0.0,
+    "status": "pass"
+  }
+}

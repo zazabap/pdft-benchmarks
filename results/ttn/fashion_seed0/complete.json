@@ -1,0 +1,8 @@
+{
+  "epochs": 30,
+  "methods": [
+    "adam",
+    "radam_printed",
+    "radam_corrected"
+  ]
+}
