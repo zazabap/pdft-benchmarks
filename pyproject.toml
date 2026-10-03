@@ -24,9 +24,10 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
-    # DCT4Basis(controlled) + U(4) tebd_u4/mera_u4 landed after the published
-    # PyPI 0.2.2 wheel (which predates DCT4Basis); pin the git v0.2.3 tag.
-    "pdft @ git+https://github.com/zazabap/pdft.git@v0.2.3",
+    # The compression task moved from pdft.io to pdft.tasks and the fused Adam
+    # step takes an objective (pdft PR #61); pin the commit that has both until
+    # it is tagged.
+    "pdft @ git+https://github.com/zazabap/pdft.git@480110da4fd5a24780b0e6bfb260237641320ae9",
     "numpy>=1.26",
     "scipy>=1.11",
     "matplotlib>=3.7",
@@ -38,7 +39,7 @@ dependencies = [
 [project.optional-dependencies]
 bench = []
 gpu = [
-    "pdft[gpu] @ git+https://github.com/zazabap/pdft.git@v0.2.3",
+    "pdft[gpu] @ git+https://github.com/zazabap/pdft.git@480110da4fd5a24780b0e6bfb260237641320ae9",
 ]
 dev = [
     "pytest>=8.0",

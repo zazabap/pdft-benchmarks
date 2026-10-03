@@ -4,7 +4,7 @@
 Evaluation only -- no training. Loads each committed trained basis (the
 by_basis cells, plus the dataset-compression checkpoints for the real rich
 variants) and scores mean test PSNR/SSIM with the exact pipeline protocol
-(pdft.io.compress/recover: complex top-k counted once, keep = round(d*kr),
+(pdft.tasks.compress/recover: complex top-k counted once, keep = round(d*kr),
 reconstruction = real(T^-1), clamped to [0, 1]) at an extended keep-ratio
 grid that adds rho = 0.4 to the published ratios.
 
@@ -82,7 +82,7 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     result = {"dataset": args.dataset, "ratios": ratios, "n_test": len(test_imgs),
-              "protocol": "pdft.io.compress/recover via evaluate_basis_shared; "
+              "protocol": "pdft.tasks.compress/recover via evaluate_basis_shared; "
                           "baselines via BASELINE_FACTORIES/evaluate_baseline",
               "by_basis": {}, "drift_vs_cell_dB": {}}
 

@@ -35,16 +35,16 @@ def test_load_trained_basis_returns_callable_basis(quickdraw_blocked_8_path):
 
 
 def test_make_compress_fn_roundtrip(quickdraw_blocked_8_path):
-    """At keep_ratio=1.0, make_compress_fn must agree with pdft.io.compress/recover
+    """At keep_ratio=1.0, make_compress_fn must agree with pdft.tasks.compress/recover
     (ratio=0.0, keep all coefficients).
 
     Note: trained circuit bases are NOT unitary (T^{-1}∘T ≠ identity); the MSE
     at keep_ratio=1.0 is the reconstruction floor of the fitted circuit, not zero.
-    The correct check is that our dense top-k path matches pdft.io's sparse path
+    The correct check is that our dense top-k path matches pdft.tasks' sparse path
     when k=total (all coefficients kept).
     """
     import jax
-    import pdft.io as pio
+    import pdft.tasks as pio
 
     from pdft_benchmarks._loading import load_trained_basis, make_compress_fn
 
@@ -56,7 +56,7 @@ def test_make_compress_fn_roundtrip(quickdraw_blocked_8_path):
     recon = fn(img, keep_ratio=1.0)
     assert recon.shape == img.shape
 
-    # Compare with pdft.io (ratio=0.0 = keep all) — should be identical.
+    # Compare with pdft.tasks (ratio=0.0 = keep all) — should be identical.
     cpu_basis = jax.tree_util.tree_map(jax.device_get, basis)
     compressed = pio.compress(cpu_basis, img, ratio=0.0)
     recon_io = pio.recover(cpu_basis, compressed)

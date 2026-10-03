@@ -244,7 +244,7 @@ def main() -> int:
     import jax
     import numpy as np
     import pdft
-    import pdft.io  # noqa: F401 — needed by evaluate_basis_shared
+    import pdft.tasks  # noqa: F401 — needed by evaluate_basis_shared
     from pdft_benchmarks import datasets as ds_mod
     from pdft_benchmarks.bases import family_random_basis
     from pdft_benchmarks.evaluation import evaluate_basis_shared

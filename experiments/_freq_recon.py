@@ -202,7 +202,7 @@ def render_freq_recon_grid(
     # ---- Compute reconstructions: rec[(img_idx, kr)][name] = (image, psnr) ----
     from pdft_benchmarks.evaluation import compute_metrics
 
-    import pdft.io as pio
+    import pdft.tasks as pio
 
     def _recover_basis(basis, image, kr):
         compressed = pio.compress(basis, np.asarray(image, dtype=np.float64),

@@ -205,7 +205,7 @@ def main() -> int:
     import jax
     import numpy as np
     import pdft
-    import pdft.io  # noqa: F401
+    import pdft.tasks  # noqa: F401
     from pdft_benchmarks.datasets.div2k import load_div2k
     from pdft_benchmarks.disturbance import disturb_controlled_dct4, flat_entry_count
     from pdft_benchmarks.evaluation import evaluate_basis_shared

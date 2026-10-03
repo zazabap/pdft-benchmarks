@@ -49,11 +49,11 @@ def _psnr_clamped(original: np.ndarray, recovered: np.ndarray) -> float:
 
 def _recover_basis(basis, image: np.ndarray, keep_ratio: float) -> np.ndarray:
     """Run pdft compress/recover and return a real-valued, [0,1]-clipped image."""
-    import pdft
+    import pdft.tasks
 
     discard_ratio = 1.0 - keep_ratio
-    compressed = pdft.io.compress(basis, np.asarray(image, dtype=np.float64), ratio=discard_ratio)
-    recovered = pdft.io.recover(basis, compressed)
+    compressed = pdft.tasks.compress(basis, np.asarray(image, dtype=np.float64), ratio=discard_ratio)
+    recovered = pdft.tasks.recover(basis, compressed)
     return np.clip(np.real(recovered), 0.0, 1.0)
 
 

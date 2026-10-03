@@ -52,7 +52,7 @@ def main() -> int:
     import jax.numpy as jnp
     import numpy as np
     import pdft
-    import pdft.io  # noqa: F401
+    import pdft.tasks  # noqa: F401
     from pdft_benchmarks import datasets as ds_mod
     from pdft_benchmarks.evaluation import evaluate_basis_shared
 
