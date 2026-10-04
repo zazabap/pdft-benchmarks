@@ -25,9 +25,9 @@ classifiers = [
 ]
 dependencies = [
     # The compression task moved from pdft.io to pdft.tasks and the fused Adam
-    # step takes an objective (pdft PR #61); pin the commit that has both until
-    # it is tagged.
-    "pdft @ git+https://github.com/zazabap/pdft.git@480110da4fd5a24780b0e6bfb260237641320ae9",
+    # step takes an objective (pdft PR #61); pin its merge commit on main until
+    # pdft tags a release.
+    "pdft @ git+https://github.com/zazabap/pdft.git@0bc3aeb4ec623f0b2262a75dc4da992d1a4b135e",
     "numpy>=1.26",
     "scipy>=1.11",
     "matplotlib>=3.7",
@@ -39,7 +39,7 @@ dependencies = [
 [project.optional-dependencies]
 bench = []
 gpu = [
-    "pdft[gpu] @ git+https://github.com/zazabap/pdft.git@480110da4fd5a24780b0e6bfb260237641320ae9",
+    "pdft[gpu] @ git+https://github.com/zazabap/pdft.git@0bc3aeb4ec623f0b2262a75dc4da992d1a4b135e",
 ]
 dev = [
     "pytest>=8.0",
