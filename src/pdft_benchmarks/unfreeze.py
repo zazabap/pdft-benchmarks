@@ -139,6 +139,7 @@ def train_progressive_unfreeze(
     end; its return is stored on the stage summary's `extra` (used for PSNR).
     """
     import jax.numpy as jnp
+    from pdft.loss import mean_loss
     from pdft.manifolds import group_by_manifold, stack_tensors
     from pdft.training.adam_step import _build_jit_adam_step
 
@@ -164,7 +165,7 @@ def train_progressive_unfreeze(
         trainable = set(unfreeze_order[:s])
         frozen = frozenset(all_idx - trainable)
         step_fn = _build_jit_adam_step(
-            basis, loss, beta1=beta1, beta2=beta2, eps=eps,
+            mean_loss(basis, loss), basis.tensors, beta1=beta1, beta2=beta2, eps=eps,
             max_grad_norm=None, frozen_set=frozen if frozen else None)
         m_state, v_state = _zero_adam()
 

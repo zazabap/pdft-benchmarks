@@ -107,7 +107,7 @@ def evaluate_basis_shared(
     """
     import jax
 
-    import pdft  # noqa: F401  -- ensures jax_enable_x64 is set before any jnp use
+    import pdft.tasks  # also sets jax_enable_x64 before any jnp use
 
     cpu_basis = jax.tree_util.tree_map(jax.device_get, basis)
 
@@ -118,10 +118,10 @@ def evaluate_basis_shared(
         per_image: list[dict[str, float]] = []
         for img in test_images:
             try:
-                compressed = pdft.io.compress(
+                compressed = pdft.tasks.compress(
                     cpu_basis, np.asarray(img, dtype=np.float64), ratio=discard_ratio
                 )
-                recovered = pdft.io.recover(cpu_basis, compressed)
+                recovered = pdft.tasks.recover(cpu_basis, compressed)
                 per_image.append(compute_metrics(img, recovered))
             except Exception as e:  # noqa: BLE001
                 logger.warning("compress/recover failed on (kr=%s): %s", kr, e)
@@ -150,7 +150,7 @@ def evaluate_basis_per_image(
     """
     import jax
 
-    import pdft  # noqa: F401  -- ensures jax_enable_x64 is set before any jnp use
+    import pdft.tasks  # also sets jax_enable_x64 before any jnp use
 
     if len(bases) != len(test_images):
         raise ValueError(
@@ -167,10 +167,10 @@ def evaluate_basis_per_image(
         per_image: list[dict[str, float]] = []
         for img, basis in zip(test_images, cpu_bases):
             try:
-                compressed = pdft.io.compress(
+                compressed = pdft.tasks.compress(
                     basis, np.asarray(img, dtype=np.float64), ratio=discard_ratio
                 )
-                recovered = pdft.io.recover(basis, compressed)
+                recovered = pdft.tasks.recover(basis, compressed)
                 per_image.append(compute_metrics(img, recovered))
             except Exception as e:  # noqa: BLE001
                 logger.warning("compress/recover failed on (kr=%s): %s", kr, e)
