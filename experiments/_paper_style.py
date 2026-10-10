@@ -30,7 +30,15 @@ PAPER_TEXTWIDTH = 160 / 25.4
 PAPER_COLUMNWIDTH = 76 / 25.4
 
 FONT_SIZE = 8.0        # ticks, legends, annotations, panel text
-LABEL_SIZE = 8.5       # axis labels and panel titles
+LABEL_SIZE = 8.5       # axis labels, panel titles, and any text with math scripts
+
+# Mathtext shrinks first-level sub/superscripts by matplotlib._mathtext's
+# private SHRINK_FACTOR (0.7), which would print them near 6 pt. Scaling them
+# by FONT_SIZE / LABEL_SIZE instead puts the scripts of LABEL_SIZE text at
+# exactly FONT_SIZE, the 8 pt floor; renderers therefore set any text that
+# carries scripts (axis labels, log-decade tick labels, gate names) at
+# LABEL_SIZE.
+SCRIPT_SHRINK = FONT_SIZE / LABEL_SIZE
 
 _SANS_FALLBACKS = ["Helvetica", "Arial", "Liberation Sans", "DejaVu Sans"]
 _HEROS = "TeX Gyre Heros"
@@ -62,8 +70,27 @@ def sans_family() -> str:
     return next((n for n in _SANS_FALLBACKS if n in known), "DejaVu Sans")
 
 
+def _set_script_shrink(factor: float) -> None:
+    """Set mathtext's script scale. SHRINK_FACTOR is private matplotlib API
+    (a module global read at layout time); if a release drops it this is a
+    no-op and scripts fall back to matplotlib's default 0.7 scale."""
+    try:
+        import matplotlib._mathtext as _mathtext
+        import matplotlib.mathtext as _mt
+    except ImportError:
+        return
+    if not hasattr(_mathtext, "SHRINK_FACTOR"):
+        return
+    _mathtext.SHRINK_FACTOR = factor
+    # Layouts parsed before the change would be served from this cache.
+    cached = getattr(_mt.MathTextParser, "_parse_cached", None)
+    if hasattr(cached, "cache_clear"):
+        cached.cache_clear()
+
+
 def apply_paper_style() -> None:
     """Set rcParams for paper figures. Call before creating any figure."""
+    _set_script_shrink(SCRIPT_SHRINK)
     family = sans_family()
     mpl.rcParams.update({
         "font.family": "sans-serif",
@@ -106,4 +133,4 @@ def apply_paper_style() -> None:
 
 
 __all__ = ["apply_paper_style", "sans_family", "PAPER_TEXTWIDTH",
-           "PAPER_COLUMNWIDTH", "FONT_SIZE", "LABEL_SIZE"]
+           "PAPER_COLUMNWIDTH", "FONT_SIZE", "LABEL_SIZE", "SCRIPT_SHRINK"]

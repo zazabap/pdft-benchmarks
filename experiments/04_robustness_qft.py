@@ -38,7 +38,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # for _paper_style
-from _paper_style import FONT_SIZE, PAPER_TEXTWIDTH, apply_paper_style
+from _paper_style import FONT_SIZE, LABEL_SIZE, PAPER_TEXTWIDTH, apply_paper_style
 
 import difflib
 import importlib.util
@@ -175,7 +175,7 @@ def render_fig10_unfreeze(read_base: Path = DATA_UNFREEZE,
                 gate_labels[ax].append(ax.annotate(
                     names[int(s["gate_index"])],
                     (int(s["end_step"]), np.sqrt(y0 * finals[k])),
-                    fontsize=FONT_SIZE, color=_ORD_COLOR[o],
+                    fontsize=LABEL_SIZE, color=_ORD_COLOR[o],
                     ha="left", va="center", xytext=(3, row_dy),
                     textcoords="offset points"))
             psnr = manifest["orderings"][o]["final_psnr"]["0.2"]
@@ -186,6 +186,9 @@ def render_fig10_unfreeze(read_base: Path = DATA_UNFREEZE,
         # Decade labels only (newer matplotlib labels minor log ticks on
         # short ranges).
         ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
+        # Decade labels (10^3, 10^4) carry superscripts: LABEL_SIZE puts them
+        # at the 8 pt floor; the gate names above use LABEL_SIZE for the same reason.
+        ax.tick_params(axis="y", which="major", labelsize=LABEL_SIZE)
         _spines(ax)
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, ncol=3, frameon=False, loc="outside upper center")

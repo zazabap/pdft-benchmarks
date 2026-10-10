@@ -24,7 +24,7 @@ from pathlib import Path
 
 import numpy as np
 
-from _paper_style import FONT_SIZE, PAPER_TEXTWIDTH, apply_paper_style
+from _paper_style import FONT_SIZE, LABEL_SIZE, PAPER_TEXTWIDTH, apply_paper_style
 
 
 def _load_div2k_source_image(idx: int, *, size: int = 256) -> np.ndarray:
@@ -382,7 +382,7 @@ def render_freq_recon_grid(
         cb.ax.tick_params(labelsize=FONT_SIZE)
         fig_f.text((fig_w - 0.01) / fig_w, (y + cell) / fig_hf + 2 / 72 / fig_hf,
                    "$\\log_{10}$(|Tx|\n/ max|Tx|)", ha="right", va="bottom",
-                   fontsize=FONT_SIZE, linespacing=1.05)
+                   fontsize=LABEL_SIZE, linespacing=1.05)  # LABEL_SIZE: carries a script
 
         out_freq = out_base.with_name(
             f"{out_base.stem}_img{i_idx}_freq{out_base.suffix}"
