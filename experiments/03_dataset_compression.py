@@ -29,7 +29,17 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
-from pdft_benchmarks.plots.style import WONG, save_figure, set_paper_rcparams  # noqa: E402
+from pdft_benchmarks.plots.style import WONG, save_figure  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # for _paper_style
+from _paper_style import PAPER_TEXTWIDTH, apply_paper_style  # noqa: E402
+
+# Printed at 0.49\textwidth beside 02's Fig 4a, on the same canvas, so the
+# lettering prints at the _paper_style sizes.
+FIG_SIZE = (0.49 * PAPER_TEXTWIDTH, 2.55)
+# Line and marker weights from the earlier 3.9 in canvas, scaled to keep the
+# printed geometry they had at this width.
+_K = FIG_SIZE[0] / 3.9
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -122,22 +132,23 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
     pct = lambda b: 100.0 * b / raw_bpi
 
     # Same canvas as 02's Fig 4a twin so the two paper panels box identically.
-    fig, ax = plt.subplots(figsize=(3.9, 3.0))
+    fig, ax = plt.subplots(figsize=FIG_SIZE, layout="constrained")
+    fig.get_layout_engine().set(h_pad=0.03, w_pad=0.02)
 
     ax.plot([pct(p["bytes_per_image"]) for p in rich],
             [p["test"]["mean_psnr"] for p in rich],
-            color=BLUE, linestyle="-", marker="o", markersize=4,
-            linewidth=2.0, label="DCT-IV (trained)", zorder=3)
+            color=BLUE, linestyle="-", marker="o", markersize=4 * _K,
+            linewidth=2.0 * _K, label="DCT-IV (trained)", zorder=3)
     ax.plot([pct(p["bytes_per_image"]) for p in dct],
             [p["test"]["mean_psnr"] for p in dct],
-            color=GREEN, linestyle="-.", marker="s", markersize=3.5,
-            linewidth=2.0, label=r"block DCT 8$\times$8", zorder=3)
+            color=GREEN, linestyle="-.", marker="s", markersize=3.5 * _K,
+            linewidth=2.0 * _K, label=r"block DCT 8$\times$8", zorder=3)
 
     # Grid-aligned reference lines: the matched-quality PSNR (horizontal) and
     # the matched-size % of raw (vertical); both land on grid lines.
-    ax.axhline(PSNR_CUT, color="0.55", linestyle=(0, (5, 3)), linewidth=1.1,
+    ax.axhline(PSNR_CUT, color="0.55", linestyle=(0, (5, 3)), linewidth=1.1 * _K,
                zorder=1)
-    ax.axvline(V_PCT, color="0.55", linestyle=(0, (5, 3)), linewidth=1.1,
+    ax.axvline(V_PCT, color="0.55", linestyle=(0, (5, 3)), linewidth=1.1 * _K,
                zorder=1)
     ax.text(pct(100), PSNR_CUT + 0.5, f"{PSNR_CUT:.0f} dB", fontsize=8,
             color="0.3", ha="left", va="bottom")
@@ -150,11 +161,11 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
     # Horizontal reading -- compressed size (% of raw) where each curve
     # reaches PSNR_CUT.
     xr, xd = pct(cr["x_rich"]), pct(cr["x_dct"])
-    ax.plot([xr, xd], [PSNR_CUT, PSNR_CUT], marker="o", markersize=4.5,
+    ax.plot([xr, xd], [PSNR_CUT, PSNR_CUT], marker="o", markersize=4.5 * _K,
             linestyle="none", markerfacecolor="white", markeredgecolor="black",
-            markeredgewidth=1.0, zorder=6)
-    ax.annotate(f"{xr:.0f}%", xy=(xr, PSNR_CUT), xytext=(-11, -6),
-                textcoords="offset points", ha="right", va="top",
+            markeredgewidth=1.0 * _K, zorder=6)
+    ax.annotate(f"{xr:.0f}%", xy=(xr, PSNR_CUT), xytext=(-12, 2),
+                textcoords="offset points", ha="right", va="bottom",
                 fontsize=8, color=BLUE)
     ax.annotate(f"{xd:.0f}%", xy=(xd, PSNR_CUT), xytext=(4, -8),
                 textcoords="offset points", ha="left", va="top",
@@ -162,25 +173,23 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
 
     # Vertical reading -- test PSNR at V_PCT of raw.
     y_rich, y_dct = cr["y_rich"], cr["y_dct"]
-    ax.plot([V_PCT, V_PCT], [y_rich, y_dct], marker="o", markersize=4.5,
+    ax.plot([V_PCT, V_PCT], [y_rich, y_dct], marker="o", markersize=4.5 * _K,
             linestyle="none", markerfacecolor="white", markeredgecolor="black",
-            markeredgewidth=1.0, zorder=6)
-    ax.annotate(f"{y_rich:.1f} dB", xy=(V_PCT, y_rich), xytext=(-7, 2),
+            markeredgewidth=1.0 * _K, zorder=6)
+    ax.annotate(f"{y_rich:.1f} dB", xy=(V_PCT, y_rich), xytext=(-4, 6),
                 textcoords="offset points", ha="right", va="bottom",
                 fontsize=8, color=BLUE)
-    ax.annotate(f"{y_dct:.1f} dB", xy=(V_PCT, y_dct), xytext=(7, -2),
+    ax.annotate(f"{y_dct:.1f} dB", xy=(V_PCT, y_dct), xytext=(7, -5),
                 textcoords="offset points", ha="left", va="top",
                 fontsize=8, color=GREEN)
 
-    ax.set_xlabel("compressed size (% of raw)", fontsize=9.5)
-    ax.set_ylabel("test PSNR (dB)", fontsize=9.5)
+    ax.set_xlabel("compressed size (% of raw)")
+    ax.set_ylabel("test PSNR (dB)")
     ax.set_xlim(pct(90), pct(575))
     ax.set_ylim(14.5, 49.5)
     ax.set_xticks([10, 20, 30, 40, 50])
-    ax.tick_params(labelsize=8.5)
-    ax.legend(fontsize=8, frameon=False, loc="upper left")
-    ax.grid(alpha=0.25, linewidth=0.5)
-    fig.tight_layout(pad=0.4)
+    ax.legend(frameon=False, loc="upper left")
+    ax.grid(alpha=0.25, linewidth=0.5 * _K)
 
     written = save_figure(fig, out_stem, bbox_inches=None)
     plt.close(fig)
@@ -195,7 +204,7 @@ def render() -> dict:
     """Render the paper figure from the committed frozen-split sweep into
     results/training/6_dataset_compression/quickdraw_5q/figures/
     rd_quickdraw_paper.{pdf,svg}."""
-    set_paper_rcparams()
+    apply_paper_style()
     rd = _load_rd_curves()
     out = render_fig_rd(rd)
     return {"fig_rd": out}

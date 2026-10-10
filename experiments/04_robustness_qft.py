@@ -4,10 +4,11 @@
 Reproduces Fig 9b (unfreeze dynamics), Fig 9a/9c (seed init distribution +
 scatter), and the seed-variance table from the committed appendix data in
 data/direct_training/. Default renders + verifies; --retrain reruns the sweeps.
-All three Fig 9 panels reproduce the manuscript's committed versions, which
-are default-DejaVu styled (not this repo's CM-serif paper style); 9a and 9b
-are upstreamed from the paper repo's scripts/plot_direct_training.py, and
-each renderer scopes the style itself via manuscript_default_style().
+All three Fig 9 panels follow the manuscript's designs (9a and 9b are
+upstreamed from the paper repo's scripts/plot_direct_training.py and kept in
+step with it) and are drawn in the shared _paper_style lettering at the width
+the manuscript prints them (0.90\textwidth), so the point sizes are the
+printed sizes.
 
 Folds four renderers that used to each take a single --base for both reading
 inputs and writing outputs:
@@ -37,7 +38,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # for _paper_style
-from _paper_style import manuscript_default_style, PAPER_TEXTWIDTH
+from _paper_style import FONT_SIZE, PAPER_TEXTWIDTH, apply_paper_style
 
 import difflib
 import importlib.util
@@ -68,14 +69,19 @@ FIG11A_OUT = RESULTS_SEED_DIV2K / "figures/paper/init_distribution.pdf"
 FIG11B_OUT = RESULTS_SEED_DIV2K / "figures/paper/seed_scatter_ratios.pdf"
 TABLE5_OUT = RESULTS_SEED_DIV2K / "tables/seed_variance.tex"
 
+# Fig 9 panels are printed at 0.90\textwidth and authored at that width.
+FIG9_W = 0.90 * PAPER_TEXTWIDTH
+# Line and marker weights from the earlier 7.0 in canvas, scaled to keep the
+# printed geometry they had at FIG9_W.
+_K = FIG9_W / 7.0
+
 
 # ===========================================================================
 # Fig 9b — unfreeze training dynamics, the manuscript's committed design:
 # div2k_8q only, two stacked log-scale panels (identity / random init), one
 # curve per thaw ordering, the four largest per-stage drops annotated with
 # manuscript gate names, final test PSNR per ordering from manifest.json.
-# Rendered in matplotlib's default (DejaVu) style, matching the committed
-# figure. Upstreamed from the paper repo's scripts/plot_direct_training.py.
+# Upstreamed from the paper repo's scripts/plot_direct_training.py.
 # ===========================================================================
 _ORD_COLOR = {"bg": "#1b9e77", "lr": "#d95f02", "rl": "#7570b3"}
 _ORD_STYLE = {"bg": "-", "lr": "--", "rl": "-."}
@@ -87,6 +93,36 @@ _ORDERINGS = ("bg", "lr", "rl")
 def _spines(ax) -> None:
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
+
+
+def _declutter(fig, ax, texts, step: float = 1.0, iters: int = 400) -> None:
+    """Nudge annotations vertically (offset points only; anchors unchanged)
+    until no two label boxes overlap, keeping them inside the axes."""
+    renderer = fig.canvas.get_renderer()
+    frame = ax.get_window_extent(renderer)
+    px_per_pt = fig.dpi / 72.0
+    for _ in range(iters):
+        boxes = [t.get_window_extent(renderer).padded(1.0) for t in texts]
+        moved = False
+        for t, bb in zip(texts, boxes):
+            if bb.y1 > frame.y1:
+                t.xyann = (t.xyann[0], t.xyann[1] - (bb.y1 - frame.y1) / px_per_pt)
+                moved = True
+            elif bb.y0 < frame.y0:
+                t.xyann = (t.xyann[0], t.xyann[1] + (frame.y0 - bb.y0) / px_per_pt)
+                moved = True
+        boxes = [t.get_window_extent(renderer).padded(1.0) for t in texts]
+        for i in range(len(texts)):
+            for j in range(i + 1, len(texts)):
+                if not boxes[i].overlaps(boxes[j]):
+                    continue
+                hi, lo = ((texts[i], texts[j]) if boxes[i].y0 + boxes[i].y1
+                          >= boxes[j].y0 + boxes[j].y1 else (texts[j], texts[i]))
+                hi.xyann = (hi.xyann[0], hi.xyann[1] + step)
+                lo.xyann = (lo.xyann[0], lo.xyann[1] - step)
+                moved = True
+        if not moved:
+            return
 
 
 def _gate_names(unfreeze_div2k: Path) -> dict[int, str]:
@@ -114,48 +150,61 @@ def render_fig10_unfreeze(read_base: Path = DATA_UNFREEZE,
     if not src.is_dir():
         raise RuntimeError(f"[fig9b] no {src}")
     names = _gate_names(src)
-    with manuscript_default_style():
-        fig, axes = plt.subplots(2, 1, figsize=(7.0, 3.7), sharex=True)
-        for ax, init in zip(axes, ("identity", "random")):
-            manifest = json.loads((src / init / "manifest.json").read_text())
-            for row, o in enumerate(_ORDERINGS):
-                trace = json.loads((src / init / o / "trace.json").read_text())
-                steps = np.array([s["step"] for s in trace["steps"]])
-                loss = np.array([s["loss"] for s in trace["steps"]])
-                ax.semilogy(steps, loss, _ORD_STYLE[o], color=_ORD_COLOR[o],
-                            linewidth=1.1, label=_ORD_LABEL[o])
-                # Label the largest per-stage drops with the gate thawed there.
-                stages = trace["stages"]
-                finals = [float(s["final_loss"]) for s in stages]
-                drops = [(loss[0] if k == 0 else finals[k - 1]) - finals[k]
-                         for k in range(len(stages))]
-                row_dy = {"bg": -4, "lr": 0, "rl": 4}[o]
-                for k in np.argsort(drops)[::-1][:4]:
-                    s = stages[k]
-                    y0 = loss[0] if k == 0 else finals[k - 1]
-                    ax.annotate(names[int(s["gate_index"])],
-                                (int(s["end_step"]), np.sqrt(y0 * finals[k])),
-                                fontsize=6, color=_ORD_COLOR[o],
-                                ha="left", va="center", xytext=(3, row_dy),
-                                textcoords="offset points")
-                psnr = manifest["orderings"][o]["final_psnr"]["0.2"]
-                ax.text(0.995, 0.92 - 0.13 * row, f"test {psnr:.1f} dB",
-                        transform=ax.transAxes, ha="right", va="top",
-                        fontsize=7.5, color=_ORD_COLOR[o])
-            ax.set_ylabel(f"{init} init", fontsize=9)
-            _spines(ax)
-        handles, labels = axes[0].get_legend_handles_labels()
-        fig.legend(handles, labels, ncol=3, frameon=False, fontsize=8,
-                   loc="upper center", bbox_to_anchor=(0.55, 1.0))
-        axes[1].set_xlabel("cumulative training step")
-        # Shared loss label: per-panel two-line labels overprint each other in
-        # a 3.7-inch-tall figure.
-        fig.tight_layout(rect=(0.03, 0, 1, 0.94))
-        fig.supylabel("top-10% truncation loss $\\mathcal{L}_k$", fontsize=9, x=0.01)
-        out = write_base / "figures" / "paper" / "training_dynamics.pdf"
-        out.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(out)
-        plt.close(fig)
+    apply_paper_style()
+    fig, axes = plt.subplots(2, 1, figsize=(FIG9_W, 2.98), sharex=True,
+                             layout="constrained")
+    fig.get_layout_engine().set(h_pad=0.02, w_pad=0.02, hspace=0.04)
+    gate_labels = {ax: [] for ax in axes}
+    for ax, init in zip(axes, ("identity", "random")):
+        manifest = json.loads((src / init / "manifest.json").read_text())
+        for row, o in enumerate(_ORDERINGS):
+            trace = json.loads((src / init / o / "trace.json").read_text())
+            steps = np.array([s["step"] for s in trace["steps"]])
+            loss = np.array([s["loss"] for s in trace["steps"]])
+            ax.semilogy(steps, loss, _ORD_STYLE[o], color=_ORD_COLOR[o],
+                        linewidth=1.1 * _K, label=_ORD_LABEL[o])
+            # Label the largest per-stage drops with the gate thawed there.
+            stages = trace["stages"]
+            finals = [float(s["final_loss"]) for s in stages]
+            drops = [(loss[0] if k == 0 else finals[k - 1]) - finals[k]
+                     for k in range(len(stages))]
+            row_dy = {"bg": -4, "lr": 0, "rl": 4}[o]
+            for k in np.argsort(drops)[::-1][:4]:
+                s = stages[k]
+                y0 = loss[0] if k == 0 else finals[k - 1]
+                gate_labels[ax].append(ax.annotate(
+                    names[int(s["gate_index"])],
+                    (int(s["end_step"]), np.sqrt(y0 * finals[k])),
+                    fontsize=FONT_SIZE, color=_ORD_COLOR[o],
+                    ha="left", va="center", xytext=(3, row_dy),
+                    textcoords="offset points"))
+            psnr = manifest["orderings"][o]["final_psnr"]["0.2"]
+            ax.text(0.995, 0.95 - 0.15 * row, f"test {psnr:.1f} dB",
+                    transform=ax.transAxes, ha="right", va="top",
+                    fontsize=FONT_SIZE, color=_ORD_COLOR[o])
+        ax.set_ylabel(f"{init} init")
+        # Decade labels only (newer matplotlib labels minor log ticks on
+        # short ranges).
+        ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
+        _spines(ax)
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, ncol=3, frameon=False, loc="outside upper center")
+    axes[1].set_xlabel("cumulative training step")
+    # Shared loss label: per-panel two-line labels overprint each other.
+    fig.supylabel("top-10% truncation loss $\\mathcal{L}_k$")
+    # At 8 pt the gate labels of the three orderings collide near the early
+    # drops; a factor-2 log headroom gives them room, then they are separated
+    # vertically once the layout is final.
+    for ax in axes:
+        lo, hi = ax.get_ylim()
+        ax.set_ylim(lo, hi * 2.0)
+    fig.canvas.draw()
+    for ax, texts in gate_labels.items():
+        _declutter(fig, ax, texts)
+    out = write_base / "figures" / "paper" / "training_dynamics.pdf"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out)
+    plt.close(fig)
     print(f"[render] wrote {out}")
     return out
 
@@ -185,32 +234,34 @@ def render_fig11a_init_distribution(read_base: Path = DATA_SEED_DIV2K,
         raise RuntimeError(f"[fig9a] no {src}")
     seeds, L0, scores, var_ratio, stats = _load_init_distribution_json(src)
 
-    with manuscript_default_style():
-        fig, (a1, a2) = plt.subplots(1, 2, figsize=(7.0, 2.3),
-                                     gridspec_kw={"width_ratios": [1.2, 1.0]})
-        a1.hist(L0, bins=24, color="#5d90b2", edgecolor="white", linewidth=0.4)
-        a1.axvline(stats["mean"], color="black", linestyle="--", linewidth=1.4)
-        a1.text(stats["mean"] * 1.06, a1.get_ylim()[1] * 0.95,
-                f"mean {stats['mean']:.0f} ($\\sigma$ = {stats['std']:.0f})",
-                fontsize=8, va="top")
-        a1.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
-        a1.set_xlabel("initial top-20% truncation loss $\\mathcal{L}_k^{(0)}$ (Haar-random init)")
-        a1.set_ylabel(f"seeds ($n = {len(L0)}$)")
+    apply_paper_style()
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(FIG9_W, 1.9),
+                                 gridspec_kw={"width_ratios": [1.2, 1.0]},
+                                 layout="constrained")
+    fig.get_layout_engine().set(h_pad=0.02, w_pad=0.02)
+    a1.hist(L0, bins=24, color="#5d90b2", edgecolor="white", linewidth=0.4 * _K)
+    a1.axvline(stats["mean"], color="black", linestyle="--", linewidth=1.4 * _K)
+    # Right of the mean, above the low tail of the histogram, so the label
+    # clears the bars at true size.
+    a1.text(stats["mean"] * 1.22, a1.get_ylim()[1] * 0.95,
+            f"mean {stats['mean']:.0f} ($\\sigma$ = {stats['std']:.0f})",
+            fontsize=FONT_SIZE, va="top")
+    a1.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
+    a1.set_xlabel("initial top-20% truncation loss $\\mathcal{L}_k^{(0)}$\n(Haar-random init)")
+    a1.set_ylabel(f"seeds ($n = {len(L0)}$)")
 
-        sc = a2.scatter(scores[:, 0], scores[:, 1], c=L0, cmap="viridis",
-                        s=13, linewidths=0)
-        cb = fig.colorbar(sc, ax=a2, pad=0.02)
-        cb.set_label("$\\mathcal{L}_k^{(0)}$", fontsize=8)
-        cb.ax.tick_params(labelsize=7)
-        a2.set_xlabel(f"PC1 ({var_ratio[0] * 100:.1f}% var)")
-        a2.set_ylabel(f"PC2 ({var_ratio[1] * 100:.1f}% var)")
-        for a in (a1, a2):
-            _spines(a)
-        fig.tight_layout()
-        out = write_base / "figures" / "paper" / "init_distribution.pdf"
-        out.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(out)
-        plt.close(fig)
+    sc = a2.scatter(scores[:, 0], scores[:, 1], c=L0, cmap="viridis",
+                    s=13 * _K ** 2, linewidths=0)
+    cb = fig.colorbar(sc, ax=a2, pad=0.02)
+    cb.set_label("$\\mathcal{L}_k^{(0)}$")
+    a2.set_xlabel(f"PC1 ({var_ratio[0] * 100:.1f}% var)")
+    a2.set_ylabel(f"PC2 ({var_ratio[1] * 100:.1f}% var)")
+    for a in (a1, a2):
+        _spines(a)
+    out = write_base / "figures" / "paper" / "init_distribution.pdf"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out)
+    plt.close(fig)
     print(f"[render] wrote {out}")
     print(f"[init-dist] L0 spread: mean={L0.mean():.2f} std={L0.std(ddof=1):.2f} "
           f"min={L0.min():.2f} max={L0.max():.2f}")
@@ -234,15 +285,14 @@ def render_fig11b_seed_scatter(read_base: Path = DATA_SEED_DIV2K,
     """Per-seed PSNR scatter, one panel per keep ratio, each ordering's
     mean±σ printed under its tick. Reads
     <read_base>/reference/seed_scatter_ratios.json; writes
-    <write_base>/figures/paper/seed_scatter_ratios.pdf. Like the other two
-    Fig 9 panels, the manuscript's committed version is default-DejaVu
-    styled, so the body runs inside manuscript_default_style()."""
-    with manuscript_default_style():
-        return _render_fig11b_impl(read_base, write_base, ratios)
+    <write_base>/figures/paper/seed_scatter_ratios.pdf, at the manuscript's
+    printed width in the shared paper lettering."""
+    apply_paper_style()
+    return _render_fig11b_impl(read_base, write_base, ratios)
 
 
 def _render_fig11b_impl(read_base: Path, write_base: Path, ratios) -> Path:
-    from matplotlib.transforms import blended_transform_factory
+    from matplotlib.transforms import blended_transform_factory, offset_copy
 
     merged_path = read_base / "reference" / "seed_scatter_ratios.json"
     if not merged_path.exists():
@@ -252,53 +302,58 @@ def _render_fig11b_impl(read_base: Path, write_base: Path, ratios) -> Path:
     orderings = [o for o in ("bg", "lr", "rl") if o in per_ordering]
     classical = merged.get("classical")
 
-    fig, axes = plt.subplots(1, len(ratios), figsize=(PAPER_TEXTWIDTH, 2.4), squeeze=False)
+    # Height budget: Fig 9 stacks three panels on one page with its caption.
+    fig, axes = plt.subplots(1, len(ratios), figsize=(FIG9_W, 1.72), squeeze=False,
+                             layout="constrained")
+    fig.get_layout_engine().set(h_pad=0.02, w_pad=0.02, wspace=0.03)
     axes = axes[0]
     rng = np.random.default_rng(0)
     for ax, r in zip(axes, ratios):
         tick_tr = blended_transform_factory(ax.transData, ax.transAxes)
+        # mean and sigma lines a fixed distance below the tick labels
+        mean_tr = offset_copy(tick_tr, fig=fig, y=-15, units="points")
+        sd_tr = offset_copy(tick_tr, fig=fig, y=-24.5, units="points")
         for i, o in enumerate(orderings):
             color, _lab = _SCATTER_STYLE[o]
             vals = np.array([v[r] for v in per_ordering[o].values() if r in v])
             if vals.size == 0:
                 continue
             jitter = (rng.random(vals.size) - 0.5) * 0.5
-            ax.scatter(np.full(vals.size, i) + jitter, vals, s=9, color=color,
+            ax.scatter(np.full(vals.size, i) + jitter, vals, s=9 * _K ** 2, color=color,
                        alpha=0.55, edgecolors="none")
             m = float(vals.mean())
             sd = float(vals.std(ddof=1) if vals.size > 1 else 0.0)
-            ax.errorbar(i, m, yerr=sd, fmt="_", color="black", ms=18, lw=1.6,
-                        capsize=4, zorder=5)
-            ax.text(i, -0.155, f"${m:.2f}$", transform=tick_tr,
-                    ha="center", va="top", fontsize=6.5, color=color)
-            ax.text(i, -0.25, f"$\\pm{sd:.2f}$", transform=tick_tr,
-                    ha="center", va="top", fontsize=6.5, color=color)
+            ax.errorbar(i, m, yerr=sd, fmt="_", color="black", ms=18 * _K, lw=1.6 * _K,
+                        capsize=4 * _K, zorder=5)
+            ax.text(i, 0, f"${m:.2f}$", transform=mean_tr,
+                    ha="center", va="top", fontsize=FONT_SIZE, color=color)
+            ax.text(i, 0, f"$\\pm{sd:.2f}$", transform=sd_tr,
+                    ha="center", va="top", fontsize=FONT_SIZE, color=color)
         if classical:
             if "block_dct_8" in classical and r in classical["block_dct_8"]:
-                ax.axhline(classical["block_dct_8"][r], color="k", ls="--", lw=1.2)
+                ax.axhline(classical["block_dct_8"][r], color="k", ls="--", lw=1.2 * _K)
             if "block_fft_8" in classical and r in classical["block_fft_8"]:
-                ax.axhline(classical["block_fft_8"][r], color="0.45", ls=":", lw=1.3)
+                ax.axhline(classical["block_fft_8"][r], color="0.45", ls=":", lw=1.3 * _K)
         ax.set_xticks(range(len(orderings)))
-        ax.set_xticklabels([_SCATTER_STYLE[o][1] for o in orderings], fontsize=8)
-        ax.set_title(f"$\\rho = {float(r):.2f}$", fontsize=9)
-    axes[0].set_ylabel("test PSNR (dB)", fontsize=8.5)
+        ax.set_xticklabels([_SCATTER_STYLE[o][1] for o in orderings])
+        ax.set_title(f"$\\rho = {float(r):.2f}$")
+    axes[0].set_ylabel("test PSNR (dB)")
     if classical:
         r_last = ratios[-1]
         ax_last = axes[-1]
         line_tr = blended_transform_factory(ax_last.transAxes, ax_last.transData)
         if "block_dct_8" in classical and r_last in classical["block_dct_8"]:
             ax_last.text(0.97, classical["block_dct_8"][r_last], "block-DCT 8×8",
-                         transform=line_tr, ha="right", va="top", fontsize=7,
+                         transform=line_tr, ha="right", va="top", fontsize=FONT_SIZE,
                          color="k")
         if "block_fft_8" in classical and r_last in classical["block_fft_8"]:
             ax_last.text(0.03, classical["block_fft_8"][r_last], "block-DFT 8×8",
-                         transform=line_tr, ha="left", va="top", fontsize=7,
+                         transform=line_tr, ha="left", va="top", fontsize=FONT_SIZE,
                          color="0.45")
 
-    fig.tight_layout()
     out = write_base / "figures" / "paper" / "seed_scatter_ratios.pdf"
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, bbox_inches="tight")
+    fig.savefig(out)
     plt.close(fig)
     print(f"[render] wrote {out}")
     return out
@@ -390,10 +445,8 @@ def render_table5_seed_variance(seed_sweep_path: Path = DATA_SEED_DIV2K / "seed_
 # render() / verify()
 # ===========================================================================
 def render() -> dict:
-    """Run all four sub-renders into their results/ output paths. No global
-    apply_paper_style() here: all three Fig 9 panels reproduce the
-    manuscript's committed default-DejaVu-styled versions, and each figure
-    renderer scopes its own style via manuscript_default_style()."""
+    """Run all four sub-renders into their results/ output paths. Each figure
+    renderer applies the shared paper style itself."""
     outputs = {}
     outputs["fig10"] = render_fig10_unfreeze()
     outputs["fig11a"] = render_fig11a_init_distribution()

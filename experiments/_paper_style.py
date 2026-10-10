@@ -1,57 +1,109 @@
 #!/usr/bin/env python3
 """Shared matplotlib style for paper-publication figures.
 
-Matches the two-column `quantumarticle` look: Computer-Modern serif (via mathtext
-`cm`, so no LaTeX install is required), small absolute font sizes, thin spines,
-TrueType-embedded PDF. Renderers author at PAPER_TEXTWIDTH so that, included at
-`width=\\textwidth`, the fonts land at true size. The Wong palette in each
-renderer is left untouched.
+Targets the manuscript's Springer Nature layout (sn-jnl, two-column `iicol`,
+submitted to Quantum Machine Intelligence) and QMI's artwork guidance:
+lettering in Helvetica/Arial-style sans serif at 8-12 pt at final size, with
+minimal size variance inside a figure. Renderers author every figure at the
+exact width it is printed (PAPER_TEXTWIDTH, PAPER_COLUMNWIDTH, or a stated
+fraction of them) and save without tight cropping, so the point sizes set here
+are the printed sizes.
+
+The face is TeX Gyre Heros (a free Helvetica clone shipped with TeX Live),
+registered from the TeX tree when kpsewhich finds it; otherwise the first of
+Helvetica, Arial, Liberation Sans, DejaVu Sans that matplotlib knows. Mathtext
+maps onto the same face, with STIX sans as the fallback for the few symbols it
+lacks. The Wong palette in each renderer is left untouched.
 """
 from __future__ import annotations
 
-import matplotlib as mpl
+import shutil
+import subprocess
+from pathlib import Path
 
-# quantumarticle (a4, two-column): \textwidth ~ 7.0in (figure*), \columnwidth ~ 3.4in.
-PAPER_TEXTWIDTH = 7.0
-PAPER_COLUMNWIDTH = 3.4
+import matplotlib as mpl
+from matplotlib import font_manager
+
+# sn-jnl iicol: \textwidth = 160 mm, \columnwidth = 76 mm (455.24 and 215.43
+# TeX pt); in inches for figsize.
+PAPER_TEXTWIDTH = 160 / 25.4
+PAPER_COLUMNWIDTH = 76 / 25.4
+
+FONT_SIZE = 8.0        # ticks, legends, annotations, panel text
+LABEL_SIZE = 8.5       # axis labels and panel titles
+
+_SANS_FALLBACKS = ["Helvetica", "Arial", "Liberation Sans", "DejaVu Sans"]
+_HEROS = "TeX Gyre Heros"
+
+
+def _register_heros() -> bool:
+    """Register the TeX Gyre Heros OTF faces from the local TeX tree."""
+    if any(f.name == _HEROS for f in font_manager.fontManager.ttflist):
+        return True
+    if shutil.which("kpsewhich") is None:
+        return False
+    try:
+        regular = subprocess.run(["kpsewhich", "texgyreheros-regular.otf"],
+                                 capture_output=True, text=True, check=False).stdout.strip()
+    except OSError:
+        return False
+    if not regular:
+        return False
+    for face in Path(regular).parent.glob("texgyreheros-*.otf"):
+        font_manager.fontManager.addfont(str(face))
+    return any(f.name == _HEROS for f in font_manager.fontManager.ttflist)
+
+
+def sans_family() -> str:
+    """The sans-serif face the figures use on this machine."""
+    if _register_heros():
+        return _HEROS
+    known = {f.name for f in font_manager.fontManager.ttflist}
+    return next((n for n in _SANS_FALLBACKS if n in known), "DejaVu Sans")
 
 
 def apply_paper_style() -> None:
     """Set rcParams for paper figures. Call before creating any figure."""
+    family = sans_family()
     mpl.rcParams.update({
-        "font.family": "serif",
-        "mathtext.fontset": "cm",
-        "font.size": 8.0,
-        "axes.titlesize": 8.5,
-        "axes.labelsize": 8.5,
-        "xtick.labelsize": 7.5,
-        "ytick.labelsize": 7.5,
-        "legend.fontsize": 7.0,
+        "font.family": "sans-serif",
+        "font.sans-serif": [family] + [n for n in _SANS_FALLBACKS if n != family],
+        "mathtext.fontset": "custom",
+        "mathtext.rm": family,
+        "mathtext.sf": family,
+        "mathtext.it": f"{family}:italic",
+        "mathtext.bf": f"{family}:bold",
+        # Calligraphic capitals (\mathcal{L}) from Computer Modern's symbol
+        # font, which matplotlib ships; the sans faces have none.
+        "mathtext.cal": "cmsy10",
+        "mathtext.fallback": "stixsans",
+        "font.size": FONT_SIZE,
+        "axes.titlesize": LABEL_SIZE,
+        "axes.labelsize": LABEL_SIZE,
+        "xtick.labelsize": FONT_SIZE,
+        "ytick.labelsize": FONT_SIZE,
+        "legend.fontsize": FONT_SIZE,
+        "legend.title_fontsize": FONT_SIZE,
+        "figure.titlesize": LABEL_SIZE,
+        "figure.labelsize": LABEL_SIZE,
         "axes.linewidth": 0.6,
         "lines.linewidth": 1.2,
         "xtick.major.width": 0.6,
         "ytick.major.width": 0.6,
+        "xtick.minor.width": 0.4,
+        "ytick.minor.width": 0.4,
         "xtick.major.size": 2.5,
         "ytick.major.size": 2.5,
-        "savefig.bbox": "tight",
-        "savefig.pad_inches": 0.02,
+        # Exact-width output: no tight crop, so the saved page is the figsize
+        # the renderer chose (its printed width) and the point sizes above
+        # are the printed sizes.
+        "savefig.bbox": None,
+        "savefig.pad_inches": 0.0,
         "savefig.dpi": 600,
         "pdf.fonttype": 42,
+        "ps.fonttype": 42,
     })
 
 
-def manuscript_default_style():
-    """rc_context restoring matplotlib defaults, for the three appendix panels
-    (Fig 9a/9b unfreeze-seed figures, Fig 10a recovery) whose committed
-    manuscript versions were authored in the default DejaVu style rather than
-    the CM-serif paper style. Rendering them inside this context keeps their
-    output identical to the manuscript's committed PDFs even after
-    apply_paper_style() has run (which, among other things, flips
-    savefig.bbox to "tight" globally)."""
-    rc = {k: v for k, v in mpl.rcParamsDefault.items()
-          if not (k.startswith("backend") or k == "interactive")}
-    return mpl.rc_context(rc)
-
-
-__all__ = ["apply_paper_style", "manuscript_default_style",
-           "PAPER_TEXTWIDTH", "PAPER_COLUMNWIDTH"]
+__all__ = ["apply_paper_style", "sans_family", "PAPER_TEXTWIDTH",
+           "PAPER_COLUMNWIDTH", "FONT_SIZE", "LABEL_SIZE"]

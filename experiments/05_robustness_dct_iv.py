@@ -48,7 +48,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # for _paper_style
-from _paper_style import apply_paper_style, manuscript_default_style  # noqa: E402
+from _paper_style import PAPER_TEXTWIDTH, apply_paper_style  # noqa: E402
 
 import difflib
 import importlib.util
@@ -91,6 +91,15 @@ RHO_LABEL = {"0.01": r"$\rho = 0.01$", "0.05": r"$\rho = 0.05$",
              "0.1": r"$\rho = 0.10$", "0.2": r"$\rho = 0.20$"}
 
 
+# Fig 10a/10b print side by side at 0.48\textwidth and are authored at that
+# width on one shared canvas, so their lettering prints at the _paper_style
+# sizes.
+FIG10_SIZE = (0.48 * PAPER_TEXTWIDTH, 2.3)
+# Line and marker weights scaled from the committed figures' printed geometry
+# (a 338 bp tight crop printed at FIG10_SIZE[0]).
+_K = FIG10_SIZE[0] / (338.0 / 72)
+
+
 def _pct(fk: str) -> float:
     return float(fk) * 100.0
 
@@ -100,7 +109,7 @@ def _save(fig, out_stem: Path) -> None:
     every disturbance figure (unlike 04's paper figures, which are PDF-only)."""
     out_stem.parent.mkdir(parents=True, exist_ok=True)
     for ext in ("pdf", "svg"):
-        fig.savefig(out_stem.with_suffix(f".{ext}"), bbox_inches="tight")
+        fig.savefig(out_stem.with_suffix(f".{ext}"))
     plt.close(fig)
     print(f"[render] wrote {out_stem}.{{pdf,svg}}")
 
@@ -113,7 +122,7 @@ def _save(fig, out_stem: Path) -> None:
 def render_fig_psnr_vs_f(ss: dict, out_stem: Path = FIG_PSNR_VS_F) -> Path:
     fractions = [f"{f:g}" for f in ss["fractions"]]
     xs = np.array([_pct(fk) for fk in fractions])
-    fig, ax = plt.subplots(figsize=(5.2, 3.6))
+    fig, ax = plt.subplots(figsize=(5.2, 3.6), layout="constrained")
     for rk in RHO_KEYS:
         colour, ls, mk = STYLE[rk]
         means = np.array([ss["agg_trained"][fk][rk]["mean"] for fk in fractions])
@@ -137,34 +146,35 @@ def render_fig_psnr_vs_f(ss: dict, out_stem: Path = FIG_PSNR_VS_F) -> Path:
 # ===========================================================================
 # Fig 10a — untrained (perturbed init) vs trained PSNR, the manuscript's
 # committed design: one shared axes, colour+marker per rho, solid = trained
-# and dotted = perturbed init, in matplotlib's default (DejaVu) style.
+# and dotted = perturbed init, in the shared paper lettering.
 # Reconstructed against the paper's committed disturbance_recovery.pdf
 # (its original renderer was a one-off that never landed in either repo).
 # ===========================================================================
 def render_fig_recovery(ss: dict, out_stem: Path = FIG_RECOVERY) -> Path:
     fractions = [f"{f:g}" for f in ss["fractions"]]
     xs = np.array([_pct(fk) for fk in fractions])
-    with manuscript_default_style():
-        fig, ax = plt.subplots(figsize=(5.2, 3.6))
-        for rk in RHO_KEYS:
-            colour, _ls, mk = STYLE[rk]
-            tr = np.array([ss["agg_trained"][fk][rk]["mean"] for fk in fractions])
-            un = np.array([ss["agg_untrained"][fk][rk]["mean"] for fk in fractions])
-            ax.plot(xs, tr, "-", color=colour, marker=mk, ms=4, lw=1.6,
-                    label=RHO_LABEL[rk])
-            ax.plot(xs, un, ":", color=colour, marker=mk, ms=3, lw=1.3, alpha=0.75)
-        ax.set_xscale("log")
-        ax.set_xlabel("disturbed parameters (% of 2200 gate entries)")
-        ax.set_ylabel("test PSNR (dB)")
-        ax.set_xticks(xs)
-        ax.set_xticklabels([f"{v:g}" for v in xs])
-        handles, labels = ax.get_legend_handles_labels()
-        handles += [plt.Line2D([], [], color="black", ls="-", lw=1.6),
-                    plt.Line2D([], [], color="black", ls=":", lw=1.3)]
-        labels += ["trained", "perturbed init"]
-        ax.legend(handles, labels, frameon=False, fontsize=8, ncol=2,
-                  loc="lower left")
-        _save(fig, out_stem)
+    fig, ax = plt.subplots(figsize=FIG10_SIZE, layout="constrained")
+    fig.get_layout_engine().set(h_pad=0.02, w_pad=0.02)
+    for rk in RHO_KEYS:
+        colour, _ls, mk = STYLE[rk]
+        tr = np.array([ss["agg_trained"][fk][rk]["mean"] for fk in fractions])
+        un = np.array([ss["agg_untrained"][fk][rk]["mean"] for fk in fractions])
+        ax.plot(xs, tr, "-", color=colour, marker=mk, ms=4 * _K, lw=1.6 * _K,
+                label=RHO_LABEL[rk])
+        ax.plot(xs, un, ":", color=colour, marker=mk, ms=3 * _K, lw=1.3 * _K, alpha=0.75)
+    ax.set_xscale("log")
+    ax.set_xlabel("disturbed parameters\n(% of 2200 gate entries)")
+    ax.set_ylabel("test PSNR (dB)")
+    ax.set_xticks(xs)
+    ax.set_xticklabels([f"{v:g}" for v in xs])
+    handles, labels = ax.get_legend_handles_labels()
+    handles += [plt.Line2D([], [], color="black", ls="-", lw=1.6 * _K),
+                plt.Line2D([], [], color="black", ls=":", lw=1.3 * _K)]
+    labels += ["trained", "perturbed init"]
+    # Above the axes: at true size no corner of the plot is free of curves.
+    fig.legend(handles, labels, frameon=False, ncol=3, loc="outside upper center",
+               handlelength=1.6, columnspacing=1.0)
+    _save(fig, out_stem)
     return out_stem
 
 
@@ -175,27 +185,32 @@ def render_fig_recovery(ss: dict, out_stem: Path = FIG_RECOVERY) -> Path:
 def render_fig_init_loss(ss: dict, out_stem: Path = FIG_INIT_LOSS) -> Path:
     fractions = [f"{f:g}" for f in ss["fractions"]]
     xs = np.array([_pct(fk) for fk in fractions])
-    fig, ax = plt.subplots(figsize=(5.2, 3.6))
+    fig, ax = plt.subplots(figsize=FIG10_SIZE, layout="constrained")
+    fig.get_layout_engine().set(h_pad=0.02, w_pad=0.02)
     im = np.array([ss["agg_init_loss"][fk]["mean"] for fk in fractions])
     isd = np.array([ss["agg_init_loss"][fk]["std"] for fk in fractions])
     fm = np.array([ss["agg_final_loss"][fk]["mean"] for fk in fractions])
     fsd = np.array([ss["agg_final_loss"][fk]["std"] for fk in fractions])
-    ax.plot(xs, im, "-", color="#D55E00", marker="o", ms=4, lw=1.6,
+    ax.plot(xs, im, "-", color="#D55E00", marker="o", ms=4 * _K, lw=1.6 * _K,
             label="at init (perturbed)")
     ax.fill_between(xs, im - isd, im + isd, color="#D55E00", alpha=0.18, lw=0)
-    ax.plot(xs, fm, "--", color="#009E73", marker="s", ms=4, lw=1.6,
+    ax.plot(xs, fm, "--", color="#009E73", marker="s", ms=4 * _K, lw=1.6 * _K,
             label="after training")
     ax.fill_between(xs, fm - fsd, fm + fsd, color="#009E73", alpha=0.18, lw=0)
     if ss.get("baseline") and ss["baseline"].get("init_loss") is not None:
-        ax.axhline(ss["baseline"]["init_loss"], color="k", ls=":", lw=0.9, alpha=0.55,
+        ax.axhline(ss["baseline"]["init_loss"], color="k", ls=":", lw=0.9 * _K, alpha=0.55,
                    label="exact init")
     ax.set_xscale("log")
-    ax.set_xlabel("disturbed parameters (% of 2200 gate entries)")
-    ax.set_ylabel("top-$k$ truncation loss $\\mathcal{L}_k$ (training batch)")
+    ax.set_xlabel("disturbed parameters\n(% of 2200 gate entries)")
+    ax.set_ylabel("top-$k$ truncation loss $\\mathcal{L}_k$\n(training batch)")
     ax.set_xticks(xs)
     ax.set_xticklabels([f"{v:g}" for v in xs])
-    ax.grid(True, which="both", ls=":", lw=0.4, alpha=0.5)
-    ax.legend(frameon=False, fontsize=8)
+    ax.grid(True, which="both", ls=":", lw=0.4 * _K, alpha=0.5)
+    # Loss ticks every 200, as the committed figure has them.
+    ax.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(200))
+    # Above the axes, matching Fig 10a beside it.
+    fig.legend(frameon=False, ncol=2, loc="outside upper center",
+               handlelength=1.6, columnspacing=1.0)
     _save(fig, out_stem)
     return out_stem
 
@@ -249,9 +264,6 @@ def render() -> dict:
     """Run all three figure renders + Table 6 into their results/ output
     paths, reading the sweep from data/exact_disturbance/."""
     apply_paper_style()
-    # original renderer's own local override (kept verbatim; only font.size
-    # and axes.titlesize deviate from apply_paper_style()'s defaults).
-    plt.rcParams.update({"font.size": 9, "axes.titlesize": 9})
     ss = _load_sweep()
     outputs = {}
     outputs["fig_psnr_vs_f"] = render_fig_psnr_vs_f(ss)

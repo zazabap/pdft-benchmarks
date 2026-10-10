@@ -12,9 +12,9 @@ PCA baselines on the same train split, then applies the shared analysis
 helpers to compute frequency magnitudes and clipped recoveries for each
 method.
 
-Does not use _paper_style.py — the original renderer never called
-set_paper_rcparams()/apply_paper_style(), so this port leaves matplotlib at
-its default rcParams to preserve behavior exactly.
+Lettering follows _paper_style.py, and both figures are laid out in inches at
+the paper's \textwidth (where they are printed), so the point sizes are the
+printed sizes. The loading and reconstruction logic is unchanged.
 """
 
 from __future__ import annotations
@@ -23,6 +23,8 @@ import os
 from pathlib import Path
 
 import numpy as np
+
+from _paper_style import FONT_SIZE, PAPER_TEXTWIDTH, apply_paper_style
 
 
 def _load_div2k_source_image(idx: int, *, size: int = 256) -> np.ndarray:
@@ -255,20 +257,47 @@ def render_freq_recon_grid(
     n_cols = 1 + n_methods
     n_rows = len(keep_ratios_list)
 
-    cell = 0.78
-    fig_w = n_cols * cell + 0.55
-    fig_h = n_rows * cell + 0.55
+    # ---- Exact-width layout (inches) ----
+    # Both figures are printed at \textwidth and laid out on the same column
+    # grid, so each spectrum sits directly above its reconstructions; the
+    # recon grid keeps the colorbar slot empty for that alignment. Lettering
+    # uses the _paper_style sizes, which are the printed sizes at this width.
+    apply_paper_style()
+    fig_w = PAPER_TEXTWIDTH
+    left, cbar_slot, gap, head, bottom = 0.20, 0.55, 0.03, 0.30, 0.02
+    cell = (fig_w - left - cbar_slot - (n_cols - 1) * gap) / n_cols
 
-    # Pretty column labels matching the paper's results table (\cref{tab:div2k_repr}).
+    def col_x(c: int) -> float:
+        return left + c * (cell + gap)
+
+    # Column labels matching the paper's results table (\cref{tab:div2k_repr}),
+    # broken over two lines where one line would overrun the cell.
     header_labels = {
         "rich": "RichBasis", "real_rich": "RichBasis",
-        "rich_full": "RichBasis", "real_rich_full": "Real RichBasis",
-        "dct4_ctl": "DCT-IV", "qft": "QFT", "entangled_qft": "Entangled QFT",
+        "rich_full": "RichBasis", "real_rich_full": "Real\nRichBasis",
+        "dct4_ctl": "DCT-IV", "qft": "QFT", "entangled_qft": "Entangled\nQFT",
         "tebd": "TEBD", "mera": "MERA",
         "tebd_u4": "TEBD", "mera_u4": "MERA",
-        "block_dct_8": "block DCT 8$\\times$8", "block_fft_8": "block DFT 8$\\times$8",
+        "block_dct_8": "block DCT\n8$\\times$8", "block_fft_8": "block DFT\n8$\\times$8",
     }
     headers = ["original"] + [header_labels.get(m, m) for m in methods_list]
+    header_colors = ["black"] + ["#0a3d8c" if m in trained_names else "#666666"
+                                 for m in methods_list]
+
+    from matplotlib.transforms import offset_copy
+
+    def add_cell(fig, fig_h, c, y_in):
+        return fig.add_axes([col_x(c) / fig_w, y_in / fig_h, cell / fig_w, cell / fig_h])
+
+    def put_header(fig, ax, text, color):
+        ax.text(0.5, 1.0, text, color=color, ha="center", va="bottom",
+                fontsize=FONT_SIZE, linespacing=1.05,
+                transform=offset_copy(ax.transAxes, fig=fig, y=2, units="points"))
+
+    def show(ax, data, **kw):
+        # interpolation="none": the PDF carries the data pixels unsampled.
+        ax.imshow(data, interpolation="none", aspect="equal", **kw)
+        ax.set_xticks([]); ax.set_yticks([])
 
     out_base = Path(out)
     img_lookup = dict(zip(image_labels, images))
@@ -277,58 +306,45 @@ def render_freq_recon_grid(
     for i_idx in image_labels:
         img = img_lookup[i_idx]
 
-        fig, axes = plt.subplots(
-            n_rows, n_cols, figsize=(fig_w, fig_h),
-            gridspec_kw={"wspace": 0.04, "hspace": 0.04},
-        )
         # Figure-level title intentionally omitted — captions live in the paper.
-
-        for c, h in enumerate(headers):
-            if c == 0:
-                color = "black"
-            elif methods_list[c - 1] in trained_names:
-                color = "#0a3d8c"
-            else:
-                color = "#666666"
-            axes[0, c].set_title(h, fontsize=6.5, color=color, pad=2)
-
+        fig_h = head + n_rows * cell + (n_rows - 1) * gap + bottom
+        fig = plt.figure(figsize=(fig_w, fig_h))
         for r_idx, kr in enumerate(keep_ratios_list):
-            ax0 = axes[r_idx, 0]
-            ax0.imshow(img, cmap="gray", vmin=0, vmax=1,
-                       interpolation="nearest", aspect="equal")
-            ax0.set_xticks([]); ax0.set_yticks([])
-            ax0.set_ylabel(f"ρ={kr:.2f}", fontsize=8.5, rotation=90,
-                           labelpad=4, va="center")
-
+            y = fig_h - head - (r_idx + 1) * cell - r_idx * gap
+            ax0 = add_cell(fig, fig_h, 0, y)
+            show(ax0, img, cmap="gray", vmin=0, vmax=1)
+            ax0.set_ylabel(f"ρ={kr:.2f}", fontsize=FONT_SIZE, labelpad=3)
+            if r_idx == 0:
+                put_header(fig, ax0, headers[0], header_colors[0])
             for c_idx, name in enumerate(methods_list, start=1):
-                ax = axes[r_idx, c_idx]
+                ax = add_cell(fig, fig_h, c_idx, y)
+                if r_idx == 0:
+                    put_header(fig, ax, headers[c_idx], header_colors[c_idx])
                 r_img, p = rec[(i_idx, kr)][name]
                 if r_img is not None:
-                    ax.imshow(r_img, cmap="gray", vmin=0, vmax=1,
-                              interpolation="nearest", aspect="equal")
-                    ax.text(0.98, 0.04, f"{p:.1f}",
-                            transform=ax.transAxes, fontsize=6,
+                    show(ax, r_img, cmap="gray", vmin=0, vmax=1)
+                    ax.text(0.97, 0.03, f"{p:.1f}",
+                            transform=ax.transAxes, fontsize=FONT_SIZE,
                             color="white", ha="right", va="bottom",
                             bbox=dict(facecolor="black", alpha=0.55,
-                                      edgecolor="none", pad=0.7))
+                                      edgecolor="none", pad=0.8))
                 else:
+                    ax.set_xticks([]); ax.set_yticks([])
                     ax.text(0.5, 0.5, "FAIL", ha="center", va="center",
                             transform=ax.transAxes)
-                ax.set_xticks([]); ax.set_yticks([])
 
-        fig.subplots_adjust(left=0.04, right=0.998, top=0.94, bottom=0.005)
         # Output: insert _img{N} suffix into stem
         out_path = out_base.with_name(f"{out_base.stem}_img{i_idx}{out_base.suffix}")
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(out_path, bbox_inches="tight")
+        fig.savefig(out_path)
         out_svg = out_path.with_suffix(".svg")
-        fig.savefig(out_svg, bbox_inches="tight")
+        fig.savefig(out_svg)
         print(f"[viz] wrote {out_path} + {out_svg}")
         written += [out_path, out_svg]
         plt.close(fig)
 
         # ---- Companion freq-space figure for the same image ----
-        # 1 row × 13 cols, same column ordering as the recon grid.
+        # One row, same columns as the recon grid, plus the colorbar slot.
         method_freq: dict = {}
         for name, basis in trained.items():
             method_freq[name] = _forward_magnitude(basis, img)
@@ -338,48 +354,42 @@ def render_freq_recon_grid(
             )
         log_freq, zmin, zmax = _peak_normalized_log(method_freq)
 
-        # Grid: 13 image cells + 1 narrow colorbar slot on the right
-        fig_f, axes_f = plt.subplots(
-            1, n_cols + 1, figsize=(fig_w + 0.5, cell + 0.55),
-            gridspec_kw={"wspace": 0.04,
-                         "width_ratios": [1] * n_cols + [0.12]},
-        )
         # Figure-level title intentionally omitted — captions live in the paper.
-        for c, h in enumerate(headers):
-            if c == 0:
-                color = "black"
-            elif methods_list[c - 1] in trained_names:
-                color = "#0a3d8c"
-            else:
-                color = "#666666"
-            axes_f[c].set_title(h, fontsize=6.5, color=color, pad=2)
-
+        fig_hf = head + cell + bottom
+        fig_f = plt.figure(figsize=(fig_w, fig_hf))
+        y = bottom
         # Col 0 = original image (gray), cols 1.. = freq spectra (viridis)
-        axes_f[0].imshow(img, cmap="gray", vmin=0, vmax=1,
-                         interpolation="nearest", aspect="equal")
-        axes_f[0].set_xticks([]); axes_f[0].set_yticks([])
+        ax0 = add_cell(fig_f, fig_hf, 0, y)
+        show(ax0, img, cmap="gray", vmin=0, vmax=1)
+        put_header(fig_f, ax0, headers[0], header_colors[0])
         last_im = None
         for c_idx, name in enumerate(methods_list, start=1):
-            last_im = axes_f[c_idx].imshow(
-                log_freq[name], cmap="viridis", vmin=zmin, vmax=zmax,
-                interpolation="nearest", aspect="equal",
-            )
-            axes_f[c_idx].set_xticks([]); axes_f[c_idx].set_yticks([])
+            ax = add_cell(fig_f, fig_hf, c_idx, y)
+            put_header(fig_f, ax, headers[c_idx], header_colors[c_idx])
+            last_im = ax.imshow(log_freq[name], cmap="viridis", vmin=zmin, vmax=zmax,
+                                interpolation="none", aspect="equal")
+            ax.set_xticks([]); ax.set_yticks([])
 
-        # Shared vertical colorbar in the rightmost slot
-        cbar_ax = axes_f[-1]
+        # Shared vertical colorbar in the right slot; its label sits above it
+        # as a two-line header, since the strip is shorter than the label.
+        # Inset vertically so the end tick labels stay inside the strip.
+        cbar_x, inset = col_x(n_cols) + 0.02, 0.07
+        cbar_ax = fig_f.add_axes([cbar_x / fig_w, (y + inset) / fig_hf,
+                                  0.08 / fig_w, (cell - 2 * inset) / fig_hf])
         cb = fig_f.colorbar(last_im, cax=cbar_ax)
-        cb.ax.tick_params(labelsize=7)
-        cb.set_label("log₁₀(|Tx| / max|Tx|)", fontsize=7.5,
-                     rotation=90, labelpad=4)
+        # Every 2 decades, as the full-height bar was ticked.
+        cb.set_ticks([t for t in range(0, int(np.floor(zmin)) - 1, -2) if t >= zmin - 1e-9])
+        cb.ax.tick_params(labelsize=FONT_SIZE)
+        fig_f.text((fig_w - 0.01) / fig_w, (y + cell) / fig_hf + 2 / 72 / fig_hf,
+                   "$\\log_{10}$(|Tx|\n/ max|Tx|)", ha="right", va="bottom",
+                   fontsize=FONT_SIZE, linespacing=1.05)
 
-        fig_f.subplots_adjust(left=0.04, right=0.985, top=0.78, bottom=0.02)
         out_freq = out_base.with_name(
             f"{out_base.stem}_img{i_idx}_freq{out_base.suffix}"
         )
-        fig_f.savefig(out_freq, bbox_inches="tight")
+        fig_f.savefig(out_freq)
         out_freq_svg = out_freq.with_suffix(".svg")
-        fig_f.savefig(out_freq_svg, bbox_inches="tight")
+        fig_f.savefig(out_freq_svg)
         print(f"[viz] wrote {out_freq} + {out_freq_svg}")
         written += [out_freq, out_freq_svg]
         plt.close(fig_f)
