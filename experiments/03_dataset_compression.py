@@ -59,6 +59,9 @@ DCT4_CHECKPOINT = (
 )
 
 BLUE, GREEN = WONG["blue"], WONG["green"]
+# Wong green is 3.4:1 on white; its labels use a darker shade of the same hue
+# (4.7:1, QMI recommends 4.5:1 for lettering). Blue is already 5.2:1.
+GREEN_TEXT = "#008460"
 TRAINED_KEY = "dct4_ctl"    # the trained DCT-IV checkpoint reported in Table 2
 DCT_KEY = "block_dct_8"     # classical reference
 PSNR_CUT = 35.0              # matched-quality horizontal reading (dB)
@@ -169,7 +172,7 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
                 fontsize=8, color=BLUE)
     ax.annotate(f"{xd:.0f}%", xy=(xd, PSNR_CUT), xytext=(4, -8),
                 textcoords="offset points", ha="left", va="top",
-                fontsize=8, color=GREEN)
+                fontsize=8, color=GREEN_TEXT)
 
     # Vertical reading -- test PSNR at V_PCT of raw.
     y_rich, y_dct = cr["y_rich"], cr["y_dct"]
@@ -181,7 +184,7 @@ def render_fig_rd(rd: dict, out_stem: Path = FIG_OUT) -> Path:
                 fontsize=8, color=BLUE)
     ax.annotate(f"{y_dct:.1f} dB", xy=(V_PCT, y_dct), xytext=(7, -5),
                 textcoords="offset points", ha="left", va="top",
-                fontsize=8, color=GREEN)
+                fontsize=8, color=GREEN_TEXT)
 
     ax.set_xlabel("compressed size (% of raw)")
     ax.set_ylabel("test PSNR (dB)")

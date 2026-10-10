@@ -84,6 +84,9 @@ _K = FIG9_W / 7.0
 # Upstreamed from the paper repo's scripts/plot_direct_training.py.
 # ===========================================================================
 _ORD_COLOR = {"bg": "#1b9e77", "lr": "#d95f02", "rl": "#7570b3"}
+# Lettering in these colours uses darker shades of the same hues, which reach
+# 4.5:1 on white (QMI p.15); lines and dots keep Dark2.
+_ORD_TEXT_COLOR = {"bg": "#178463", "lr": "#c05402", "rl": "#726db1"}
 _ORD_STYLE = {"bg": "-", "lr": "--", "rl": "-."}
 _ORD_LABEL = {"bg": "block-growth", "lr": r"left$\rightarrow$right",
               "rl": r"right$\rightarrow$left"}
@@ -175,13 +178,13 @@ def render_fig10_unfreeze(read_base: Path = DATA_UNFREEZE,
                 gate_labels[ax].append(ax.annotate(
                     names[int(s["gate_index"])],
                     (int(s["end_step"]), np.sqrt(y0 * finals[k])),
-                    fontsize=LABEL_SIZE, color=_ORD_COLOR[o],
+                    fontsize=LABEL_SIZE, color=_ORD_TEXT_COLOR[o],
                     ha="left", va="center", xytext=(3, row_dy),
                     textcoords="offset points"))
             psnr = manifest["orderings"][o]["final_psnr"]["0.2"]
             ax.text(0.995, 0.95 - 0.15 * row, f"test {psnr:.1f} dB",
                     transform=ax.transAxes, ha="right", va="top",
-                    fontsize=FONT_SIZE, color=_ORD_COLOR[o])
+                    fontsize=FONT_SIZE, color=_ORD_TEXT_COLOR[o])
         ax.set_ylabel(f"{init} init")
         # Decade labels only (newer matplotlib labels minor log ticks on
         # short ranges).
@@ -329,9 +332,9 @@ def _render_fig11b_impl(read_base: Path, write_base: Path, ratios) -> Path:
             ax.errorbar(i, m, yerr=sd, fmt="_", color="black", ms=18 * _K, lw=1.6 * _K,
                         capsize=4 * _K, zorder=5)
             ax.text(i, 0, f"${m:.2f}$", transform=mean_tr,
-                    ha="center", va="top", fontsize=FONT_SIZE, color=color)
+                    ha="center", va="top", fontsize=FONT_SIZE, color=_ORD_TEXT_COLOR[o])
             ax.text(i, 0, f"$\\pm{sd:.2f}$", transform=sd_tr,
-                    ha="center", va="top", fontsize=FONT_SIZE, color=color)
+                    ha="center", va="top", fontsize=FONT_SIZE, color=_ORD_TEXT_COLOR[o])
         if classical:
             if "block_dct_8" in classical and r in classical["block_dct_8"]:
                 ax.axhline(classical["block_dct_8"][r], color="k", ls="--", lw=1.2 * _K)
