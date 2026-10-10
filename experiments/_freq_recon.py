@@ -19,6 +19,7 @@ printed sizes. The loading and reconstruction logic is unchanged.
 
 from __future__ import annotations
 
+import math
 import os
 from pathlib import Path
 
@@ -294,9 +295,22 @@ def render_freq_recon_grid(
                 fontsize=FONT_SIZE, linespacing=1.05,
                 transform=offset_copy(ax.transAxes, fig=fig, y=2, units="points"))
 
+    # QMI asks for at least 300 dpi for shaded images and 1200 dpi for bitmap
+    # line art at print size. A Quick Draw image is 32 px across a `cell`-inch
+    # cell (48 dpi), so an image under 300 dpi repeats each pixel k x k until it
+    # reaches 1200 dpi. Nothing is interpolated, so the picture is unchanged and
+    # viewers stop blurring the blocks. DIV2K (256 px, 434 dpi) is untouched.
+    def print_res(data):
+        data = np.asarray(data)
+        n = data.shape[1]
+        if n / cell >= 300:
+            return data
+        k = math.ceil(1200 * cell / n)
+        return np.repeat(np.repeat(data, k, axis=0), k, axis=1)
+
     def show(ax, data, **kw):
         # interpolation="none": the PDF carries the data pixels unsampled.
-        ax.imshow(data, interpolation="none", aspect="equal", **kw)
+        ax.imshow(print_res(data), interpolation="none", aspect="equal", **kw)
         ax.set_xticks([]); ax.set_yticks([])
 
     out_base = Path(out)
@@ -366,7 +380,7 @@ def render_freq_recon_grid(
         for c_idx, name in enumerate(methods_list, start=1):
             ax = add_cell(fig_f, fig_hf, c_idx, y)
             put_header(fig_f, ax, headers[c_idx], header_colors[c_idx])
-            last_im = ax.imshow(log_freq[name], cmap="viridis", vmin=zmin, vmax=zmax,
+            last_im = ax.imshow(print_res(log_freq[name]), cmap="viridis", vmin=zmin, vmax=zmax,
                                 interpolation="none", aspect="equal")
             ax.set_xticks([]); ax.set_yticks([])
 

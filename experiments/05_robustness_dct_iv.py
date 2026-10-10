@@ -205,7 +205,9 @@ def render_fig_init_loss(ss: dict, out_stem: Path = FIG_INIT_LOSS) -> Path:
     ax.set_ylabel("top-$k$ truncation loss $\\mathcal{L}_k$\n(training batch)")
     ax.set_xticks(xs)
     ax.set_xticklabels([f"{v:g}" for v in xs])
-    ax.grid(True, which="both", ls=":", lw=0.4 * _K, alpha=0.5)
+    # Not scaled by _K: at 0.4 * _K the grid printed at 0.26 pt, under QMI's
+    # 0.3 pt minimum line width. 0.4 pt matches Fig 10a beside it.
+    ax.grid(True, which="both", ls=":", lw=0.4, alpha=0.5)
     # Loss ticks every 200, as the committed figure has them.
     ax.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(200))
     # Above the axes, matching Fig 10a beside it.
