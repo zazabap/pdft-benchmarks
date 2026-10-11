@@ -1,0 +1,48 @@
+cff-version: 1.2.0
+message: "If you use these benchmarks, please cite them using the metadata below."
+type: software
+title: "pdft-benchmarks: reproduction suite for Fast Trainable Multilinear Bases for Image Compression"
+abstract: >-
+  Benchmarks and reproduction scripts for the paper's trainable tensor-network
+  image bases: the trained bases, per-image evaluation records, and one section
+  script per paper section that re-renders and verifies every table and figure
+  (Quick Draw and DIV2K basis comparisons, rate-distortion under a common codec,
+  and the training- and initialization-robustness appendices).
+authors:
+  - family-names: An
+    given-names: Shiwen
+    orcid: "https://orcid.org/0000-0002-4727-2906"
+    affiliation: "Institute of Science Tokyo"
+  - family-names: Ni
+    given-names: Zhongyi
+    affiliation: "The Hong Kong University of Science and Technology (Guangzhou)"
+  - family-names: Zhou
+    given-names: Huanhai
+    affiliation: "The Hong Kong University of Science and Technology (Guangzhou)"
+  - family-names: Liu
+    given-names: Jin-Guo
+    orcid: "https://orcid.org/0000-0003-1635-2679"
+    affiliation: "The Hong Kong University of Science and Technology (Guangzhou)"
+license: MIT
+repository-code: "https://github.com/zazabap/pdft-benchmarks"
+keywords:
+  - quantum Fourier transform
+  - tensor networks
+  - Riemannian optimization
+  - image compression
+  - benchmarks
+references:
+  - type: software
+    title: "pdft: learning parametric quantum Fourier transforms via manifold optimization"
+    authors:
+      - family-names: An
+        given-names: Shiwen
+      - family-names: Ni
+        given-names: Zhongyi
+      - family-names: Zhou
+        given-names: Huanhai
+      - family-names: Liu
+        given-names: Jin-Guo
+    version: 0.3.0
+    doi: 10.5281/zenodo.23296618
+    repository-code: "https://github.com/zazabap/pdft"

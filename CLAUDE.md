@@ -31,8 +31,10 @@ runs `--retrain` first. No section script imports another.
 Render logic shared by more than one section script lives alongside them, not
 in a separate renderer subpackage:
 
-- `experiments/_paper_style.py` — shared matplotlib rcParams (serif,
-  Computer-Modern mathtext, `PAPER_TEXTWIDTH`/`PAPER_COLUMNWIDTH`).
+- `experiments/_paper_style.py` — shared matplotlib rcParams (TeX Gyre
+  Heros sans serif at 8-8.5 pt, mathtext on the same face, exact-width
+  output; `PAPER_TEXTWIDTH`/`PAPER_COLUMNWIDTH` are the sn-jnl iicol
+  6.30 in / 2.99 in). Renderers author at the printed width.
 - `experiments/_paper_table.py` — the Table 3 renderer (`write_paper_table`),
   shared by `01`/`02`.
 - `experiments/_freq_recon.py` — the Fig 5 grid renderer, shared by `01`/`02`.

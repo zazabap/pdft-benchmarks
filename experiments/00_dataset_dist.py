@@ -11,10 +11,9 @@ of the paper's figures/benchmarks/ar1_histogram.pdf) and using this repo's
 `pdft_benchmarks.datasets` loaders directly (no sys.path shim into a sibling
 checkout -- they're already installed here). The original script's colors
 (labelled "Wong-style" there but actually ColorBrewer Dark2 hex codes) are
-kept as-is; this script does not call `_paper_style.apply_paper_style()` or
-`pdft_benchmarks.plots.style.set_paper_rcparams()` because the source script
-called neither -- only `save_figure()` is reused, purely for the repo's PDF+
-SVG dual-save convention (I/O only, no rcParams changed).
+kept as-is. Lettering follows `_paper_style.apply_paper_style()` (sans serif,
+8-8.5 pt), and the figure is authored at the paper's column width, where it is
+printed, so those sizes are the printed sizes.
 
 The source script also emits an appendix companion,
 `ar1_histogram_tuberlin.pdf` (DIV2K + Quick Draw + TU-Berlin), guarded by a
@@ -39,6 +38,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # for _paper_style
+from _paper_style import PAPER_COLUMNWIDTH, apply_paper_style  # noqa: E402
 from pdft_benchmarks.datasets import load_div2k, load_quickdraw  # noqa: E402
 from pdft_benchmarks.plots.style import save_figure  # noqa: E402
 
@@ -97,11 +98,13 @@ def _plot(rho: dict[str, np.ndarray], out_stem: Path = FIG_OUT) -> list[Path]:
     series = [("Quick Draw", rho["Quick Draw"], QUICKDRAW_C),
               ("DIV2K", rho["DIV2K"], DIV2K_C)]
 
-    fig, ax = plt.subplots(figsize=(5.0, 2.7))
+    apply_paper_style()
+    # Printed at \columnwidth (fig:ar1_histogram).
+    fig, ax = plt.subplots(figsize=(PAPER_COLUMNWIDTH, 1.95), layout="constrained")
     bins = np.linspace(0.4, 1.0, 25)
     for label, r, color in series:
         ax.hist(r, bins=bins, alpha=0.6, color=color,
-                 label=f"{label}  ($L={len(r)}$)", edgecolor="white",
+                 label=f"{label}\n($L={len(r)}$)", edgecolor="white",
                  linewidth=0.4)
     ax.set_xlim(0.4, 1.0)
     ymax = ax.get_ylim()[1]
@@ -111,12 +114,13 @@ def _plot(rho: dict[str, np.ndarray], out_stem: Path = FIG_OUT) -> list[Path]:
         ax.axvline(mu, color=color, linestyle="--", linewidth=1.6, zorder=5)
     ax.set_xlabel(r"empirical lag-1 autocorrelation $\hat{\rho}_{\mathrm{AR}}$")
     ax.set_ylabel("number of training images")
-    ax.legend(loc="upper left", frameon=False, fontsize=9)
+    # Two-line entries keep the legend inside the empty rho < 0.62 band.
+    ax.legend(loc="upper left", frameon=False, handlelength=1.2,
+              handletextpad=0.5, labelspacing=0.6, borderaxespad=0.2)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    fig.tight_layout()
 
-    written = save_figure(fig, out_stem)
+    written = save_figure(fig, out_stem, bbox_inches=None)
     plt.close(fig)
     print(f"[render] wrote {out_stem}.{{pdf,svg}}")
     return written

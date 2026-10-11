@@ -72,7 +72,15 @@ DIV2K_DATA_ROOT = Path("/home/claude-user/ParametricDFT-Benchmarks.jl/data/DIV2K
 # script — Fig 5's shared renderers live in the _paper_table/_freq_recon
 # helpers instead).
 # ===========================================================================
-from pdft_benchmarks.plots.style import WONG, save_figure, set_paper_rcparams  # noqa: E402
+from pdft_benchmarks.plots.style import WONG, save_figure  # noqa: E402
+from _paper_style import PAPER_TEXTWIDTH, apply_paper_style  # noqa: E402
+
+# Fig 4a is printed at 0.49\textwidth (a subfigure beside 03's Fig 4b) and is
+# authored at that width, so its lettering prints at the _paper_style sizes.
+FIG4_SIZE = (0.49 * PAPER_TEXTWIDTH, 2.55)
+# Line and marker weights from the earlier 3.9 in canvas, scaled to keep the
+# printed geometry it had at this width.
+_K = FIG4_SIZE[0] / 3.9
 
 # (basis key, pretty label, Wong colour, line style, marker). Ordering places
 # each near-coincident pair adjacently so the legend reads the collapse.
@@ -117,20 +125,21 @@ def render_fig4_topology_loss(by_basis: Path = BY_BASIS,
     bases, read from the same seed-42 run series that produces the DIV2K
     table. Writes <write_base>/figures/topology_loss_curve.{pdf,svg}. Returns
     (pdf_path, {label: final_val_mse})."""
-    set_paper_rcparams()
+    apply_paper_style()
 
     fig, (hi, lo) = plt.subplots(
-        2, 1, sharex=True, figsize=(3.9, 3.0),
-        gridspec_kw=dict(height_ratios=[1, 1.15], hspace=0.08))
+        2, 1, sharex=True, figsize=FIG4_SIZE, layout="constrained",
+        gridspec_kw=dict(height_ratios=[1, 1.15]))
+    fig.get_layout_engine().set(hspace=0.0, h_pad=0.03, w_pad=0.02)
 
     finals: dict[str, float] = {}
     for basis, label, color, ls, mk in TOPOLOGY_SERIES:
         x, val = _load_topology_val(basis, by_basis)
         finals[label] = float(val[-1])
         for a in (hi, lo):
-            a.plot(x, val, color=color, linestyle=ls, linewidth=1.8,
-                   marker=mk, markersize=4, markevery=14, markeredgecolor="white",
-                   markeredgewidth=0.4, label=label if a is hi else None, zorder=3)
+            a.plot(x, val, color=color, linestyle=ls, linewidth=1.8 * _K,
+                   marker=mk, markersize=4 * _K, markevery=14, markeredgecolor="white",
+                   markeredgewidth=0.4 * _K, label=label if a is hi else None, zorder=3)
 
     for label, v in finals.items():
         print(f"[fig4] {label:14s} final val MSE = {v:.1f}")
@@ -143,31 +152,28 @@ def render_fig4_topology_loss(by_basis: Path = BY_BASIS,
     # Drop the spines facing the break, then mark it with the usual diagonals.
     hi.spines["bottom"].set_visible(False)
     lo.spines["top"].set_visible(False)
-    hi.tick_params(bottom=False, labelsize=8.5)
-    lo.tick_params(labelsize=8.5)
-    brk = dict(marker=[(-1, -0.5), (1, 0.5)], markersize=3.6, linestyle="none",
-               color="k", mec="k", mew=0.8, clip_on=False)
+    hi.tick_params(bottom=False)
+    brk = dict(marker=[(-1, -0.5), (1, 0.5)], markersize=3.6 * _K, linestyle="none",
+               color="k", mec="k", mew=0.8 * _K, clip_on=False)
     hi.plot([0, 1], [0, 0], transform=hi.transAxes, **brk)
     lo.plot([0, 1], [1, 1], transform=lo.transAxes, **brk)
 
     for a in (hi, lo):
-        a.grid(alpha=0.25, linewidth=0.5)
+        a.grid(alpha=0.25, linewidth=0.5 * _K)
         for sp in a.spines.values():
-            sp.set_linewidth(0.8)
+            sp.set_linewidth(0.8 * _K)
 
-    lo.set_xlabel("training step", fontsize=9.5)
+    lo.set_xlabel("training step")
     lo.set_xlim(0, 1010)
-    hi.legend(fontsize=8, frameon=False, loc="upper right",
-              handlelength=2.2, labelspacing=0.22, borderaxespad=0.2)
-    fig.tight_layout(pad=0.4)
-    fig.subplots_adjust(left=0.135, right=0.955, top=0.985, bottom=0.145)
-    fig.text(0.008, 0.55, "validation loss", rotation=90, va="center",
-             ha="left", fontsize=9.5)
+    hi.legend(frameon=False, loc="upper right",
+              handlelength=2.2, labelspacing=0.12, borderaxespad=0.1)
+    fig.supylabel("validation loss")
 
     figdir = write_base / "figures"
     figdir.mkdir(parents=True, exist_ok=True)
     pdf = figdir / "topology_loss_curve.pdf"
-    # Full-canvas save (no tight crop) so this box matches 03's Fig 4b twin.
+    # Full-canvas save (no tight crop): the page is FIG4_SIZE, matching 03's
+    # Fig 4b twin.
     save_figure(fig, pdf, bbox_inches=None)
     plt.close(fig)
     print(f"[render] wrote {pdf} (+ .svg)")
