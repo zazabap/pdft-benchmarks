@@ -24,10 +24,12 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
-    # The compression task moved from pdft.io to pdft.tasks and the fused Adam
-    # step takes an objective (pdft PR #61); pin the commit that has both until
-    # it is tagged.
-    "pdft @ git+https://github.com/zazabap/pdft.git@480110da4fd5a24780b0e6bfb260237641320ae9",
+    # pdft v0.3.0 is the first release with the tasks package and the fused
+    # Adam step's objective (pdft PR #61); it is archived on Zenodo
+    # (10.5281/zenodo.23296618). Its code is identical to the PR #61 head
+    # (480110d) that the committed results were produced with, apart from the
+    # version string.
+    "pdft @ git+https://github.com/zazabap/pdft.git@v0.3.0",
     "numpy>=1.26",
     "scipy>=1.11",
     "matplotlib>=3.7",
@@ -39,7 +41,7 @@ dependencies = [
 [project.optional-dependencies]
 bench = []
 gpu = [
-    "pdft[gpu] @ git+https://github.com/zazabap/pdft.git@480110da4fd5a24780b0e6bfb260237641320ae9",
+    "pdft[gpu] @ git+https://github.com/zazabap/pdft.git@v0.3.0",
 ]
 dev = [
     "pytest>=8.0",
